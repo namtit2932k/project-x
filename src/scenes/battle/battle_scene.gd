@@ -21,7 +21,6 @@ var _objective_label: Label
 var _info_label: Label
 var _hint_label: Label
 var _action_menu: VBoxContainer
-var _forecast_panel: PanelContainer
 var _combat_layer: CanvasLayer
 var _rewind_button: Button
 var _end_turn_button: Button
@@ -53,7 +52,7 @@ func _build_ui() -> void:
 	_info_label.position = Vector2(24, 920)
 	_info_label.size = Vector2(700, 60)
 
-	_hint_label = UIBuilder.label(_ui_root(), "Left click: select / move / confirm   -   Right click: cancel", 26)
+	_hint_label = UIBuilder.label(_ui_root(), "Click unit: move range - click red enemy: auto battle - after move: click again / else / right-click = Wait", 24)
 	_hint_label.position = Vector2(560, 60)
 
 	_end_turn_button = UIBuilder.button(_ui_root(), "End phase", 22)
@@ -72,11 +71,7 @@ func _build_ui() -> void:
 	_action_menu.visible = false
 	_ui_root().add_child(_action_menu)
 
-	_forecast_panel = PanelContainer.new()
-	_forecast_panel.visible = false
-	_forecast_panel.position = Vector2(1400, 300)
-	_forecast_panel.custom_minimum_size = Vector2(480, 240)
-	_ui_root().add_child(_forecast_panel)
+
 
 
 func _canvas() -> CanvasLayer:
@@ -136,8 +131,15 @@ func _on_left_click(cell: Vector2i) -> void:
 			if unit != null:
 				_select_unit(unit)
 		Mode.UNIT_SELECTED:
+			# Click địch trong ô đỏ (tính từ vị trí hiện tại) = vào màn giao chiến ngay.
+			var standing_target := _target_at(cell)
+			if standing_target != "":
+				_commit_attack(standing_target)
+				return
 			var sel := _selected()
 			if unit != null and unit.id == selected_unit_id:
+				if sel != null and sel.moved:
+					_do_wait()   # click lại chính mình sau khi đã move = chốt hành động
 				return
 			if sel != null and sel.faction_id in director.player_factions and not sel.acted and not sel.moved:
 				var move_cells := MovementHandler.compute_move_cells(director.state, sel)
@@ -149,14 +151,23 @@ func _on_left_click(cell: Vector2i) -> void:
 			else:
 				_cancel_selection()
 		Mode.TARGET_SELECT:
+			# Sau khi move: chỉ hiển thị ô đỏ; click địch = đánh, click ô khác = kết thúc hành động.
 			var target_id := _target_at(cell)
 			if target_id != "":
-				_show_forecast(target_id)
-			else:
-				_cancel_selection()
+				_commit_attack(target_id)
+				return
+			var sel2 := _selected()
+			if sel2 != null and sel2.moved:
+				_do_wait()
+				return
+			_cancel_selection()
 
 
 func _on_right_click(cell: Vector2i) -> void:
+	var sel := _selected()
+	if sel != null and sel.moved and not sel.acted and mode != Mode.BUSY:
+		_do_wait()   # right click sau khi move = chốt Wait
+		return
 	_cancel_selection()
 
 
@@ -167,7 +178,6 @@ func _cancel_selection() -> void:
 	selected_unit_id = ""
 	active_targets.clear()
 	_hide_action_menu()
-	_hide_forecast()
 	_refresh_overlays()
 
 
@@ -179,11 +189,28 @@ func _selected() -> UnitState:
 
 func _select_unit(unit: UnitState) -> void:
 	selected_unit_id = unit.id
-	mode = Mode.UNIT_SELECTED if unit.faction_id in director.player_factions and not unit.acted and director.state.phase == BattleState.PHASE_PLAYER else Mode.IDLE
-	# Any unit selection shows its ranges (brief: player, enemy and NPC selectable).
+	active_targets.clear()
+	if unit.faction_id in director.player_factions and not unit.acted and director.state.phase == BattleState.PHASE_PLAYER:
+		# Targets tính từ vị trí hiện tại; unit đã move (đang chờ hành động) vào TARGET_SELECT luôn.
+		active_targets = _compute_targets_for(director.state, unit)
+		mode = Mode.TARGET_SELECT if unit.moved else Mode.UNIT_SELECTED
+		_show_action_menu(unit)
+	else:
+		mode = Mode.IDLE
 	_refresh_overlays()
-	_show_action_menu(unit)
 	_update_hover_info()
+
+
+## Targets hợp lệ của unit tại vị trí hiện tại (carrier move-only => không có target).
+func _compute_targets_for(state: BattleState, unit: UnitState) -> Dictionary:
+	if not _move_only_constraint(unit).is_empty():
+		return {}
+	var reach := MovementHandler.compute_move_cells(state, unit)
+	reach[unit.pos] = 0.0
+	var out := {}
+	for target_id in RangeHandler.compute_targets(state, unit, reach):
+		out[target_id] = state.units[target_id].pos
+	return out
 
 
 func _commit_move(cell: Vector2i) -> void:
@@ -193,9 +220,8 @@ func _commit_move(cell: Vector2i) -> void:
 		return
 	mode = Mode.BUSY
 	if director.commit("move", {"unit_id": sel.id, "cell": cell}):
-		mode = Mode.UNIT_SELECTED
+		_enter_target_select()   # move xong: chỉ còn ô đỏ tầm đánh
 		_refresh_overlays()
-		_show_action_menu(sel)
 	else:
 		mode = Mode.IDLE
 	_refresh_rewind_button()
@@ -205,19 +231,18 @@ func _show_action_menu(unit: UnitState) -> void:
 	_hide_action_menu()
 	if unit.faction_id not in director.player_factions or unit.acted or director.state.phase != BattleState.PHASE_PLAYER:
 		return
-	var constraint := _move_only_constraint(unit)
-	_action_menu.visible = true
-	_action_menu.position = map_view.cell_to_global(unit.pos) + Vector2(30, -60)
-	if constraint.is_empty() and _has_targets(unit):
-		var atk := UIBuilder.button(_action_menu, "Attack", 18)
-		atk.pressed.connect(func() -> void: _enter_target_select())
+	# Không còn nút Attack/Wait: click địch trong ô đỏ để đánh, click lại (hoặc ô khác/
+	# right click) sau khi move để hoàn tác hành động bằng Wait. Menu chỉ còn skill.
 	for skill_id in unit.skill_ids:
+		var skill := DataRegistry.get_data("skills", skill_id)
+		if skill == null or _find_skill_target(unit, skill) == null:
+			continue
 		var sk := UIBuilder.button(_action_menu, "skill: " + skill_id, 16)
 		sk.pressed.connect(func() -> void: _use_skill(skill_id))
-	if not unit.skill_ids.is_empty() and _has_skill_targets(unit):
-		pass
-	var wait := UIBuilder.button(_action_menu, "Wait", 18)
-	wait.pressed.connect(func() -> void: _do_wait())
+	if _action_menu.get_child_count() == 0:
+		return
+	_action_menu.visible = true
+	_action_menu.position = map_view.cell_to_global(unit.pos) + Vector2(30, -60)
 
 
 func _move_only_constraint(unit: UnitState) -> Dictionary:
@@ -230,16 +255,10 @@ func _move_only_constraint(unit: UnitState) -> Dictionary:
 
 
 func _enter_target_select() -> void:
-	_hide_forecast()
 	var sel := _selected()
 	if sel == null:
 		return
-	active_targets.clear()
-	var unit: UnitState = director.state.units[sel.id]
-	var reach := MovementHandler.compute_move_cells(director.state, unit)
-	reach[unit.pos] = 0.0
-	for target_id in RangeHandler.compute_targets(director.state, unit, reach):
-		active_targets[target_id] = director.state.units[target_id].pos
+	active_targets = _compute_targets_for(director.state, _selected())
 	mode = Mode.TARGET_SELECT
 
 
@@ -286,55 +305,19 @@ func _find_skill_target(unit: UnitState, skill: Resource) -> UnitState:
 	return best
 
 
-func _has_targets(unit: UnitState) -> bool:
-	var reach := MovementHandler.compute_move_cells(director.state, unit)
-	reach[unit.pos] = 0.0
-	return not RangeHandler.compute_targets(director.state, unit, reach).is_empty()
 
-
-func _has_skill_targets(unit: UnitState) -> bool:
-	var skill := DataRegistry.get_data("skills", unit.skill_ids[0]) if not unit.skill_ids.is_empty() else null
-	return skill != null and _find_skill_target(unit, skill) != null
-
-
-# ------------------------------------------------------------------ forecast
 
 var _last_strikes: Array = []
-var _forecast_active := false
 
 
-func _show_forecast(target_id: String) -> void:
-	var sel := _selected()
-	var target: UnitState = director.state.units[target_id]
-	var f := CombatResolver.forecast(director.state, sel, target)
-	for child in _forecast_panel.get_children():
-		child.queue_free()
-	var v := UIBuilder.vbox(_forecast_panel, 4)
-	UIBuilder.label(v, "Forecast: %s  vs  %s" % [sel.display_name, target.display_name], 18)
-	var a0: Dictionary = f["sequence"][0]
-	UIBuilder.label(v, "%s: %d dmg  %d%% hit  %d%% crit" % [sel.display_name, int(a0["damage"]), int(a0["hit_pct"]), int(a0["crit_pct"])], 16)
-	if bool(f["can_counter"]):
-		var a1: Dictionary = f["sequence"][1]
-		UIBuilder.label(v, "counter: %d dmg  %d%% hit  %d%% crit" % [int(a1["damage"]), int(a1["hit_pct"]), int(a1["crit_pct"])], 16)
-	var row := HBoxContainer.new()
-	v.add_child(row)
-	var ok := UIBuilder.button(row, "Confirm", 18)
-	var cancel := UIBuilder.button(row, "Cancel", 18)
-	_forecast_panel.visible = true
-	ok.pressed.connect(func() -> void: _commit_attack(target_id))
-	cancel.pressed.connect(func() -> void:
-		_hide_forecast()
-		mode = Mode.TARGET_SELECT)
-
-
-func _hide_forecast() -> void:
-	_forecast_panel.visible = false
-
-
+## Click địch trong ô đỏ = vào màn giao chiến ngay (theo luồng tương tác chốt);
+## CombatResolver vẫn là nguồn tính duy nhất, state HP đã cập nhật ngay tại commit.
 func _commit_attack(target_id: String) -> void:
 	var sel := _selected()
+	if sel == null or sel.carried_item != "":   # carrier GetData move-only
+		return
 	mode = Mode.BUSY
-	_hide_forecast()
+	_hide_action_menu()
 	_last_strikes.clear()
 	director.commit("attack", {"unit_id": sel.id, "target_id": target_id})
 	await _play_combat(_last_strikes.duplicate(true))
@@ -532,7 +515,7 @@ func _finish_action() -> void:
 	active_targets.clear()
 	mode = Mode.IDLE
 	_hide_action_menu()
-	_hide_forecast()
+	map_view.queue_redraw()   # HP/acted cập nhật ngay trên bản đồ sau khi màn giao chiến đóng
 	_refresh_overlays()
 	_refresh_rewind_button()
 	if not director.state.battle_over.is_empty():

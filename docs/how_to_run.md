@@ -21,9 +21,11 @@ godot --headless --path . --quit-after 5   # boot check (no rendering)
 ## Mouse controls (battle)
 
 - Left click: select unit (any faction shows its ranges) / move to a highlighted move cell.
-- After moving: action menu at the unit (Attack / Wait / skills like Heal).
-- Attack: click a highlighted target -> forecast panel (damage / hit% / crit% / counter) -> Confirm.
-- Right click: cancel current selection/step.
+- After moving: only the red attack range shows (melee = 1 tile; ranged classes reach further per ClassDef).
+- Attack: click an enemy on a red tile — the combat screen plays immediately, HP updates on the map when it closes.
+- Wait (after moving): click the unit again, click any non-target tile, or right click.
+- Skill: action-menu button when the unit has one (e.g. Heal).
+- Right click (before moving): cancel current selection/step.
 - **End phase** button: hands over to enemy -> NPC phases, then next turn.
 - **Rewind** button: restores the last confirmed-action snapshot (costs one use; budget by difficulty: story ∞, normal 5, hard 3, nightmare 0).
 

@@ -1,5 +1,11 @@
 # Technical decisions (Milestone 1)
 
+## Từ bỏ forecast panel theo yêu cầu UX (phiên mới nhất)
+- Luồng tương tác chốt: move → chỉ hiển thị **ô đỏ tầm đánh** (cận chiến 1 ô, đánh xa xa hơn theo `ClassDef.range`); **không còn nút Attack/Wait**; click địch trong ô đỏ → màn giao chiến chơi ngay (CombatResolver vẫn là nguồn tính duy nhất, state HP cập nhật tại commit); click lại chính unit / ô khác / right-click sau move = chốt **Wait**.
+- Forecast panel bị bỏ khỏi UI — nếu designer muốn lại bước "dự báo → xác nhận", `CombatResolver.forecast()` vẫn sẵn sàng (preview = dry-run), chỉ cần nối lại panel.
+
+
+
 ## Schema hội đồng (phiên 2 — theo đề xuất kiến trúc của designer/coder brief)
 
 - **src/battle/ tách đúng thành các thư mục**: `state/` (BattleState, UnitState), `rules/`, `commands/`, `objectives/` (thêm **evacuate**), `ai/` (thêm **NpcAI**: NPC escort đi về đích qua director), `rewind/snapshot_stack.gd` (đổi tên class từ RewindSystem → **SnapshotStack**), `systems/`.

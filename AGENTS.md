@@ -121,6 +121,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
 
+- 2026-10-15 (5) — Buffy (Codebuff) — done: luồng tương tác mới: sau move chỉ hiện ô đỏ tầm đánh (ranged xa hơn theo ClassDef), bỏ nút Attack/Wait (click unit lại / ô khác / right-click sau move = Wait), click địch trong ô đỏ = auto combat screen, HP cập nhật ngay trên map sau màn giao chiến; bỏ forecast panel UI (CombatResolver.forecast vẫn giữ làm dry-run). Tests: 51/51 + smoke 10/10 — commit + push. — in progress: none. — next: event executor, evac map mẫu, CI, level-up growths, retry flow. — issues: none.
+
 - 2026-10-15 (4) — Buffy (Codebuff) — done: bỏ tên làm việc "Ceasefire": chỉ còn "Project X" (README, AGENTS, docs/how_to_run, menu title UI); boot sạch; commit 50c8d0f đã push. — in progress: none. — next: như trước (event executor, evac map mẫu, CI, level-up theo growths). — issues: none.
 
 - 2026-10-15 (3) — Buffy (Codebuff) — done: README.md cho repo công khai; git init + commit đầu (158 files) + push lên origin main (github.com/namtit2932k/project-x). — in progress: none. — next: như phiên trước (event executor, evac map mẫu, level-up theo growths, retry sau thất bại). — issues: none.

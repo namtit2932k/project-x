@@ -20,6 +20,7 @@ func _ready() -> void:
 	await test_main_swap_battle()
 	await test_end_phase_enemy_acts()
 	await test_second_move_blocked()
+	await test_click_attack_auto()
 	print("\n%d checks, %d failures" % [checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -50,7 +51,39 @@ func test_bond_cap() -> void:
 	DataRegistry._cache["bonds"].erase("test_pair_s")
 
 
-## Hồi quy: một unit chỉ di chuyển MỘT lần mỗi phase — move thứ hai bị chặn dù chưa acted.
+## Hồi quy luồng tương tác mới: không có nút Attack/Wait; click địch trong ô đỏ = auto combat.
+func test_click_attack_auto() -> void:
+	GameState.new_game()
+	GameState.build_roster()
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "normal")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	main._swap_to(battle)
+	await get_tree().process_frame
+	var defender := _spawn(director.state, "dummy_foe", "faction_rebel_ch01", map.deploy_cells[0] + Vector2i(1, 0))
+	var combat_calls := [0]
+	EventBus.combat_resolved.connect(func(_s: Array) -> void: combat_calls[0] += 1)
+	var hero: UnitState = director.state.units["unit_swordsman"]
+	battle._on_left_click(hero.pos)                 # select — không có menu Attack/Wait
+	assert_true(battle._action_menu.get_child_count() == 0, "auto combat: no attack/wait buttons in menu")
+	var hp_before: int = defender.hp
+	battle._on_left_click(defender.pos)             # click địch trong ô đỏ → auto battle
+	assert_true(battle.mode == BattleScene.Mode.BUSY, "auto combat: combat screen starts immediately")
+	await get_tree().create_timer(4.0).timeout
+	await get_tree().process_frame
+	assert_true(combat_calls[0] >= 1, "auto combat: resolver strike list was played")
+	assert_true(hero.acted == true, "auto combat: attacker committed after the fight")
+	assert_true(battle.mode == BattleScene.Mode.IDLE, "auto combat: flow returns to idle after combat screen")
+	assert_true(defender.hp <= hp_before and defender.hp >= 0, "auto combat: defender HP updated on the map state")
+	main.queue_free()
+
+
+## Hồi quy: một unit chỉ di chuyển MỘT lần mỗi phase — move thứ hai bị chặn dù chưa acted."
 func test_second_move_blocked() -> void:
 	GameState.new_game()
 	GameState.build_roster()
