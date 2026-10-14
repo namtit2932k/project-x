@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/units/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "unit_knight"
+display_name = "Knight"
+class_id = "class_knight"
+faction_id = "faction_empire"
+portrait = ""
+level = 1
+base_stats = {
+"hp": 26,
+"atk": 7,
+"def": 9,
+"res": 3,
+"skl": 5,
+"spd": 3,
+"mov": 4,
+"crit": 0,
+"hit": 0,
+}
+growths = {
+"hp": 60,
+"atk": 50,
+"def": 40,
+"res": 30,
+"skl": 50,
+"spd": 50,
+}
+skill_ids = []
+is_protagonist = true
+in_roster = true
+bio = "Placeholder bio - see Character.docx."

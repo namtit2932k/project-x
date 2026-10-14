@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/units/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "unit_magic_swordsman"
+display_name = "Magic Swordsman"
+class_id = "class_magic_swordsman"
+faction_id = "faction_kingdom"
+portrait = ""
+level = 1
+base_stats = {
+"hp": 19,
+"atk": 7,
+"def": 4,
+"res": 5,
+"skl": 7,
+"spd": 7,
+"mov": 5,
+"crit": 5,
+"hit": 0,
+}
+growths = {
+"hp": 60,
+"atk": 50,
+"def": 40,
+"res": 30,
+"skl": 50,
+"spd": 50,
+}
+skill_ids = []
+is_protagonist = true
+in_roster = true
+bio = "Placeholder bio - see Character.docx."

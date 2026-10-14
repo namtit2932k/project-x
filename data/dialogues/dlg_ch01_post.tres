@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/dialogues/dialogue_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "dlg_ch01_post"
+display_name = "Ch01 Post"
+lines = Array[Dictionary]([{"speaker": "Swordsman", "text": "[Post-battle placeholder - outcome reads kills and spared count from the battle result.]"}])

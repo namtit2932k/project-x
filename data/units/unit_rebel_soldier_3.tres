@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/units/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "unit_rebel_soldier_3"
+display_name = "Rebel Soldier C"
+class_id = "class_rebel_soldier"
+faction_id = "faction_rebel_ch01"
+portrait = ""
+level = 1
+base_stats = {
+"hp": 18,
+"atk": 5,
+"def": 4,
+"res": 1,
+"skl": 4,
+"spd": 4,
+"mov": 4,
+"crit": 0,
+"hit": 0,
+}
+growths = {
+"hp": 60,
+"atk": 50,
+"def": 40,
+"res": 30,
+"skl": 50,
+"spd": 50,
+}
+skill_ids = []
+is_protagonist = false
+in_roster = false
+bio = "Placeholder bio - see Character.docx."

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "item_border_relic"
+display_name = "Border Relic"
+category = "objective"
+description = "Sample objective relic for retrieve-style maps (placeholder values)."
+weight = 1
+move_penalty = 0

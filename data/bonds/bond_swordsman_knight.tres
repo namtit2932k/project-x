@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BondData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/bonds/bond_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "bond_swordsman_knight"
+unit_a = "unit_swordsman"
+unit_b = "unit_knight"
+scene_thresholds = {
+"C": 20,
+"B": 45,
+"A": 70,
+}
+scene_dialogue_ids = {
+"C": "dlg_bond_swordsman_knight_c",
+}
+s_milestone_chapter_id = "chapter_ch01"

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="BattleClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/classes/class_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "class_assassin"
+display_name = "Assassin"
+faction_id = "faction_kingdom"
+move_type = "foot"
+move_range = 6
+attack_range_min = 1
+attack_range_max = 1
+weapon_type = "physical"
+damage_type = "physical"
+special_action_id = ""
+stat_mods = {
+}
+max_hp = 18
+power = 6
+defense = 3
+resistance = 3
+skill = 9
+speed = 9
+crit_bonus = 25
+hit_bonus = 10

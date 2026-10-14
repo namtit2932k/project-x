@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="BattleClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/classes/class_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "class_lancer"
+display_name = "Lancer"
+faction_id = "faction_empire"
+move_type = "foot"
+move_range = 5
+attack_range_min = 1
+attack_range_max = 1
+weapon_type = "physical"
+damage_type = "physical"
+special_action_id = ""
+stat_mods = {
+}
+max_hp = 20
+power = 7
+defense = 5
+resistance = 2
+skill = 7
+speed = 6
+crit_bonus = 5
+hit_bonus = 0

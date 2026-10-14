@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="FactionData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/factions/faction_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "faction_empire"
+display_name = "Physical Empire"
+remnant_id = ""
+reconcile = {
+"kill_threshold": 4,
+"required_events": Array[String](["spared_commander"]),
+}

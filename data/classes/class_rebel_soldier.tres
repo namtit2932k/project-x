@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="BattleClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/classes/class_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "class_rebel_soldier"
+display_name = "Rebel Soldier"
+faction_id = "faction_rebel_ch01"
+move_type = "foot"
+move_range = 4
+attack_range_min = 1
+attack_range_max = 1
+weapon_type = "physical"
+damage_type = "physical"
+special_action_id = ""
+stat_mods = {
+}
+max_hp = 18
+power = 5
+defense = 4
+resistance = 1
+skill = 4
+speed = 4
+crit_bonus = 0
+hit_bonus = 0

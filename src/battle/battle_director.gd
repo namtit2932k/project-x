@@ -1,0 +1,242 @@
+extends RefCounted
+class_name BattleDirector
+## Orchestrates one battle: applies confirmed commands (with snapshots first), advances
+## phases, runs AI plans, evaluates objectives and the game-over rules. Pure RefCounted;
+## the scene calls it and animates the results.
+
+var state: BattleState
+var rewind: SnapshotStack
+var objectives: Array = []            # Array[ObjectiveBase]
+var rewind_uses_left: int = 0
+var rewind_budget: int = 0            # -1 = unlimited
+
+## Difficulty + player-side factions derived from the protagonist's faction.
+var player_factions: Array = []
+
+
+func setup(p_map: Resource, deploy: Dictionary, difficulty: String) -> void:
+	state = BattleState.new()
+	state.setup(p_map, deploy)
+	rewind = SnapshotStack.new()
+	objectives.clear()
+	for cfg in state.objectives_config:
+		var obj := ObjectiveBase.create(cfg)
+		if obj != null:
+			objectives.append(obj)
+	rewind_budget = SnapshotStack.budget_for_difficulty(difficulty)
+	rewind_uses_left = rewind_budget
+	var prot := state.protagonist()
+	player_factions = [] if prot == null else [prot.faction_id]
+
+
+## Applies one checked player/AI command with a snapshot pushed first.
+func commit(kind: String, payload: Dictionary) -> bool:
+	if not state.battle_over.is_empty():
+		return false
+	push_snapshot(kind)
+	var ok := _apply(kind, payload)
+	if not ok:
+		rewind.frames.pop_back()
+		return false
+	_on_state_changed()
+	return true
+
+
+func _apply(kind: String, payload: Dictionary) -> bool:
+	match kind:
+		"move":
+			var unit: UnitState = state.units[String(payload["unit_id"])]
+			return MoveCommand.apply(state, unit, payload["cell"])
+		"attack":
+			var unit2: UnitState = state.units[String(payload["unit_id"])]
+			return not AttackCommand.apply(state, unit2, String(payload["target_id"])).is_empty()
+		"pickup":
+			var unit3: UnitState = state.units[String(payload["unit_id"])]
+			return PickupCommand.apply(state, unit3)
+		"skill":
+			var unit4: UnitState = state.units[String(payload["unit_id"])]
+			WaitCommand.execute_skill(state, unit4, String(payload["skill_id"]), state.units[String(payload["target_id"])])
+			return true
+		"wait":
+			var unit5: UnitState = state.units[String(payload["unit_id"])]
+			WaitCommand.apply(state, unit5)
+			return true
+		"end_phase":
+			if state.phase == BattleState.PHASE_PLAYER:
+				_emit_phase_event()
+			return _advance_phase()
+		_:
+			push_error("BattleDirector: unknown command kind %s" % kind)
+			return false
+
+
+## AI plays one unit's plan through the same director path (each action = snapshot).
+func commit_ai_plan(plan: Dictionary) -> bool:
+	if plan.is_empty():
+		return false
+	var unit: UnitState = state.units[String(plan["unit_id"])]
+	var move_cell: Variant = plan.get("move_cell", Vector2i(-1, -1))
+	if move_cell is Vector2i and move_cell != unit.pos:
+		commit("move", {"unit_id": unit.id, "cell": move_cell})
+	var target_id := String(plan.get("target_id", ""))
+	if target_id != "" and state.units.has(target_id) and state.units[target_id].alive:
+		return commit("attack", {"unit_id": unit.id, "target_id": target_id})
+	# Không đánh được: approach (hoặc giữ chỗ) vẫn là kết thúc hành động = Wait, unit acted.
+	return commit("wait", {"unit_id": unit.id})
+
+
+## Ends the current player phase (the scene ends enemy/NPC phases via end_phase as well).
+func end_player_phase() -> bool:
+	return commit("end_phase", {})
+
+
+## AI tick: apply one ready enemy plan. Returns false when the enemy phase is over.
+func run_next_enemy_plan() -> Dictionary:
+	if state.phase != BattleState.PHASE_ENEMY:
+		return {}
+	for u in state.alive_units():
+		if u.faction_id not in player_factions and not u.acted:
+			var plan := EnemyAI.plan_unit(state, u, player_factions)
+			if not plan.is_empty():
+				return plan
+	return {}
+
+
+## NPC phase: escort/evacuee actors walk toward their goal tile (NpcAI), never attacking.
+func run_next_npc_plan() -> Dictionary:
+	if state.phase != BattleState.PHASE_NPC:
+		return {}
+	var goals := _npc_goals()
+	var unit: UnitState = null
+	for u in state.alive_units():
+		if state.npc_unit_ids.has(u.id) and not u.acted and goals.has(u.id):
+			unit = u
+			break
+	if unit == null:
+		return {}
+	var plan := NpcAI.plan_walk(state, unit, goals[unit.id])
+	return plan
+
+
+## Active escort goals for NPC actors, straight from objective plugin params.
+func _npc_goals() -> Dictionary:
+	var out := {}
+	for obj in objectives:
+		if obj.identify() == "escort":
+			var npc_id: String = String(obj._params.get("npc_unit_id", ""))
+			if npc_id != "":
+				out[npc_id] = obj.target_cell()
+	return out
+
+
+func clear_acted_flags() -> void:
+	for u in state.units.values():
+		u.acted = false
+		u.moved = false
+
+
+func push_snapshot(label: String) -> void:
+	rewind.push(state, label)
+
+
+## Rewinds to the frame chosen by the player; consumes one use if the budget is finite.
+func use_rewind(frame_index: int) -> bool:
+	if rewind_budget == 0 or not rewind.has_frames():
+		return false
+	if rewind_uses_left <= 0 and rewind_budget > 0:
+		return false
+	rewind.restore_to(state, frame_index)
+	if rewind_budget > 0:
+		rewind_uses_left -= 1
+	_on_state_changed()
+	return true
+
+
+## Recomputes objectives + game-over rules after any state change.
+func _on_state_changed() -> void:
+	_check_deaths()
+	emit_objectives()
+	if state.battle_over.is_empty():
+		_check_battle_end()
+	if not state.battle_over.is_empty():
+		var result: Dictionary = state.battle_over
+		if result.get("status", "") == "win":
+			ReconcileSystem.record_spared_units(state)
+			result["reconcile"] = ReconcileSystem.evaluate(state)
+		ResultStore.last_result = result
+
+
+func _check_deaths() -> void:
+	for u in state.units.values():
+		if not u.alive and not u.death_recorded:
+			u.death_recorded = true
+			if state.reconcile_state.has(u.faction_id):
+				ReconcileSystem.record_kill(state, u)
+	var prot := state.protagonist()
+	if prot != null and not prot.alive and int(DataRegistry.rule("protagonist_death_loses", true)):
+		state.battle_over = {"status": "lose", "reason": "protagonist_down"}
+
+
+func _check_battle_end() -> void:
+	var win := false
+	var lose := false
+	for obj in objectives:
+		var res: Dictionary = obj.evaluate(state)
+		if res["status"] == "win":
+			win = true
+		elif res["status"] == "lose":
+			lose = true
+	var priority := String(state.map.result_priority) if state.map != null else "lose"
+	var status := ""
+	if win and lose:
+		status = "win" if priority == "win" else "lose"
+	elif win:
+		status = "win"
+	elif lose:
+		status = "lose"
+	if status != "":
+		state.battle_over = {"status": status, "results": objective_results()}
+
+
+func objective_results() -> Array:
+	var out: Array = []
+	for obj in objectives:
+		var res: Dictionary = obj.evaluate(state)
+		out.append({"id": obj.identify(), "progress": str(res.get("progress", "")), "status": str(res.get("status", "ongoing"))})
+	return out
+
+
+func emit_objectives() -> void:
+	EventBus.objectives_changed.emit(objective_results())
+
+
+func active_objectives_progress() -> Array:
+	return objective_results()
+
+
+func _advance_phase() -> bool:
+	if state.phase == BattleState.PHASE_PLAYER:
+		state.phase = BattleState.PHASE_ENEMY
+	EventBus.phase_changed.emit(state.phase, state.turn)
+	return true
+
+
+func _emit_phase_event() -> void:
+	for obj in objectives:
+		obj.on_event(state, "player_phase_ended", {})
+
+
+## Called by the scene when the enemy phase finishes: hands over to NPC phase or next turn.
+func advance_after_enemy_phase() -> void:
+	state.phase = BattleState.PHASE_NPC
+	EventBus.phase_changed.emit(state.phase, state.turn)
+
+
+## Called by the scene when the NPC phase finishes: back to player, new turn.
+func advance_to_player_phase() -> void:
+	state.turn += 1
+	state.phase = BattleState.PHASE_PLAYER
+	clear_acted_flags()
+	EventBus.phase_changed.emit(state.phase, state.turn)
+	EventBus.turn_started.emit(state.turn)
+	emit_objectives()
