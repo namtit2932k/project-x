@@ -148,6 +148,10 @@ func _on_left_click(cell: Vector2i) -> void:
 					return
 			if unit != null:
 				_select_unit(unit)
+				# Phân biệt rõ khi người chơi click một địch không nằm trong ô đỏ:
+				# click đó chỉ là xem range, không phải một đợt tấn công.
+				if sel != null and not sel.acted and not active_targets.has(unit.id) and unit.faction_id != sel.faction_id:
+					_info_label.text = "%s is OUT of reach of %s (unit acted? one action per phase — use another unit or Rewind)." % [unit.display_name, sel.display_name]
 			else:
 				_cancel_selection()
 		Mode.TARGET_SELECT:

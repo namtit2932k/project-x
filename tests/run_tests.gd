@@ -21,6 +21,8 @@ func _ready() -> void:
 	await test_end_phase_enemy_acts()
 	await test_second_move_blocked()
 	await test_click_attack_auto()
+	await test_second_target_damage()
+	await test_second_target_via_clicks()
 	print("\n%d checks, %d failures" % [checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -49,6 +51,57 @@ func test_bond_cap() -> void:
 	assert_true(bonus == 16, "bond cap: adjacency bonus capped at +16 (got %d)" % bonus)
 	DataRegistry._cache["bonds"].erase("test_pair_a")
 	DataRegistry._cache["bonds"].erase("test_pair_s")
+
+
+## Không loạn mục tiêu: diệt kẻ 1 xong,CombatResolver phải trừ đúng HP kẻ 2.
+func test_second_target_damage() -> void:
+	var state: BattleState = _plain_map_enemy_state()
+	var attacker := _spawn(state, "atk", "faction_p", Vector2i(0, 0))
+	var e1 := _spawn(state, "e1", "faction_e", Vector2i(1, 0))
+	e1.hp = 1; e1.speed = 0
+	var e2 := _spawn(state, "e2", "faction_e", Vector2i(0, 1))
+	e2.speed = 0
+	CombatResolver.execute(state, attacker, e1)
+	assert_true(not e1.alive and e1.hp == 0, "multi target: first foe dies")
+	var e2_before: int = e2.hp
+	CombatResolver.execute(state, attacker, e2)
+	assert_true(e2.hp < e2_before, "multi target: second foe takes damage (hp %d -> %d)" % [e2_before, e2.hp])
+	assert_true(e2.hp > 0 or not e2.alive, "multi target: no cross-target bleeding")
+
+
+## Kịch bản người dùng: diệt kẻ 1 bằng hero 1, rồi hero 2 click kẻ 2 phải combat và trừ đúng HP.
+func test_second_target_via_clicks() -> void:
+	GameState.new_game()
+	GameState.build_roster()
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	main._swap_to(battle)
+	await get_tree().process_frame
+	var hero1: UnitState = director.state.units["unit_swordsman"]
+	var hero2: UnitState = director.state.units["unit_knight"]
+	var e1: UnitState = _spawn(director.state, "foe1", "faction_rebel_ch01", hero1.pos + Vector2i(0, -1))
+	e1.hp = 1; e1.speed = 0
+	var e2: UnitState = _spawn(director.state, "foe2", "faction_rebel_ch01", hero2.pos + Vector2i(0, -1))
+	e2.speed = 0
+	var e2_before: int = e2.hp
+	battle._on_left_click(hero1.pos)
+	battle._on_left_click(e1.pos)
+	await get_tree().create_timer(4.0).timeout
+	await get_tree().process_frame
+	assert_true(not e1.alive, "second target: first foe killed via clicks")
+	battle._on_left_click(hero2.pos)
+	battle._on_left_click(e2.pos)
+	await get_tree().create_timer(4.0).timeout
+	await get_tree().process_frame
+	assert_true(e2.hp < e2_before, "second target: second foe takes damage via clicks (hp %d -> %d)" % [e2_before, e2.hp])
+	assert_true(hero2.acted == true, "second target: second attacker committed")
+	main.queue_free()
 
 
 ## Hồi quy luồng tương tác mới: không có nút Attack/Wait; click địch trong ô đỏ = auto combat.
