@@ -179,6 +179,12 @@ func protagonist() -> UnitState:
 	return null
 
 
+## All campaign-critical units on this map (D02): the protagonist plus every must_survive
+## flag; the death of any one of them ends the battle immediately (protagonist_death_loses).
+func critical_units() -> Array:
+	return units.values().filter(func(u: UnitState) -> bool: return u.is_protagonist or u.must_survive)
+
+
 ## Snapshot serialization keeps positions, HP, turn, phase, items, objectives, bond and
 ## reconcile state so rewind restores a truthful mid-battle point.
 func to_dict() -> Dictionary:
@@ -194,7 +200,6 @@ func to_dict() -> Dictionary:
 		"reconcile_state": _deep_copy(reconcile_state),
 		"item_ground": _deep_copy(item_ground),
 		"rng_seed": rng_seed,
-		"rng_state": _rng.state,
 	}
 
 
@@ -206,14 +211,10 @@ func from_dict(d: Dictionary) -> void:
 	bond_points = _deep_copy(d.get("bond_points", {}))
 	reconcile_state = _deep_copy(d.get("reconcile_state", {}))
 	item_ground = _deep_copy(d.get("item_ground", {}))
+	# RNG state is NOT snapshot-restored (D04/N04): a rewind continues the same random
+	# sequence, so replaying the same actions after a rewind gives different rolls.
 	var seeds := int(d.get("rng_seed", rng_seed))
 	rng_seed = seeds
-	# Restoring the full generator state resumes the same roll sequence; reseeding from
-	# the start seed would replay rolls from the battle's very first action instead.
-	if d.has("rng_state"):
-		_rng.state = int(d["rng_state"])
-	else:
-		_rng.seed = rng_seed
 	var units_dict: Dictionary = d.get("units", {})
 	for unit_id in units_dict:
 		if units.has(unit_id):

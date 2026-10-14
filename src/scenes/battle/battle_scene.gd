@@ -478,6 +478,7 @@ func _check_battle_over() -> void:
 
 
 func _show_result_banner() -> void:
+	var is_win: bool = director.state.battle_over.get("status", "") == "win"
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var bg := ColorRect.new()
@@ -489,11 +490,25 @@ func _show_result_banner() -> void:
 	layer.add_child(overlay)
 	var v := UIBuilder.vbox(overlay, 20)
 	v.set_anchors_preset(Control.PRESET_CENTER)
-	UIBuilder.label(v, "Victory" if director.state.battle_over.get("status", "") == "win" else "Defeat", 64)
+	UIBuilder.label(v, "Victory" if is_win else "Defeat", 64)
+	# D04: after a defeat the banner carries a Rewind button while uses remain (Nightmare
+	# disables rewind entirely, so the button never shows there). Winning is final.
+	if not is_win and _rewind_available_on_banner():
+		var rw := UIBuilder.button(v, "Rewind", 26)
+		rw.pressed.connect(func() -> void:
+			layer.queue_free()
+			_on_rewind())
 	var cont := UIBuilder.button(v, "Continue", 26)
 	cont.pressed.connect(func() -> void:
 		layer.queue_free()
 		battle_finished.emit(director.state.battle_over.get("status", "lose") == "win"))
+
+
+## A defeat banner can offer Rewind only when the budget allows and a PLAYER frame exists.
+func _rewind_available_on_banner() -> bool:
+	if director.rewind_budget == 0 or director.rewind_uses_left <= 0 and director.rewind_budget > 0:
+		return false
+	return director.rewind.find_last_player_frame() >= 0
 
 
 func _update_hover_info() -> void:

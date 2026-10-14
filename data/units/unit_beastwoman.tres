@@ -30,6 +30,7 @@ growths = {
 "spd": 50,
 }
 skill_ids = []
-is_protagonist = true
+is_protagonist = false
+must_survive = true
 in_roster = true
 bio = "Placeholder bio - see Character.docx."

@@ -8,6 +8,7 @@ var checks: int = 0
 
 func _ready() -> void:
 	await test_movement()
+	await test_critical_units_down()
 	await test_combat_and_forecast()
 	await test_objectives()
 	await test_rewind()
@@ -22,6 +23,7 @@ func _ready() -> void:
 	await test_attack_range_checks()
 	await test_rewind_nested_restore()
 	await test_rewind_player_frame()
+	await test_rewind_rng_not_reset()
 	await test_escort()
 	await test_end_phase_enemy_acts()
 	await test_second_move_blocked()
@@ -221,7 +223,40 @@ func test_prep_scene() -> void:
 	await get_tree().process_frame
 	assert_true(prep._start_button != null, "prep: start button built without errors")
 	assert_true(prep._start_button.disabled == false, "prep: protagonist default deploy keeps start enabled")
+	# D02: protagonist and must_survive units deploy checked + disabled (no manual unlock).
+	assert_true(prep._checks.has("unit_swordsman") and prep._checks["unit_swordsman"].disabled, "prep: protagonist locked in deploy")
+	assert_true(prep._checks.has("unit_beastwoman") and prep._checks["unit_beastwoman"].button_pressed and prep._checks["unit_beastwoman"].disabled, "prep: must_survive unit locked in deploy")
 	prep.queue_free()
+
+
+## N02 (D02): any critical unit down = immediate loss; regular units may fall freely.
+func test_critical_units_down() -> void:
+	await 0.0
+	# Protagonist down loses.
+	var state: BattleState = _plain_map_enemy_state()
+	var director := director_for(state)
+	var hero := _spawn(state, "hero", "faction_p", Vector2i(0, 0), true, false, "player")
+	_spawn(state, "witness", "faction_p", Vector2i(2, 0), false, false, "player")   # waits, alive
+	hero.alive = false
+	director.commit("wait", {"unit_id": "witness"})   # triggers _on_state_changed
+	assert_true(String(state.battle_over.get("status", "")) == "lose", "critical: protagonist down loses")
+	# must_survive down loses.
+	var state2: BattleState = _plain_map_enemy_state()
+	var director2 := director_for(state2)
+	_spawn(state2, "heroine", "faction_p", Vector2i(0, 0), false, false, "player")
+	state2.units["heroine"].must_survive = true
+	_spawn(state2, "guard", "faction_p", Vector2i(1, 0), false, false, "player")
+	state2.units["heroine"].alive = false
+	director2.commit("wait", {"unit_id": "guard"})
+	assert_true(String(state2.battle_over.get("status", "")) == "lose", "critical: must_survive down loses")
+	# Regular units never trigger the loss.
+	var state3: BattleState = _plain_map_enemy_state()
+	var director3 := director_for(state3)
+	_spawn(state3, "guard2", "faction_p", Vector2i(0, 0), false, false, "player")
+	state3.units["guard2"].alive = false
+	_spawn(state3, "witness2", "faction_p", Vector2i(2, 0), false, false, "player")
+	director3.commit("wait", {"unit_id": "witness2"})
+	assert_true(state3.battle_over.is_empty(), "critical: regular unit down does not lose")
 
 
 ## Sơ tán (slide có, PDF chưa có): giữ NPC sống đủ lượt hoặc hạ hết địch; NPC chết là thua.
@@ -447,6 +482,17 @@ func test_rewind_nested_restore() -> void:
 
 ## T03: restoration targets only PLAYER-phase frames; turning to player state pushes a
 ## turn_start frame so rewinding at the top of turn 2 never leaves the battle in NPC phase.
+## N04 (D04): RNG is not snapshot-restored; a rewind continues the same sequence.
+func test_rewind_rng_not_reset() -> void:
+	await 0.0
+	var state: BattleState = _plain_map_enemy_state()
+	var before: Array = [state.rng().randi(), state.rng().randi()]
+	var d := state.to_dict()
+	state.from_dict(d)
+	var after := [state.rng().randi(), state.rng().randi()]
+	assert_true(before != after, "rewind rng: restore does not reset the random sequence")
+
+
 func test_rewind_player_frame() -> void:
 	await 0.0
 	GameState.new_game()

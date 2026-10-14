@@ -43,3 +43,13 @@ func drop_all() -> void:
 static func budget_for_difficulty(difficulty: String) -> int:
 	var uses: Dictionary = DataRegistry.rule("rewind_per_difficulty", {"normal": 5})
 	return int(uses.get(difficulty, 5))
+
+
+## Rewind counting (D04): "per_use" is the official mode - one button press costs one use
+## no matter how many actions it rolls back. Other values stay readable in config but the
+## engine only implements per_use.
+static func rewind_count_mode() -> String:
+	var mode := String(DataRegistry.rule("rewind_count_mode", "per_use"))
+	if mode != "per_use":
+		push_warning("SnapshotStack: rewind_count_mode '%s' has no implementation; per_use used" % mode)
+	return "per_use"

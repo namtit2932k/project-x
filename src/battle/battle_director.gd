@@ -182,6 +182,8 @@ func use_rewind(frame_index: int) -> bool:
 		return false
 	if rewind_uses_left <= 0 and rewind_budget > 0:
 		return false
+	# Clear any previous result first so the restored position is re-evaluated fresh.
+	state.battle_over = {}
 	rewind.restore_to(state, frame_index)
 	if rewind_budget > 0:
 		rewind_uses_left -= 1
@@ -209,9 +211,11 @@ func _check_deaths() -> void:
 			u.death_recorded = true
 			if state.reconcile_state.has(u.faction_id):
 				ReconcileSystem.record_kill(state, u)
-	var prot := state.protagonist()
-	if prot != null and not prot.alive and int(DataRegistry.rule("protagonist_death_loses", true)):
-		state.battle_over = {"status": "lose", "reason": "protagonist_down"}
+	# Any campaign-critical unit down = immediate loss (D02). The rule keeps its old key.
+	if bool(DataRegistry.rule("protagonist_death_loses", true)):
+		for critical in state.critical_units():
+			if not critical.alive:
+				state.battle_over = {"status": "lose", "reason": "critical_unit_down", "unit_id": critical.id}
 
 
 func _check_battle_end() -> void:

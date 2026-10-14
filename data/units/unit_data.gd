@@ -17,6 +17,11 @@ class_name UnitData
 @export var growths: Dictionary = {}
 @export var skill_ids: Array[String] = []
 @export var is_protagonist: bool = false
+## Units the campaign cannot lose (D02): protagonist and, for now, the Beastwoman main heroine.
+## Death of any is_protagonist/must_survive unit ends the battle immediately.
+@export var must_survive: bool = false
+## Reconcile event key recorded when this unit of a remnant faction survives to the end (D03).
+@export var reconcile_event_key: String = ""
 @export var in_roster: bool = true
 ## Short description used in prep/camp UI (from Character.docx; placeholder text fine).
 @export var bio: String = ""

@@ -10,6 +10,10 @@ var faction_id: String = ""
 ## Control side: "player" | "enemy" | "npc". Faction stays as story/reconcile identity
 ## (a mixed squad keeps its lore faction but all its units act on the player side).
 var side: String = "enemy"
+## Campaign-critical flag (D02): copied from UnitData; read via BattleState.critical_units().
+var must_survive: bool = false
+## Reconcile event key on survival (D03), copied from UnitData.
+var reconcile_event_key: String = ""
 var is_protagonist: bool = false
 var level: int = 1
 var exp: int = 0
@@ -50,6 +54,8 @@ static func from_data(unit_res: Resource, cell: Vector2i, level_override: int = 
 	u.class_id = String(unit_res.class_id)
 	u.faction_id = String(unit_res.faction_id)
 	u.is_protagonist = bool(unit_res.is_protagonist)
+	u.must_survive = bool(unit_res.must_survive)
+	u.reconcile_event_key = String(unit_res.reconcile_event_key)
 	u.level = level_override if level_override >= 0 else int(unit_res.level)
 	u.portrait = String(unit_res.portrait)
 	u.sprite = String(unit_res.sprite)
@@ -108,13 +114,15 @@ func to_dict() -> Dictionary:
 	return {
 		"id": id, "side": side, "pos": [pos.x, pos.y], "hp": hp, "max_hp": max_hp,
 		"alive": alive, "acted": acted, "moved": moved, "exp": exp, "carried_item": carried_item,
-		"death_recorded": death_recorded,
+		"death_recorded": death_recorded, "must_survive": must_survive, "reconcile_event_key": reconcile_event_key,
 	}
 
 
 func from_dict(d: Dictionary) -> void:
 	id = String(d.get("id", id))
 	side = String(d.get("side", side))
+	must_survive = bool(d.get("must_survive", must_survive))
+	reconcile_event_key = String(d.get("reconcile_event_key", reconcile_event_key))
 	pos = Vector2i(d.get("pos", [pos.x, pos.y])[0], d.get("pos", [pos.x, pos.y])[1])
 	max_hp = int(d.get("max_hp", max_hp))
 	hp = int(d.get("hp", hp))

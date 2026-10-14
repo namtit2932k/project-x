@@ -185,9 +185,18 @@ func check_chapters() -> void:
 		var c := DataRegistry.get_chapter(id)
 		if DataRegistry.get_map(String(c.map_id)) == null:
 			_err("chapter %s: unknown map %s" % [id, c.map_id])
-		for unit_id in c.deployable_unit_ids:
-			if DataRegistry.get_unit(String(unit_id)) == null:
-				_err("chapter %s: unknown deployable unit %s" % [id, unit_id])
+	# Campaign-critical units (D02) count toward deploy_max; a requirement pile above the
+	# deploy cap makes the chapter literally undeployable.
+	var required_count := 0
+	for unit_id in c.deployable_unit_ids:
+		if DataRegistry.get_unit(String(unit_id)) == null:
+			_err("chapter %s: unknown deployable unit %s" % [id, unit_id])
+			continue
+		var ud_req := DataRegistry.get_unit(String(unit_id))
+		if bool(ud_req.is_protagonist) or bool(ud_req.must_survive):
+			required_count += 1
+	if required_count > int(c.deploy_max):
+		_err("chapter %s: %d required-live units exceed deploy_max %d" % [id, required_count, int(c.deploy_max)])
 		if String(c.story_dialogue_id) != "" and DataRegistry.get_dialogue(String(c.story_dialogue_id)) == null:
 			_err("chapter %s: unknown story dialogue %s" % [id, c.story_dialogue_id])
 		if String(c.post_dialogue_id) != "" and DataRegistry.get_dialogue(String(c.post_dialogue_id)) == null:

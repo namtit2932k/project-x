@@ -42,6 +42,7 @@ func _ready() -> void:
 	var list_panel := UIBuilder.panel(self, 600, 130, 760, 500)
 	var list_box := UIBuilder.vbox(list_panel, 6)
 	UIBuilder.label(list_box, "Deploy (max %d)" % int(_chapter.deploy_max), 22)
+	var locked_any := false
 	for unit_id in _chapter.deployable_unit_ids:
 		var ud := DataRegistry.get_unit(String(unit_id))
 		var entry := HBoxContainer.new()
@@ -53,10 +54,11 @@ func _ready() -> void:
 		var dead: bool = not bool(GameState.roster[unit_id].alive)
 		check.disabled = dead
 		check.toggled.connect(func(_on: bool) -> void: _enforce_count())
-	# Protagonist default deployed:
-	if _checks.has("unit_swordsman"):
-		_checks["unit_swordsman"].button_pressed = true
-		_checks["unit_swordsman"].disabled = true
+		# Campaign-critical units (protagonist / must_survive) deploy locked (D02).
+		if not dead and (bool(ud.is_protagonist) or bool(ud.must_survive)):
+			check.button_pressed = true
+			check.disabled = true
+			locked_any = true
 
 	_start_button = UIBuilder.button(self, "Start battle", 24)
 	_start_button.position = Vector2(600, 680)
