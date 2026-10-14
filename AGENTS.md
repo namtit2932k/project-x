@@ -121,6 +121,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
 
+- 2026-10-15 (4) — Buffy (Codebuff) — done: bỏ tên làm việc "Ceasefire": chỉ còn "Project X" (README, AGENTS, docs/how_to_run, menu title UI); boot sạch; commit 50c8d0f đã push. — in progress: none. — next: như trước (event executor, evac map mẫu, CI, level-up theo growths). — issues: none.
+
 - 2026-10-15 (3) — Buffy (Codebuff) — done: README.md cho repo công khai; git init + commit đầu (158 files) + push lên origin main (github.com/namtit2932k/project-x). — in progress: none. — next: như phiên trước (event executor, evac map mẫu, level-up theo growths, retry sau thất bại). — issues: none.
 
 - 2026-10-15 (2) — Buffy (Codebuff) — done: tái cấu trúc theo schema đề xuất: src/battle/state/ & rewind/snapshot_stack (SnapshotStack); RulesConfig schema (damage_formula_id, rounding, terrain_costs x movement_type, rewind_per_difficulty, rewind_count_mode, casualty_by_difficulty, win_lose_priority); UnitDef (base_stats+growths+portrait/sprite, regen 16 .tres) + ClassDef (weapon_type/special_action_id/stat_mods skeleton); DataRegistry nạp đệ quy; map về data/maps/ch01_border_post/; objective plugin evacuate mới + NpcAI wired vào director/scene; MapDef thêm events[]/fail_conditions[] skeleton + EventDef; data/items/ + ItemData; validator mở rộng theo schema + test bond cap 16 + test evacuate + test terrain costs. Checks: 34/34 rule tests, smoke 10/10, validation 0/0, boot sạch. — in progress: none. — next: damage_formula_id thứ hai (để designer A/B công thức), event executor engine theo EventDef, evac map sample dùng NpcAI, level-up theo growths khi designer chốt.
