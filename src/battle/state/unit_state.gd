@@ -7,6 +7,9 @@ var id: String = ""
 var display_name: String = ""
 var class_id: String = ""
 var faction_id: String = ""
+## Control side: "player" | "enemy" | "npc". Faction stays as story/reconcile identity
+## (a mixed squad keeps its lore faction but all its units act on the player side).
+var side: String = "enemy"
 var is_protagonist: bool = false
 var level: int = 1
 var exp: int = 0
@@ -103,7 +106,7 @@ func heal(amount: int) -> void:
 
 func to_dict() -> Dictionary:
 	return {
-		"id": id, "pos": [pos.x, pos.y], "hp": hp, "max_hp": max_hp,
+		"id": id, "side": side, "pos": [pos.x, pos.y], "hp": hp, "max_hp": max_hp,
 		"alive": alive, "acted": acted, "moved": moved, "exp": exp, "carried_item": carried_item,
 		"death_recorded": death_recorded,
 	}
@@ -111,6 +114,7 @@ func to_dict() -> Dictionary:
 
 func from_dict(d: Dictionary) -> void:
 	id = String(d.get("id", id))
+	side = String(d.get("side", side))
 	pos = Vector2i(d.get("pos", [pos.x, pos.y])[0], d.get("pos", [pos.x, pos.y])[1])
 	max_hp = int(d.get("max_hp", max_hp))
 	hp = int(d.get("hp", hp))

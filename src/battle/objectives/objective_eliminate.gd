@@ -20,11 +20,10 @@ func describe() -> String:
 func evaluate(state: BattleState) -> Dictionary:
 	var targets: Array = _params.get("target_unit_ids", [])
 	if targets.is_empty():
-		# Empty list = every unit not on the player side.
-		var player_sides := _player_faction_ids(state)
+		# Empty list = every enemy-side unit (player squad and npc actors never count).
 		var dynamic: Array = []
 		for u in state.units.values():
-			if not u.alive or u.faction_id in player_sides:
+			if not u.alive or u.side != "enemy":
 				continue
 			dynamic.append(u.id)
 		targets = dynamic
@@ -35,6 +34,7 @@ func evaluate(state: BattleState) -> Dictionary:
 	return {"status": "win", "progress": "All targets defeated"}
 
 
+## (removed _player_faction_ids: control side lives on UnitState.side now)
 static func _alive_count(state: BattleState, targets: Array) -> int:
 	var n := 0
 	for t in targets:
@@ -42,14 +42,3 @@ static func _alive_count(state: BattleState, targets: Array) -> int:
 		if u != null and u.alive:
 			n += 1
 	return n
-
-
-## Player-side faction ids: derived from placements expected to be deployed (protagonist side).
-static func _player_faction_ids(state: BattleState) -> Array:
-	var out := {}
-	var prot := state.protagonist()
-	if prot != null:
-		out[prot.faction_id] = true
-	# Units deployed at deploy cells come from GameState rosters; treat any unit whose faction
-	# matches a roster unit present with pos in map as player-side only via protagonist.
-	return out.keys()

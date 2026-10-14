@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="MapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/maps/map_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "map_sample_escort"
+display_name = "Sample: Valley Escort (NpcAI proof)"
+terrain_rows = Array[String](["............", "...f........", "...f....w...", "........r...", "........r...", "........r...", "...f........", "....f......."])
+deploy_cells = Array[Vector2i]([Vector2i(2, 7), Vector2i(3, 7), Vector2i(4, 7)])
+enemy_placements = Array[Dictionary]([{
+"unit_id": "unit_rebel_soldier_2",
+"cell": Vector2i(9, 2),
+}, {
+"unit_id": "unit_rebel_soldier_3",
+"cell": Vector2i(6, 4),
+}])
+npc_placements = Array[Dictionary]([{
+"unit_id": "unit_healer",
+"cell": Vector2i(0, 0),
+}])
+objectives = Array[Dictionary]([{
+"type": "escort",
+"params": {
+"npc_unit_id": "unit_healer",
+"target_cell_x": 11,
+"target_cell_y": 0,
+},
+}])
+item_placements = Array[Dictionary]([])
+turn_limit = 0
+result_priority = "lose"

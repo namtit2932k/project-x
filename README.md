@@ -56,7 +56,7 @@ godot --headless --path . res://tests/run_tests.tscn         # rule tests (movem
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI end-to-end
 ```
 
-Current: rule tests **45/45**, AI smoke **10/10**, validation **0 errors**.
+Current: rule tests **92/92**, AI smoke **12/12**, validation **0 errors**.
 
 ## Architecture
 
@@ -67,7 +67,8 @@ Everything is engineer/designer separable — see [AGENTS.md](AGENTS.md) for ful
 - **Every confirmed action is a Command** (`move`, `attack`, `wait`, `skill`, `pickup`); a snapshot is pushed before each commit, so rewind = restore to a frame and drop later frames.
 - **Data-driven.** Units, classes, skills, items, maps, objectives, factions, bonds, chapters and dialogue are `.tres` resources with stable ids — new content never requires core code changes.
 - **Objectives are plugins.** Maps declare `{type, params}` only.
-- **TBD numbers live in data** — `data/rules/rules_config.tres` (damage formula id, rounding, terrain costs × movement type, buffer rewind mode, casualty policy). Nothing is hardcoded.
+- **TBD numbers live in data** — `data/rules/rules_config.gd` defaults (damage formula id, rounding, terrain costs × movement type, casualty policy). Nothing is hardcoded.
+- **Sides over factions** — control (`player`/`enemy`/`npc`) is separate from lore `faction_id`, so the mixed Empire+Kingdom squad and remnant reconciliation both work.
 
 ```
 data/        designer-owned content (rules, units, classes, items, skills, maps, factions, bonds, chapters, dialogues)

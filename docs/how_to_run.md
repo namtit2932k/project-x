@@ -27,13 +27,16 @@ godot --headless --path . --quit-after 5   # boot check (no rendering)
 - Skill: action-menu button when the unit has one (e.g. Heal).
 - Right click (before moving): cancel current selection/step.
 - **End phase** button: hands over to enemy -> NPC phases, then next turn.
-- **Rewind** button: restores the last confirmed-action snapshot (costs one use; budget by difficulty: story ∞, normal 5, hard 3, nightmare 0).
+- **Rewind** button: restores the newest valid PLAYER-phase snapshot (turn start after the
+  enemy/NPC bookkeeping; costs one use; budget by difficulty: story ∞, normal 5, hard 3,
+  nightmare 0). Nested state (counters, reconcile kills, bond points, ground items, RNG
+  state) is restored too.
 
 ## Validation & tests (headless)
 
 ```
 godot --headless --path . res://tools/validate_data.tscn    # data validation (0 errors expected)
-godot --headless --path . res://tests/run_tests.tscn        # 24 rule checks (movement/combat/objectives/rewind/reconcile/save)
+godot --headless --path . res://tests/run_tests.tscn        # 92 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/save)
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI, end-to-end through BattleDirector
 ```
 
@@ -41,7 +44,7 @@ godot --headless --path . res://tests/smoke_full_battle.tscn # full battle drive
 
 - New class: copy any `data/classes/*.tres`, change id/stats.
 - New unit: `data/units/*.tres`.
-- New map/objective type combo: `data/maps/*.tres` and declare objectives as `{type, params}` (plugin types: eliminate / escort / defend / retrieve / capture).
+- New map/objective type combo: `data/maps/*.tres` and declare objectives as `{type, params}` (plugin types: eliminate / escort / defend / retrieve / capture / evacuate). See `data/maps/valley_escort/map.tres` for an escort sample where NpcAI walks the escortee.
 - New bond pair: `data/bonds/*.tres` (never inferred — designer list only).
 - New dialogue: `data/dialogues/*.tres` played by `DialoguePlayer`.
 - Balance/TBD numbers: `data/rules/rules_config.tres`.

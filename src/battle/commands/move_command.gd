@@ -2,20 +2,19 @@ extends RefCounted
 class_name MoveCommand
 ## Moves a unit along its reachable cells to the target cell (target must be in move_cells).
 
-static func check(state: BattleState, unit: UnitState, _target: Vector2i) -> String:
+
+static func check(state: BattleState, unit: UnitState, target: Vector2i) -> String:
 	if not state.units.has(unit.id) or not unit.alive:
 		return "Unit unavailable."
 	if unit.acted:
 		return "Unit already acted this phase."
-	if state.phase != BattleState.PHASE_PLAYER and unit.faction_id != state.units[unit.id].faction_id:
-		return "Not this unit's phase."
-	if unit.carried_item != "" and false:
-		pass
+	if not state.in_bounds(target):
+		return "Target cell out of bounds."
 	return ""
 
 
 ## Returns true when applied. Movement through allies, not onto occupied tiles.
-## Một unit chỉ di chuyển một lần mỗi phase: cờ `moved` được ghi để chặn move thứ hai.
+## One move per unit per phase: the moved flag blocks a second move until rewind.
 static func apply(state: BattleState, unit: UnitState, target: Vector2i) -> bool:
 	var move_cells := MovementHandler.compute_move_cells(state, unit)
 	if not move_cells.has(target):

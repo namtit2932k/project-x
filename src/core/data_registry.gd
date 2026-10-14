@@ -27,7 +27,10 @@ func _ready() -> void:
 		_scan_folder(key, SEARCH_FOLDERS[key])
 
 
-## Walks a folder (and its subfolders: one folder per map, ch01 layout...) and indexes every .tres by id.
+## Walks a folder (and its subfolders: one folder per map, ch01 layout...) and indexes every
+## resource by id. Accepts .tres/.res, plus .tres.remap as written by exported builds
+## (the export pipeline renames text resources, so scanning only .tres loses ALL data
+## outside the editor).
 func _scan_folder(kind: String, path: String) -> void:
 	var dir := DirAccess.open(path)
 	if dir == null:
@@ -39,8 +42,15 @@ func _scan_folder(kind: String, path: String) -> void:
 		var full := path + "/" + file
 		if dir.current_is_dir() and not file.begins_with("."):
 			_scan_folder(kind, full)
-		elif file.ends_with(".tres"):
-			var res: Resource = load(full)
+		elif file.ends_with(".tres") or file.ends_with(".res") or file.ends_with(".remap"):
+			var load_path := full.trim_suffix(".remap") if file.ends_with(".remap") else full
+			var file_name := load_path.get_file()
+			var base_ok := file_name.ends_with(".tres") or file_name.ends_with(".res")
+			if not base_ok:
+				# A .remap not referencing a resource file (none today) - skip safely.
+				file = dir.get_next()
+				continue
+			var res: Resource = load(load_path)
 			if res != null and "id" in res:
 				if _cache[kind].has(String(res.id)):
 					push_warning("DataRegistry: duplicate id '%s' in %s" % [res.id, full])

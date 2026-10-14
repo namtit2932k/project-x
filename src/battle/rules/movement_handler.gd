@@ -41,8 +41,8 @@ static func compute_move_cells(state: BattleState, unit: UnitState) -> Dictionar
 static func _passable(state: BattleState, unit: UnitState, cell: Vector2i, flying: bool) -> bool:
 	var occ := state.unit_at(cell)
 	if occ != null and occ.id != unit.id:
-		# May walk through allies; never through enemies.
-		if occ.faction_id == unit.faction_id:
+		# May walk through same-side units; never through others (mixed squads share a side).
+		if occ.side == unit.side:
 			return true
 		return false
 	var defs: Dictionary = DataRegistry.rule("terrain_defs", {})
@@ -59,6 +59,6 @@ static func _step_cost(state: BattleState, cell: Vector2i, flying: bool) -> floa
 	var entry: Dictionary = costs.get(state.terrain_at(cell), {})
 	if not entry.is_empty():
 		return maxf(float(entry.get(mode, entry.get("flying", 999.0))), 0.5)
-	# Fallback cǎtě: legacy flat cost in terrain_defs.
+	# Fallback: legacy flat cost from terrain_defs (kept until designers confirm the grid).
 	var defs: Dictionary = DataRegistry.rule("terrain_defs", {})
 	return maxf(float(defs.get(state.terrain_at(cell), {}).get("cost", 999.0)), 0.5)

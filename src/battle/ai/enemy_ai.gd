@@ -4,9 +4,9 @@ class_name EnemyAI
 ## the closest player unit. Commands are returned to the director, which applies them
 ## (snapshots happen per confirmed command, AI uses the same CombatResolver).
 
-## One unit's turn plan: {unit_id, move_cell, target_id, wait}. `target_factions` = the
-## factions this unit should actively attack (opposing sides normally; never its own).
-static func plan_unit(state: BattleState, unit: UnitState, target_factions: Array) -> Dictionary:
+## One unit's turn plan: {unit_id, move_cell, target_id, wait}. `target_sides` = the sides
+## this unit should actively attack (opposing sides; never its own).
+static func plan_unit(state: BattleState, unit: UnitState, target_sides: Array) -> Dictionary:
 	if not unit.alive or unit.acted:
 		return {}
 	var reach := MovementHandler.compute_move_cells(state, unit)
@@ -17,7 +17,7 @@ static func plan_unit(state: BattleState, unit: UnitState, target_factions: Arra
 
 	var enemies: Array = []
 	for u in state.alive_units():
-		if u.faction_id in target_factions:
+		if u.side in target_sides:
 			enemies.append(u)
 	if enemies.is_empty():
 		return {"unit_id": unit.id, "move_cell": unit.pos, "wait": true}
@@ -26,13 +26,14 @@ static func plan_unit(state: BattleState, unit: UnitState, target_factions: Arra
 	var reach_attack := RangeHandler.compute_attack_cells(state, unit, reach)
 	var attack_options: Array = []
 	for cell in reach_attack:
-		# Chỉ đứng vào ô trống (hoặc ô hiện tại) — ô có unit khác thì commit move sẽ bị từ chối.
+		# Only stand on an empty cell (or the current one) - commit would reject a move onto
+		# another unit's tile.
 		if cell != unit.pos and state.unit_at(cell) != null:
 			continue
 		for e in enemies:
 			if e.id == unit.id:
 				continue
-			# Target phải nằm đúng tầm vào [min..max] tính từ ô sẽ đứng (manhattan theo giản đồ FE).
+			# Target must actually be in [min..max] range from the standing cell.
 			var dist: int = RangeHandler.manhattan(cell, e.pos)
 			if dist < unit.attack_range_min or dist > unit.attack_range_max:
 				continue

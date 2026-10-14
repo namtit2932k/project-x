@@ -17,13 +17,17 @@ var s_lock_unit: String = ""                      # unit that confirmed the S lo
 ## reconcile_outcomes: chapter_id -> {faction_id: {persuaded: bool, kills: int, events: Array}}
 var reconcile_outcomes: Dictionary = {}
 var completed_chapters: Dictionary = {}           # chapter_id -> true
+## Story branch id (work in progress: filled by event/dialogue choices; saved with the game).
+var story_branch: String = ""
 ## options: {volume: float, fullscreen: bool}
 var options: Dictionary = {"volume": 0.8, "fullscreen": false}
 
 
 func new_game() -> void:
-	difficulty = "normal"
+	# difficulty and options are NOT reset here: the player may pick them on the menu
+	# right before "New campaign" (menu selection must survive the campaign reset).
 	current_chapter_id = ""
+	story_branch = ""
 	roster.clear()
 	bond_points.clear()
 	bond_ranks.clear()
@@ -46,19 +50,46 @@ func build_roster() -> void:
 
 
 func current_chapter() -> Resource:
+	var chapters := DataRegistry.chapters_sorted()
+	if chapters.is_empty():
+		push_error("GameState: no chapters in data/")
+		return null
 	if current_chapter_id == "":
-		return DataRegistry.chapters_sorted()[0]
+		return chapters[0]
 	return DataRegistry.get_chapter(current_chapter_id)
 
 
+## Moves to the next chapter (next in data order). On a new game (id == "") the first
+## chapter counts as current, so this correctly lands on chapter 2. At the end of the
+## campaign the id stays on the final chapter: check has_next_chapter() instead of
+## guessing from the id, so the loop never silently replays the last chapter.
 func advance_chapter() -> void:
+	var chapter := current_chapter()
+	if chapter == null:
+		return
 	var chapters := DataRegistry.chapters_sorted()
-	var idx := 0
 	for i in chapters.size():
-		if chapters[i].id == current_chapter_id:
-			idx = i + 1
-			break
-	current_chapter_id = chapters[mini(idx, chapters.size() - 1)].id
+		if String(chapters[i].id) == String(chapter.id):
+			if i + 1 < chapters.size():
+				current_chapter_id = String(chapters[i + 1].id)
+			return
+
+
+func has_next_chapter() -> bool:
+	var chapter := current_chapter()
+	if chapter == null:
+		return false
+	var chapters := DataRegistry.chapters_sorted()
+	return not chapters.is_empty() and String(chapters[chapters.size() - 1].id) != String(chapter.id)
+
+
+## Roster entries for units added to data after a save was written: merge them in as
+## fresh members so prep/camp never index a missing id.
+func merge_roster_with_data() -> void:
+	for unit_id in DataRegistry.all_ids("units"):
+		var ud := DataRegistry.get_unit(unit_id)
+		if ud != null and bool(ud.in_roster) and not roster.has(unit_id):
+			roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0}
 
 
 func bond_rank_for(pair_id: String) -> String:
@@ -77,6 +108,7 @@ func to_dict() -> Dictionary:
 		"s_lock_unit": s_lock_unit,
 		"reconcile_outcomes": reconcile_outcomes,
 		"completed_chapters": completed_chapters,
+		"story_branch": story_branch,
 		"options": options,
 	}
 
@@ -92,4 +124,5 @@ func from_dict(d: Dictionary) -> void:
 	s_lock_unit = String(d.get("s_lock_unit", ""))
 	reconcile_outcomes = d.get("reconcile_outcomes", {})
 	completed_chapters = d.get("completed_chapters", {})
+	story_branch = String(d.get("story_branch", ""))
 	options = d.get("options", {"volume": 0.8, "fullscreen": false})

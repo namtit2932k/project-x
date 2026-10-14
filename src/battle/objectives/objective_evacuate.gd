@@ -55,16 +55,11 @@ func _any_npc_dead(state: BattleState) -> bool:
 
 
 func _foes_alive(state: BattleState) -> int:
-	var player_sides := _player_sides(state)
 	var npc_ids := _npc_ids(state)
 	var n := 0
 	for u in state.alive_units():
-		if u.faction_id in player_sides or u.id in npc_ids:
+		if u.side == "player" or u.id in npc_ids:
 			continue
 		n += 1
 	return n
 
-
-static func _player_sides(state: BattleState) -> Array:
-	var prot := state.protagonist()
-	return [] if prot == null else [prot.faction_id]

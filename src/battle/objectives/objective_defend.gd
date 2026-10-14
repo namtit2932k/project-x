@@ -31,7 +31,7 @@ func evaluate(state: BattleState) -> Dictionary:
 	var z := zone()
 	if policy == "block":
 		for u in state.alive_units():
-			if u.faction_id in _player_sides(state):
+			if u.side == "player":
 				continue
 			if z.has_point(u.pos):
 				return {"status": "lose", "progress": "Zone breached"}
@@ -39,10 +39,6 @@ func evaluate(state: BattleState) -> Dictionary:
 		return {"status": "win", "progress": "Zone held %d turns" % held}
 	return {"status": "ongoing", "progress": "%d/%d turns" % [held, required]}
 
-
-static func _player_sides(state: BattleState) -> Array:
-	var prot := state.protagonist()
-	return [] if prot == null else [prot.faction_id]
 
 
 ## Turn bookkeeping event from the director.

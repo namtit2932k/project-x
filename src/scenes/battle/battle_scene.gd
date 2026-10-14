@@ -34,7 +34,7 @@ func setup(p_director: BattleDirector) -> void:
 
 func _ready() -> void:
 	map_view = BattleMapView.new()
-	map_view.set_state(director.state, director.player_factions)
+	map_view.set_state(director.state, director.player_sides)
 	add_child(map_view)
 	_build_ui()
 	EventBus.combat_resolved.connect(_on_combat_resolved)
@@ -141,7 +141,7 @@ func _on_left_click(cell: Vector2i) -> void:
 				if sel != null and sel.moved:
 					_do_wait()   # click lại chính mình sau khi đã move = chốt hành động
 				return
-			if sel != null and sel.faction_id in director.player_factions and not sel.acted and not sel.moved:
+			if sel != null and sel.side == "player" and not sel.acted and not sel.moved:
 				var move_cells := MovementHandler.compute_move_cells(director.state, sel)
 				if move_cells.has(cell):
 					_commit_move(cell)
@@ -150,7 +150,7 @@ func _on_left_click(cell: Vector2i) -> void:
 				_select_unit(unit)
 				# Phân biệt rõ khi người chơi click một địch không nằm trong ô đỏ:
 				# click đó chỉ là xem range, không phải một đợt tấn công.
-				if sel != null and not sel.acted and not active_targets.has(unit.id) and unit.faction_id != sel.faction_id:
+				if sel != null and not sel.acted and not active_targets.has(unit.id) and unit.side != sel.side:
 					_info_label.text = "%s is OUT of reach of %s (unit acted? one action per phase — use another unit or Rewind)." % [unit.display_name, sel.display_name]
 			else:
 				_cancel_selection()
@@ -194,7 +194,7 @@ func _selected() -> UnitState:
 func _select_unit(unit: UnitState) -> void:
 	selected_unit_id = unit.id
 	active_targets.clear()
-	if unit.faction_id in director.player_factions and not unit.acted and director.state.phase == BattleState.PHASE_PLAYER:
+	if unit.side == "player" and not unit.acted and director.state.phase == BattleState.PHASE_PLAYER:
 		# Targets tính từ vị trí hiện tại; unit đã move (đang chờ hành động) vào TARGET_SELECT luôn.
 		active_targets = _compute_targets_for(director.state, unit)
 		mode = Mode.TARGET_SELECT if unit.moved else Mode.UNIT_SELECTED
@@ -209,10 +209,8 @@ func _select_unit(unit: UnitState) -> void:
 func _compute_targets_for(state: BattleState, unit: UnitState) -> Dictionary:
 	if not _move_only_constraint(unit).is_empty():
 		return {}
-	var reach := MovementHandler.compute_move_cells(state, unit)
-	reach[unit.pos] = 0.0
 	var out := {}
-	for target_id in RangeHandler.compute_targets(state, unit, reach):
+	for target_id in RangeHandler.compute_targets_from_position(state, unit):
 		out[target_id] = state.units[target_id].pos
 	return out
 
@@ -233,7 +231,7 @@ func _commit_move(cell: Vector2i) -> void:
 
 func _show_action_menu(unit: UnitState) -> void:
 	_hide_action_menu()
-	if unit.faction_id not in director.player_factions or unit.acted or director.state.phase != BattleState.PHASE_PLAYER:
+	if unit.side != "player" or unit.acted or director.state.phase != BattleState.PHASE_PLAYER:
 		return
 	# Không còn nút Attack/Wait: click địch trong ô đỏ để đánh, click lại (hoặc ô khác/
 	# right click) sau khi move để hoàn tác hành động bằng Wait. Menu chỉ còn skill.
@@ -299,7 +297,7 @@ func _find_skill_target(unit: UnitState, skill: Resource) -> UnitState:
 	var best: UnitState = null
 	if String(skill.effect_type) == "heal":
 		for u in director.state.alive_units():
-			if u.faction_id != unit.faction_id or u.id == unit.id or u.hp >= u.max_hp:
+			if u.side != unit.side or u.id == unit.id or u.hp >= u.max_hp:
 				continue
 			var d := RangeHandler.manhattan(u.pos, unit.pos)
 			if d < int(skill.range_min) or d > int(skill.range_max):
@@ -462,7 +460,11 @@ func _on_rewind() -> void:
 		return
 	if director.rewind.frames.is_empty():
 		return
-	if director.use_rewind(director.rewind.frames.size() - 1):
+	# Rewind always restores the newest valid PLAYER frame; engine phase frames are skipped.
+	var frame_index: int = director.rewind.find_last_player_frame()
+	if frame_index < 0:
+		return
+	if director.use_rewind(frame_index):
 		selected_unit_id = ""
 		_hide_action_menu()
 		_refresh_overlays()

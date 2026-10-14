@@ -38,13 +38,9 @@ func on_event(state: BattleState, event_type: String, _data: Dictionary) -> void
 	var z := zone()
 	var occupied := false
 	for u in state.alive_units():
-		if z.has_point(u.pos) and u.faction_id in _player_sides(state):
+		if z.has_point(u.pos) and u.side == "player":
 			occupied = true
 			break
 	var streak := int(state.objective_counters.get("capture_streak", 0))
 	state.objective_counters["capture_streak"] = streak + 1 if occupied else 0
 
-
-static func _player_sides(state: BattleState) -> Array:
-	var prot := state.protagonist()
-	return [] if prot == null else [prot.faction_id]

@@ -35,6 +35,22 @@ func rng() -> RandomNumberGenerator:
 	return _rng
 
 
+## Recursive copy: snapshot/restore must never share nested containers (rewind of
+## counters, reconcile kills and bond points relies on isolated copies).
+static func _deep_copy(v: Variant) -> Variant:
+	if v is Dictionary:
+		var out := {}
+		for k: Variant in v:
+			out[k] = _deep_copy(v[k])
+		return out
+	if v is Array:
+		var arr := []
+		for item: Variant in v:
+			arr.append(_deep_copy(item))
+		return arr
+	return v
+
+
 func setup(p_map: Resource, deploy: Dictionary, seed_value: int = -1) -> void:
 	map = p_map
 	rng_seed = seed_value if seed_value >= 0 else int(Time.get_unix_time_from_system())
@@ -61,33 +77,35 @@ func setup(p_map: Resource, deploy: Dictionary, seed_value: int = -1) -> void:
 	npc_unit_ids.clear()
 	for npc in p_map.npc_placements:
 		npc_unit_ids.append(String(npc.unit_id))
-	# Units
+	# Units: control side comes from the placement source, not from faction ids.
 	units.clear()
-	_deploy_map_units(p_map, "faction_enemy_spawn", p_map.enemy_placements, PHASE_ENEMY)
-	_deploy_map_units(p_map, "faction_npc_spawn", p_map.npc_placements, PHASE_NPC)
+	_deploy_map_units(p_map, "enemy", p_map.enemy_placements)
+	_deploy_map_units(p_map, "npc", p_map.npc_placements)
 	for unit_id in deploy:
 		var ud := DataRegistry.get_unit(String(unit_id))
 		var cell: Vector2i = deploy[unit_id]
 		if ud != null and can_place(cell):
-			units[String(unit_id)] = UnitState.from_data(ud, cell, GameState.roster[unit_id].level if GameState.roster.has(unit_id) else -1)
+			var u := UnitState.from_data(ud, cell, GameState.roster[unit_id].level if GameState.roster.has(unit_id) else -1)
+			u.side = "player"
+			units[String(unit_id)] = u
 	# Items on ground
 	for item in p_map.item_placements:
 		var cell2: Vector2i = item.cell
 		item_ground["%d,%d" % [cell2.x, cell2.y]] = String(item.item_id)
-	# Reconcile state per enemy faction present
+	# Reconcile tracking is for remnant factions only (remnant_id set): kills of the player's
+	# own Empire/Kingdom units must never count toward a persuade threshold.
 	reconcile_state.clear()
 	var seen := {}
 	for u in units.values():
-		if u.faction_id not in seen:
-			seen[u.faction_id] = true
-	var factions := seen.keys()
-	for fid in factions:
-		var f := DataRegistry.get_faction(String(fid))
-		if f != null and not f.reconcile.is_empty():
-			reconcile_state[fid] = {"kills": 0, "events": [], "evaluated": false, "persuaded": false}
+		if u.faction_id in seen:
+			continue
+		seen[u.faction_id] = true
+		var f := DataRegistry.get_faction(String(u.faction_id))
+		if f != null and String(f.remnant_id) != "":
+			reconcile_state[String(u.faction_id)] = {"kills": 0, "events": [], "evaluated": false, "persuaded": false}
 
 
-func _deploy_map_units(p_map: Resource, _tag: String, placements: Array, _phase: int) -> void:
+func _deploy_map_units(p_map: Resource, side: String, placements: Array) -> void:
 	for placement in placements:
 		var ud := DataRegistry.get_unit(String(placement.unit_id))
 		if ud == null:
@@ -95,7 +113,13 @@ func _deploy_map_units(p_map: Resource, _tag: String, placements: Array, _phase:
 			continue
 		var cell: Vector2i = placement.cell
 		if can_place(cell):
-			units[String(placement.unit_id)] = UnitState.from_data(ud, cell, -1)
+			var u := UnitState.from_data(ud, cell, -1)
+			u.side = side
+			# faction_override lets a map place a unit on a different lore faction (e.g. an
+			# empire defector fighting for the rebels) without a duplicate unit entry.
+			if placement.get("faction_override", "") != "":
+				u.faction_id = String(placement.faction_override)
+			units[String(placement.unit_id)] = u
 
 
 func can_place(cell: Vector2i) -> bool:
@@ -139,6 +163,15 @@ func units_of_faction(faction_id: String) -> Array:
 	return units.values().filter(func(u: UnitState) -> bool: return u.alive and u.faction_id == faction_id)
 
 
+func units_of_side(side: String) -> Array:
+	return units.values().filter(func(u: UnitState) -> bool: return u.alive and u.side == side)
+
+
+## True when the unit acts on the player side (mixed squads: any faction, side == "player").
+func is_player_side(unit: UnitState) -> bool:
+	return unit.side == "player"
+
+
 func protagonist() -> UnitState:
 	for u in units.values():
 		if u.is_protagonist:
@@ -152,28 +185,35 @@ func to_dict() -> Dictionary:
 	var units_dict := {}
 	for u in units.values():
 		units_dict[u.id] = u.to_dict()
+	# Nested containers are copied: a stored snapshot must never mirror live state.
 	return {
-		"turn": turn, "phase": phase, "battle_over": battle_over,
-		"objective_counters": objective_counters,
-		"units": units_dict,
-		"bond_points": bond_points,
-		"reconcile_state": reconcile_state,
-		"item_ground": item_ground,
+		"turn": turn, "phase": phase, "battle_over": _deep_copy(battle_over),
+		"objective_counters": _deep_copy(objective_counters),
+		"units": _deep_copy(units_dict),
+		"bond_points": _deep_copy(bond_points),
+		"reconcile_state": _deep_copy(reconcile_state),
+		"item_ground": _deep_copy(item_ground),
 		"rng_seed": rng_seed,
+		"rng_state": _rng.state,
 	}
 
 
 func from_dict(d: Dictionary) -> void:
 	turn = int(d.get("turn", turn))
 	phase = int(d.get("phase", phase))
-	battle_over = d.get("battle_over", {})
-	objective_counters = d.get("objective_counters", {})
-	bond_points = d.get("bond_points", {})
-	reconcile_state = d.get("reconcile_state", {})
-	item_ground = d.get("item_ground", {})
+	battle_over = _deep_copy(d.get("battle_over", {}))
+	objective_counters = _deep_copy(d.get("objective_counters", {}))
+	bond_points = _deep_copy(d.get("bond_points", {}))
+	reconcile_state = _deep_copy(d.get("reconcile_state", {}))
+	item_ground = _deep_copy(d.get("item_ground", {}))
 	var seeds := int(d.get("rng_seed", rng_seed))
 	rng_seed = seeds
-	_rng.seed = rng_seed
+	# Restoring the full generator state resumes the same roll sequence; reseeding from
+	# the start seed would replay rolls from the battle's very first action instead.
+	if d.has("rng_state"):
+		_rng.state = int(d["rng_state"])
+	else:
+		_rng.seed = rng_seed
 	var units_dict: Dictionary = d.get("units", {})
 	for unit_id in units_dict:
 		if units.has(unit_id):

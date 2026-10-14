@@ -26,15 +26,24 @@ static func compute_attack_cells(state: BattleState, unit: UnitState, reach: Dic
 	return out
 
 
-## Valid attack targets of a unit for a player action (enemies on attack cells after move).
+## Valid attack targets of a unit at its current position (same side = ally, excluded).
+## This is the decided interaction flow: "red cells measured from the standing position".
 static func compute_targets(state: BattleState, unit: UnitState, reach: Dictionary) -> Array:
 	var attack_cells := compute_attack_cells(state, unit, reach)
 	var targets: Array = []
 	for cell in attack_cells:
 		var occ: UnitState = state.unit_at(cell)
-		if occ != null and occ.alive and occ != unit and occ.faction_id != unit.faction_id:
+		if occ != null and occ.alive and occ != unit and occ.side != unit.side:
 			targets.append(occ.id)
 	return targets
+
+
+## Valid attack targets from a unit's CURRENT position (no movement assumed). Same side
+## = ally, excluded. This is the decided interaction flow: red cells measure the
+## standing position, so attacks can never happen from outside real weapon range.
+static func compute_targets_from_position(state: BattleState, unit: UnitState) -> Array:
+	var standing: Dictionary = {unit.pos: 0.0}
+	return compute_targets(state, unit, standing)
 
 
 ## Counter condition: defender can hit the attacker from its own tile distance.

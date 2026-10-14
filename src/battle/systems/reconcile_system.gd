@@ -22,41 +22,48 @@ static func record_event(state: BattleState, faction_id: String, event_key: Stri
 		EventBus.reconcile_state_changed.emit()
 
 
-## Spared enemies yield "spared_<unit_id>" per remnant faction.
+## Spared remnant-faction enemies record an event. The key comes from designer data
+## (FactionData.reconcile.spared_event_keys: unit_id -> event key); "spared_<unit_id>"
+## stays as fallback. Keeping unit->key mapping outside unit_id parsing avoids fragile id
+## matching against required_events in data.
 static func record_spared_units(state: BattleState) -> void:
 	for u in state.alive_units():
-		if state.reconcile_state.has(u.faction_id):
-			record_event(state, u.faction_id, "spared_%s" % u.id)
+		if not state.reconcile_state.has(u.faction_id):
+			continue
+		var f := DataRegistry.get_faction(String(u.faction_id))
+		var mapping: Dictionary = {}
+		if f != null and f.reconcile.has("spared_event_keys"):
+			mapping = f.reconcile["spared_event_keys"]
+		var key := String(mapping.get(u.id, "spared_%s" % u.id))
+		record_event(state, u.faction_id, key)
 
 
-## Final evaluation after map victory: threshold + required events. Stores the outcome.
+## Final evaluation after map victory: threshold + required events. Recomputed from the
+## same data every call (idempotent), always returning the same result schema:
+## {faction_id: {persuaded: bool, kills: int, missing_events: Array[String]}}.
 static func evaluate(state: BattleState) -> Dictionary:
 	var outcomes := {}
 	for faction_id in state.reconcile_state:
 		var rs: Dictionary = state.reconcile_state[faction_id]
-		if rs.get("evaluated", false):
-			outcomes[faction_id] = {"persuaded": bool(rs.get("persuaded", false)), "kills": int(rs.get("kills", 0))}
-			continue
-		rs["evaluated"] = true
+		var kills := int(rs.get("kills", 0))
 		var f := DataRegistry.get_faction(String(faction_id))
 		if f == null or f.reconcile.is_empty():
-			rs["persuaded"] = false
-			outcomes[faction_id] = false
+			outcomes[faction_id] = {"persuaded": false, "kills": kills, "missing_events": []}
 			continue
 		var cond: Dictionary = f.reconcile
-		var kills := int(rs.get("kills", 0))
 		var threshold := int(cond.get("kill_threshold", 0))
 		var ok := kills < threshold
 		var missing: Array[String] = []
 		for ev in cond.get("required_events", []):
-			if String(ev) not in rs["events"]:
+			if String(ev) not in rs.get("events", []):
 				ok = false
 				missing.append(String(ev))
+		outcomes[faction_id] = {"persuaded": ok, "kills": kills, "missing_events": missing}
 		rs["persuaded"] = ok
+		rs["evaluated"] = true
 		rs["missing_events"] = missing
 		rs["kills_threshold"] = threshold
-		outcomes[faction_id] = {"persuaded": ok, "kills": kills}
-		EventBus.reconcile_state_changed.emit()
+	EventBus.reconcile_state_changed.emit()
 	return outcomes
 
 

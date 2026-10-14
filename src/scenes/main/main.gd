@@ -44,6 +44,9 @@ func _on_new_game() -> void:
 func _on_continue_game() -> void:
 	if not SaveService.load_campaign():
 		GameState.build_roster()
+	# Units added to data after the save was written come in as fresh roster members.
+	GameState.merge_roster_with_data()
+	_apply_options()   # saved volume/fullscreen re-apply on load
 	_play_story_of_current_chapter()
 
 
@@ -87,18 +90,28 @@ func _show_post_battle(win: bool) -> void:
 	_merge_battle_into_campaign(win)
 	var post := PostBattleScene.build(chapter)
 	post.continue_pressed.connect(_show_camp)
+	if win:
+		# Advance the chapter NOW so saving at camp stores the NEXT chapter: Continue
+		# resumes the story from where the player actually is, never a replay.
+		GameState.advance_chapter()
 	_swap_to(post)
 
 
 func _show_camp() -> void:
 	var camp := CampScene.new()
 	camp.next_chapter.connect(_on_next_chapter)
+	camp.retry_chapter.connect(_on_retry_chapter)
 	camp.to_menu.connect(_show_menu)
 	_swap_to(camp)
 
 
+## Chapter was already advanced post-victory; "Next" just starts the (new) current one.
 func _on_next_chapter() -> void:
-	GameState.advance_chapter()
+	_play_story_of_current_chapter()
+
+
+## Defeat replay of the same chapter (retry flow placeholder: campaign chapter retry).
+func _on_retry_chapter() -> void:
 	_play_story_of_current_chapter()
 
 
@@ -110,6 +123,12 @@ func _merge_battle_into_campaign(win: bool) -> void:
 	var chapter := GameState.current_chapter()
 	var result: Dictionary = ResultStore.last_result
 	var policy: String = String(DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "temp_injury"))
+	# Bond points earned this battle flow into the campaign (capped per pair per battle at
+	# the source); the camp reads GameState.bond_points, not the battle-local copy.
+	if _battle_director != null:
+		for pair_id in _battle_director.state.bond_points:
+			GameState.bond_points[pair_id] = int(GameState.bond_points.get(pair_id, 0)) \
+					+ int(_battle_director.state.bond_points[pair_id])
 	for unit_id in GameState.roster:
 		var entry: Dictionary = GameState.roster[unit_id]
 		var state_unit = null

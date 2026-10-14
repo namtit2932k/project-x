@@ -26,13 +26,15 @@ func run() -> void:
 	GameState.build_roster()
 	var chapter := GameState.current_chapter()
 	var map := DataRegistry.get_map(String(chapter.map_id))
-	# Deploy protagonist + three companions.
+	# Deploy protagonist + companions (mixed Empire + Kingdom roster on the player side).
 	var deploy := {}
 	var ids: Array[String] = ["unit_swordsman", "unit_knight", "unit_lancer", "unit_gunner", "unit_healer"]
 	for i in ids.size():
 		deploy[ids[i]] = map.deploy_cells[i]
 	var director := BattleDirector.new()
 	director.setup(map, deploy, "normal")
+	ok(director.state.units["unit_healer"].side == "player", "smoke: kingdom healer deployed on the player side")
+	ok(director.state.units["unit_rebel_commander"].side == "enemy", "smoke: rebels are enemy side")
 	# Light deterministic buff so the scripted AI platoon can realistically rout the rebels.
 	for unit_id in deploy:
 		var hero: UnitState = director.state.units[String(unit_id)]
@@ -42,11 +44,11 @@ func run() -> void:
 		hero.defense += 2
 		hero.skill += 3
 		hero.speed += 2
-	ok(director.player_factions.has("faction_empire"), "smoke: player factions derive from protagonist")
+	ok(director.player_sides.has("player"), "smoke: player side separated from factions")
 
 	# Play until over (bounded).
 	var guard := 0
-	var player_sides: Array = director.player_factions
+	var player_sides: Array = director.player_sides
 	while director.state.battle_over.is_empty() and guard < 600:
 		guard += 1
 		if director.state.phase == BattleState.PHASE_PLAYER:
@@ -86,13 +88,13 @@ func run() -> void:
 ## One AI action for the given side; returns false when the side has no unit left to act.
 func _ai_step(director: BattleDirector, acting_sides: Array) -> bool:
 	for unit in director.state.alive_units():
-		if unit.faction_id not in acting_sides or unit.acted:
+		if unit.side not in acting_sides or unit.acted:
 			continue
-		var foe_factions: Array = []
+		var foe_sides: Array = []
 		for foe in director.state.alive_units():
-			if foe.faction_id not in acting_sides and foe.faction_id not in foe_factions:
-				foe_factions.append(foe.faction_id)
-		var plan := EnemyAI.plan_unit(director.state, unit, foe_factions)
+			if foe.side not in acting_sides and foe.side not in foe_sides:
+				foe_sides.append(foe.side)
+		var plan := EnemyAI.plan_unit(director.state, unit, foe_sides)
 		if plan.is_empty():
 			continue
 		director.commit_ai_plan(plan)

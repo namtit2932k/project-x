@@ -4,6 +4,7 @@ class_name CampScene
 ## difficulty switch, next chapter. Story scene for chapter progress lives in main flow.
 
 signal next_chapter
+signal retry_chapter
 signal to_menu
 
 var _scene_box: VBoxContainer = null
@@ -44,10 +45,26 @@ func _ready() -> void:
 	diff_btn.size = Vector2(320, 50)
 	diff_btn.pressed.connect(_on_cycle_difficulty)
 
-	var next_btn := UIBuilder.button(self, "Next chapter", 22)
-	next_btn.position = Vector2(1660, 730)
-	next_btn.size = Vector2(200, 50)
-	next_btn.pressed.connect(func() -> void: next_chapter.emit())
+	if String(ResultStore.last_result.get("status", "")) == "lose":
+		# Defeat: the chapter was NOT advanced; the squad stays in camp to retry it.
+		var retry_btn := UIBuilder.button(self, "Retry chapter", 22)
+		retry_btn.position = Vector2(1660, 730)
+		retry_btn.size = Vector2(200, 50)
+		retry_btn.pressed.connect(func() -> void: retry_chapter.emit())
+	elif not GameState.has_next_chapter():
+		var done_label := UIBuilder.label(self, "Campaign complete", 22)
+		done_label.position = Vector2(1640, 690)
+		var done_note := UIBuilder.label(self, "No further chapters in data yet.", 16)
+		done_note.position = Vector2(1640, 720)
+		var menu_after := UIBuilder.button(self, "Main menu", 22)
+		menu_after.position = Vector2(1660, 730)
+		menu_after.size = Vector2(200, 50)
+		menu_after.pressed.connect(func() -> void: to_menu.emit())
+	else:
+		var next_btn := UIBuilder.button(self, "Next chapter", 22)
+		next_btn.position = Vector2(1660, 730)
+		next_btn.size = Vector2(200, 50)
+		next_btn.pressed.connect(func() -> void: next_chapter.emit())
 
 	var menu_btn := UIBuilder.button(self, "Main menu", 22)
 	menu_btn.position = Vector2(1660, 810)
@@ -70,14 +87,25 @@ func _rebuild_bond_panel() -> void:
 		UIBuilder.label(row, line, 16)
 		for rank_key in ["C", "B", "A"]:
 			var threshold := int(pair.scene_thresholds.get(rank_key, 1 << 30))
-			if points >= threshold and str(GameState.bond_rank_for(String(pair.id))) < str(rank_key) and not GameState.bond_scenes_viewed.get(String(pair.id), []).has(rank_key):
+			if points >= threshold and rank_index(GameState.bond_rank_for(String(pair.id))) < rank_index(rank_key) and not GameState.bond_scenes_viewed.get(String(pair.id), []).has(rank_key):
 				var btn := UIBuilder.button(row, "View %s scene" % rank_key, 14)
 				btn.pressed.connect(func() -> void: _watch_bond_scene(pair, rank_key))
 		# S rank: after A plus story milestone, both alive, one exclusive pair per character.
 		var cur := GameState.bond_rank_for(String(pair.id))
-		if cur == "A" and _both_alive(pair) and _s_milestone_reached(pair):
+		if rank_index(cur) >= rank_index("A") and _both_alive(pair) and _s_milestone_reached(pair) and _s_pair_free(pair):
 			var s_btn := UIBuilder.button(row, "Lock S pair", 14)
 			s_btn.pressed.connect(func() -> void: _lock_s(pair))
+
+
+## Rank comparison by the configured order, never by string compare ("C" < "B" is wrong):
+## "C"=0, "B"=1, "A"=2, "S"=3; unknown/missing = -1.
+static func rank_index(rank: String) -> int:
+	return GameState.BOND_RANKS.find(rank)
+
+
+## One exclusive S pair per character (GameState.s_pairs maps unit -> pair_id).
+func _s_pair_free(pair: Resource) -> bool:
+	return not GameState.s_pairs.has(String(pair.unit_a)) and not GameState.s_pairs.has(String(pair.unit_b))
 
 
 func _both_alive(pair: Resource) -> bool:

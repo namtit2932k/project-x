@@ -8,9 +8,25 @@ static func check(state: BattleState, unit: UnitState, target_id: String) -> Str
 	var target: UnitState = state.units.get(target_id, null)
 	if target == null or not target.alive:
 		return "No valid target."
-	if target.faction_id == unit.faction_id:
+	if target.side == unit.side:
 		return "Cannot attack an ally."
+	# Attack must be done from inside the weapon range measured at the CURRENT position.
+	var dist := RangeHandler.manhattan(unit.pos, target.pos)
+	if dist < unit.attack_range_min or dist > unit.attack_range_max:
+		return "Target out of weapon range."
+	# Retrieve objective: while carrying, the unit may only move (no attack/skill).
+	if _is_move_only(state, unit):
+		return "Carrier may only move."
 	return ""
+
+
+static func _is_move_only(state: BattleState, unit: UnitState) -> bool:
+	if unit.carried_item == "":
+		return false
+	for cfg in state.objectives_config:
+		if String(cfg.get("type", "")) == "retrieve" and String(cfg.get("params", {}).get("item_id", "")) == unit.carried_item:
+			return true
+	return false
 
 
 static func apply(state: BattleState, unit: UnitState, target_id: String) -> Array:

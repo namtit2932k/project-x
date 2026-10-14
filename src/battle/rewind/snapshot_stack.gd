@@ -8,10 +8,21 @@ var frames: Array = []        # newest last: {snapshot: Dictionary, label: Strin
 
 
 func push(state: BattleState, label: String) -> void:
-	frames.append({"snapshot": state.to_dict(), "labels": label})
+	frames.append({"snapshot": state.to_dict(), "label": label})
 
 
 func has_frames() -> bool:
+	return not frames.is_empty()
+
+
+## Player rewinds restore the newest frame whose phase == PLAYER (end-of-enemy/NPC-phase
+## frames are engine bookkeeping, not a valid player action point). Returns -1 when none.
+func find_last_player_frame() -> int:
+	for i in range(frames.size() - 1, -1, -1):
+		var snap: Dictionary = frames[i]["snapshot"]
+		if int(snap.get("phase", -1)) == BattleState.PHASE_PLAYER:
+			return i
+	return -1
 	return not frames.is_empty()
 
 

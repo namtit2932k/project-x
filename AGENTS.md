@@ -79,7 +79,11 @@ Track here. Remove an item once the designer confirms it.
 - Per-map conditions
 - Bond pair list and S routes
 - Reconciliation thresholds
-- How rewind uses are counted when undoing several actions
+- Ch01 win objective vs reconcile: a plain rout kills the commander, so `spared_commander` never fires and persuade stays unreachable. Designer to pick: targeted objectives (commander excluded), commander surrender, or a bigger kill_threshold.
+- Rewind valid restore point: currently the newest PLAYER-phase frame incl. a turn-start snapshot (DESIGNER: action-level or turn-level only?). RNG state restores so the re-roll sequence stays identical (reseed alternative pending).
+- Bond point actions implemented as: attack supported by an adjacent pair-member ally, and heal between pair members (bond_points_combat_action). Bonus applies to damage AND hit — designer confirms which one.
+- Defeat flow placeholder: camp shows "Retry chapter" (replays the same chapter); designer confirms retry vs load-save.
+- Who is the protagonist: only unit_swordsman has is_protagonist = true; game over on protagonist down (World doc: leader + beastwoman co-lead pending).
 - Scope mismatches between docs: "evacuate" objective, Nightmare difficulty and a future shop appear in the concept deck but not all in the coder brief
 
 ## 8. Assets and UI
@@ -120,6 +124,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-10-15 (6) — Buffy (Codebuff) — done: P0 review fixes theo handoff doc: T01 side tách khỏi faction (đội hỗn hợp Empire+Kingdom hoạt động: select/move/pass-through/eliminate/AI/map view màu theo side + faction_override), T02 command.check() trong director (trước mỗi apply; attack bằng manhattan trong [min..max], check cả skill/pickup, carrier move-only, AI move bị từ chối → wait), T03 rewind deep-copy lồng nhau + RNG state + khôi phục chỉ frame PLAYER + turn-start snapshot + labels/label, T04 escort dùng target_cell (thêm map sample valley_escort), T05 reconcile chỉ cho remnant faction (empire/kingdom rỗng), spared_event_keys mapping, evaluate cùng schema mọi lần, T06 bond điểm từ attack có đồng minh cặp kề + heal cặp, merge bond_points vào GameState sau trận, so rank theo BOND_RANKS index, S exclusive, T07 advance_chapter dùng current_chapter().id + advance trước camp trên thắng + Retry chapter khi thua + new_game giữ difficulty/options + merge roster thiếu + story_branch, T08 DataRegistry nạp .tres/.res/.remap cho export. Tests 92/92, smoke 12/12, validation 0. — in progress: P1 (T09-T13, T14-T16). — next: hành trình P1 theo thứ tự tài liệu. — issues: ch01 rout vẫn làm persuade bất khả thi (mở quyết định designer §7).
 
 - 2026-10-15 (5) — Buffy (Codebuff) — done: luồng tương tác mới: sau move chỉ hiện ô đỏ tầm đánh (ranged xa hơn theo ClassDef), bỏ nút Attack/Wait (click unit lại / ô khác / right-click sau move = Wait), click địch trong ô đỏ = auto combat screen, HP cập nhật ngay trên map sau màn giao chiến; bỏ forecast panel UI (CombatResolver.forecast vẫn giữ làm dry-run). Tests: 51/51 + smoke 10/10 — commit + push. — in progress: none. — next: event executor, evac map mẫu, CI, level-up growths, retry flow. — issues: none.
 

@@ -19,7 +19,7 @@ const TARGET_COLOR := Color(1.0, 0.5, 0.1, 0.6)
 const CURSOR_COLOR := Color(1.0, 0.9, 0.2, 0.9)
 
 var state: BattleState = null
-var player_factions: Array = []
+var player_sides: Array = []
 var move_cells: Dictionary = {}
 var attack_cells: Dictionary = {}
 var target_cells: Dictionary = {}
@@ -27,9 +27,9 @@ var cursor_cell := Vector2i(-1, -1)
 var origin := Vector2.ZERO
 
 
-func set_state(p_state: BattleState, p_player_factions: Array) -> void:
+func set_state(p_state: BattleState, p_player_sides: Array) -> void:
 	state = p_state
-	player_factions = p_player_factions
+	player_sides = p_player_sides
 	origin = Vector2((1920.0 - p_state.width * CELL) / 2.0, (1080.0 - p_state.height * CELL) / 2.0)
 
 
@@ -73,11 +73,12 @@ func _draw() -> void:
 	# Units
 	for u in state.alive_units():
 		var center := cell_to_global(u.pos)
+		# Color by control side: player blue, npc yellow, enemy red (faction is story identity).
 		var color := Color(0.85, 0.25, 0.2)
-		if u.faction_id in player_factions:
+		if u.side == "player":
 			color = Color(0.2, 0.55, 0.95)
-		elif state.phase == BattleState.PHASE_ENEMY:
-			pass
+		elif u.side == "npc":
+			color = Color(0.95, 0.8, 0.25)
 		var r := Rect2(center - Vector2(16, 16), Vector2(32, 32))
 		draw_rect(r, color)
 		draw_rect(r, Color(0, 0, 0), false, 2)
@@ -86,7 +87,7 @@ func _draw() -> void:
 		var hp_ratio := float(u.hp) / float(u.max_hp)
 		draw_rect(Rect2(center - Vector2(16, 24), Vector2(32 * clampf(hp_ratio, 0.0, 1.0), 4)), Color(0.2, 0.85, 0.3))
 		draw_rect(Rect2(center - Vector2(16, 24), Vector2(32, 4)), Color(0.6, 0.2, 0.2), false, 1)
-		if u.acted and u.faction_id in player_factions:
+		if u.acted and u.side == "player":
 			draw_circle(center, 18.0, Color(0, 0, 0, 0.25))
 	# Cursor ring
 	if cursor_cell.x >= 0 and state.in_bounds(cursor_cell):

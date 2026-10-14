@@ -10,8 +10,8 @@ var objectives: Array = []            # Array[ObjectiveBase]
 var rewind_uses_left: int = 0
 var rewind_budget: int = 0            # -1 = unlimited
 
-## Difficulty + player-side factions derived from the protagonist's faction.
-var player_factions: Array = []
+## Battle phases are sides, not factions: a mixed Empire+Kingdom squad all act on "player".
+var player_sides: Array = ["player"]
 
 
 func setup(p_map: Resource, deploy: Dictionary, difficulty: String) -> void:
@@ -25,13 +25,16 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String) -> void:
 			objectives.append(obj)
 	rewind_budget = SnapshotStack.budget_for_difficulty(difficulty)
 	rewind_uses_left = rewind_budget
-	var prot := state.protagonist()
-	player_factions = [] if prot == null else [prot.faction_id]
+	player_sides = ["player"]
 
 
-## Applies one checked player/AI command with a snapshot pushed first.
+## Applies one player/AI command: the command's check() runs first (no snapshot and no
+## mutation when invalid), then a snapshot is pushed before the apply.
 func commit(kind: String, payload: Dictionary) -> bool:
 	if not state.battle_over.is_empty():
+		return false
+	var err := _check(kind, payload)
+	if err != "":
 		return false
 	push_snapshot(kind)
 	var ok := _apply(kind, payload)
@@ -40,6 +43,31 @@ func commit(kind: String, payload: Dictionary) -> bool:
 		return false
 	_on_state_changed()
 	return true
+
+
+func _check(kind: String, payload: Dictionary) -> String:
+	if kind == "end_phase":
+		return ""
+	if not state.units.has(String(payload.get("unit_id", ""))):
+		push_error("BattleDirector: unknown unit in %s payload" % kind)
+		return "unknown unit"
+	var unit: UnitState = state.units[String(payload["unit_id"])]
+	match kind:
+		"move":
+			return MoveCommand.check(state, unit, payload["cell"])
+		"attack":
+			return AttackCommand.check(state, unit, String(payload["target_id"]))
+		"pickup":
+			return PickupCommand.check(state, unit)
+		"skill":
+			return SkillCommand.check(state, unit, String(payload["skill_id"]), state.units[String(payload["target_id"])])
+		"wait":
+			return WaitCommand.check(state, unit)
+		"end_phase":
+			return ""
+		_:
+			push_error("BattleDirector: unknown command kind %s" % kind)
+			return "unknown kind"
 
 
 func _apply(kind: String, payload: Dictionary) -> bool:
@@ -55,8 +83,7 @@ func _apply(kind: String, payload: Dictionary) -> bool:
 			return PickupCommand.apply(state, unit3)
 		"skill":
 			var unit4: UnitState = state.units[String(payload["unit_id"])]
-			WaitCommand.execute_skill(state, unit4, String(payload["skill_id"]), state.units[String(payload["target_id"])])
-			return true
+			return SkillCommand.apply(state, unit4, String(payload["skill_id"]), state.units[String(payload["target_id"])])
 		"wait":
 			var unit5: UnitState = state.units[String(payload["unit_id"])]
 			WaitCommand.apply(state, unit5)
@@ -76,12 +103,16 @@ func commit_ai_plan(plan: Dictionary) -> bool:
 		return false
 	var unit: UnitState = state.units[String(plan["unit_id"])]
 	var move_cell: Variant = plan.get("move_cell", Vector2i(-1, -1))
+	var moved_ok := true
 	if move_cell is Vector2i and move_cell != unit.pos:
-		commit("move", {"unit_id": unit.id, "cell": move_cell})
+		moved_ok = commit("move", {"unit_id": unit.id, "cell": move_cell})
 	var target_id := String(plan.get("target_id", ""))
-	if target_id != "" and state.units.has(target_id) and state.units[target_id].alive:
-		return commit("attack", {"unit_id": unit.id, "target_id": target_id})
-	# Không đánh được: approach (hoặc giữ chỗ) vẫn là kết thúc hành động = Wait, unit acted.
+	if moved_ok and target_id != "" and state.units.has(target_id) and state.units[target_id].alive:
+		if commit("attack", {"unit_id": unit.id, "target_id": target_id}):
+			return true
+		# Attack refused by check(): the move already happened, so end the action as Wait
+		# instead of pressing on from a stale position.
+		return commit("wait", {"unit_id": unit.id})
 	return commit("wait", {"unit_id": unit.id})
 
 
@@ -95,10 +126,11 @@ func run_next_enemy_plan() -> Dictionary:
 	if state.phase != BattleState.PHASE_ENEMY:
 		return {}
 	for u in state.alive_units():
-		if u.faction_id not in player_factions and not u.acted:
-			var plan := EnemyAI.plan_unit(state, u, player_factions)
-			if not plan.is_empty():
-				return plan
+		if u.side == "player" or u.acted:
+			continue
+		var plan := EnemyAI.plan_unit(state, u, _enemy_target_sides())
+		if not plan.is_empty():
+			return plan
 	return {}
 
 
@@ -127,6 +159,11 @@ func _npc_goals() -> Dictionary:
 			if npc_id != "":
 				out[npc_id] = obj.target_cell()
 	return out
+
+
+## Enemies attack whoever is not on their own side: the player squad and NPC actors.
+func _enemy_target_sides() -> Array:
+	return ["player", "npc"]
 
 
 func clear_acted_flags() -> void:
@@ -237,6 +274,8 @@ func advance_to_player_phase() -> void:
 	state.turn += 1
 	state.phase = BattleState.PHASE_PLAYER
 	clear_acted_flags()
+	# Turn-start snapshot: rewinding right at the start of a player turn is always valid.
+	push_snapshot("turn_start")
 	EventBus.phase_changed.emit(state.phase, state.turn)
 	EventBus.turn_started.emit(state.turn)
 	emit_objectives()

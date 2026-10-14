@@ -8,6 +8,4 @@ id = "faction_empire"
 display_name = "Physical Empire"
 remnant_id = ""
 reconcile = {
-"kill_threshold": 4,
-"required_events": Array[String](["spared_commander"]),
 }
