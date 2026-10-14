@@ -18,7 +18,7 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var title := UIBuilder.label(self, "CEASEFIRE  (Project X)", 64)
+	var title := UIBuilder.label(self, "PROJECT X", 64)
 	title.position = Vector2(60, 80)
 	var sub := UIBuilder.label(self, "Tactical turn-based RPG - vertical slice build", 22)
 	sub.position = Vector2(64, 160)

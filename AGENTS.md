@@ -1,4 +1,4 @@
-# AGENTS.md — Project X (Ceasefire)
+# AGENTS.md — Project X
 
 Read this file fully before touching the project. Update the **Work Log** section at the end of every session.
 

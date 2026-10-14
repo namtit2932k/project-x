@@ -1,4 +1,4 @@
-# Project X (Ceasefire) — How to run
+# Project X — How to run
 
 ## Requirements
 

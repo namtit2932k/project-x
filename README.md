@@ -1,4 +1,4 @@
-# Project X — Ceasefire
+# Project X
 
 A 2D turn-based tactical RPG (Fire-Emblem-like) built with **Godot 4 (GDScript)**.
 
