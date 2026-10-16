@@ -70,6 +70,9 @@ class_name RulesConfig
 @export var protagonist_death_loses: bool = true
 
 ## ------------------------------------------------------------ bond
+## Damage-side bonus stat selector (D05): the adjacency bonus lands on this stat of the
+## attacking unit; "power" adds to damage. Change to e.g. "hit" to move it to accuracy.
+@export var bond_bonus_stat: String = "power"
 ## Bonus theo rank (designer đã chốt); tổng bonus kề ô tối đa +16 (ràng buộc test bằng test).
 @export var bond_bonus_by_rank: Dictionary = {"C": 3, "B": 5, "A": 8, "S": 10}
 @export var max_adjacent_bond_bonus: int = 16

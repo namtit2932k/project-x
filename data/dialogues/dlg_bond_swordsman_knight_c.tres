@@ -6,10 +6,4 @@
 script = ExtResource("1")
 id = "dlg_bond_swordsman_knight_c"
 display_name = "Bond C - Swordsman x Knight"
-lines = Array[Dictionary]([{
-"speaker": "Knight",
-"text": "You still check the flank out of habit. Peace will take some unlearning.",
-}, {
-"speaker": "Swordsman",
-"text": "[Placeholder bond scene C dialogue.]",
-}])
+lines = Array[Dictionary]([{"speaker": "Swordsman", "text": "[Placeholder bond scene C dialogue - production content pending.]"}, {"speaker": "Knight", "text": "...",}])

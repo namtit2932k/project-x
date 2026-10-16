@@ -247,3 +247,7 @@ func check_bonds() -> void:
 			var dlg_id := String(b.scene_dialogue_ids[rank])
 			if dlg_id != "" and DataRegistry.get_dialogue(dlg_id) == null:
 				_err("bond %s: unknown dialogue %s" % [id, dlg_id])
+		# D05: every rank that has a scene threshold must have a playable scene dialogue.
+		for rank_key in b.scene_thresholds:
+			if not b.scene_dialogue_ids.has(rank_key) or String(b.scene_dialogue_ids[rank_key]) == "":
+				_err("bond %s: rank %s has a threshold but no scene dialogue id" % [id, rank_key])

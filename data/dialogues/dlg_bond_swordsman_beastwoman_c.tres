@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/dialogues/dialogue_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "dlg_bond_swordsman_beastwoman_c"
+display_name = "Bond C - Swordsman x Beastwoman"
+lines = Array[Dictionary]([{"speaker": "Swordsman", "text": "[Placeholder bond scene C dialogue - production content pending.]"}, {"speaker": "Beastwoman", "text": "...",}])

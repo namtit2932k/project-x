@@ -123,12 +123,6 @@ func _merge_battle_into_campaign(win: bool) -> void:
 	var chapter := GameState.current_chapter()
 	var result: Dictionary = ResultStore.last_result
 	var policy: String = String(DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "temp_injury"))
-	# Bond points earned this battle flow into the campaign (capped per pair per battle at
-	# the source); the camp reads GameState.bond_points, not the battle-local copy.
-	if _battle_director != null:
-		for pair_id in _battle_director.state.bond_points:
-			GameState.bond_points[pair_id] = int(GameState.bond_points.get(pair_id, 0)) \
-					+ int(_battle_director.state.bond_points[pair_id])
 	for unit_id in GameState.roster:
 		var entry: Dictionary = GameState.roster[unit_id]
 		var state_unit = null
@@ -149,6 +143,12 @@ func _merge_battle_into_campaign(win: bool) -> void:
 					entry.alive = true
 					entry["defeats"] = int(entry.get("defeats", 0)) + 1
 	if win:
+		# D05/D06: bond points earned this battle flow into the campaign after a WIN only;
+		# the camp reads GameState.bond_points, not the battle-local copy.
+		if _battle_director != null:
+			for pair_id in _battle_director.state.bond_points:
+				GameState.bond_points[pair_id] = int(GameState.bond_points.get(pair_id, 0)) \
+						+ int(_battle_director.state.bond_points[pair_id])
 		GameState.completed_chapters[String(chapter.id)] = true
 		if result.has("reconcile"):
 			var outcomes := {}

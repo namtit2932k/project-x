@@ -14,5 +14,8 @@ scene_thresholds = {
 }
 scene_dialogue_ids = {
 "C": "dlg_bond_swordsman_knight_c",
+"B": "dlg_bond_swordsman_knight_b",
+"A": "dlg_bond_swordsman_knight_a",
+"S": "dlg_bond_swordsman_knight_s",
 }
 s_milestone_chapter_id = "chapter_ch01"

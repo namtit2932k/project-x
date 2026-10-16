@@ -14,6 +14,7 @@ func _ready() -> void:
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
+	await test_bond_rules_d05()
 	await test_evacuate()
 	await test_terrain_costs()
 	await test_save_load()
@@ -58,6 +59,92 @@ func test_bond_cap() -> void:
 	assert_true(bonus == 16, "bond cap: adjacency bonus capped at +16 (got %d)" % bonus)
 	DataRegistry._cache["bonds"].erase("test_pair_a")
 	DataRegistry._cache["bonds"].erase("test_pair_s")
+
+
+## N05 (D05): bond points flow from combat participation + adjacency; distance, enemy side
+## and the per-battle cap block them; rank scenes gate on the previous rank; S is exclusive.
+func test_bond_rules_d05() -> void:
+	await 0.0
+	var state: BattleState = _plain_map_enemy_state()
+	var pair := BondData.new()
+	pair.id = "test_pair_d05"
+	pair.unit_a = "attacker"
+	pair.unit_b = "partner"
+	DataRegistry._cache["bonds"]["test_pair_d05"] = pair
+	var attacker := _spawn(state, "attacker", "faction_p", Vector2i(0, 0), false, false, "player")
+	var partner := _spawn(state, "partner", "faction_p", Vector2i(1, 0), false, false, "player")
+	var foe := _spawn(state, "foe1", "faction_e", Vector2i(1, 1), false, false, "enemy")
+	# Adjacent partner on the attacking player unit: points flow.
+	BondSystem.reward_combat_pairs(state, attacker, foe)
+	assert_true(int(state.bond_points["test_pair_d05"]) == int(DataRegistry.rule("bond_points_combat_action", 2)), "bond D05: adjacent partner earns points on attack")
+	# The player unit DEFENDING with an adjacent partner earns the same reward.
+	state.bond_points["test_pair_d05"] = 0
+	BondSystem.reward_combat_pairs(state, foe, attacker)
+	assert_true(int(state.bond_points["test_pair_d05"]) == int(DataRegistry.rule("bond_points_combat_action", 2)), "bond D05: defending earns points too")
+	# Distant partner: no points.
+	state.bond_points["test_pair_d05"] = 0
+	partner.pos = Vector2i(5, 5)
+	BondSystem.reward_combat_pairs(state, attacker, foe)
+	assert_true(int(state.bond_points["test_pair_d05"]) == 0, "bond D05: distant partner earns nothing")
+	partner.pos = Vector2i(1, 0)
+	# A pair whose two members fight on OPPOSING sides never earns: participant must be
+	# player-side AND the partner must be player-side and adjacent.
+	var cross := BondData.new()
+	cross.id = "test_pair_cross"
+	cross.unit_a = "attacker"
+	cross.unit_b = "foe1"
+	DataRegistry._cache["bonds"]["test_pair_cross"] = cross
+	BondSystem.reward_combat_pairs(state, attacker, foe)
+	assert_true(not state.bond_points.has("test_pair_cross"), "bond D05: enemy-side pair earns nothing")
+	# Heal between pair members keeps its own explicit reward.
+	state.bond_points["test_pair_d05"] = 0
+	partner.hp = 5
+	BondSystem.reward_heal(state, attacker, partner)
+	# Per-battle cap: points stop at bond_point_limit_per_pair_per_map.
+	state.bond_points["test_pair_d05"] = int(DataRegistry.rule("bond_point_limit_per_pair_per_map", 20)) - 1
+	BondSystem.reward_combat_pairs(state, attacker, foe)
+	var cap := int(DataRegistry.rule("bond_point_limit_per_pair_per_map", 20))
+	assert_true(int(state.bond_points["test_pair_d05"]) == cap, "bond D05: points stop at the per-battle cap")
+	BondSystem.reward_combat_pairs(state, attacker, foe)
+	assert_true(int(state.bond_points["test_pair_d05"]) == cap, "bond D05: cap holds on repeat")
+	DataRegistry._cache["bonds"].erase("test_pair_d05")
+	DataRegistry._cache["bonds"].erase("test_pair_cross")
+	# Damage-side bonus stat: with an unlocked-rank pair adjacent to the attacker, damage
+	# grows by exactly the rank bonus; the bond never feeds accuracy with the default config.
+	var base_dmg := CombatResolver._damage(state, attacker, foe)
+	var hit_before_pair := CombatResolver._hit_pct(state, attacker, foe)
+	var dmg_pair := BondData.new()
+	dmg_pair.id = "test_pair_dmg"
+	dmg_pair.unit_a = "attacker"
+	dmg_pair.unit_b = "partner"
+	DataRegistry._cache["bonds"]["test_pair_dmg"] = dmg_pair
+	GameState.bond_ranks["test_pair_dmg"] = "C"
+	var bonused_dmg := CombatResolver._damage(state, attacker, foe)
+	assert_true(bonused_dmg == base_dmg + int(DataRegistry.rule("bond_bonus_by_rank", {}).get("C", 3)), "bond D05: adjacency bonus reaches damage (rank C)")
+	assert_true(CombatResolver._hit_pct(state, attacker, foe) == hit_before_pair, "bond D05: accuracy untouched by the bond bonus")
+	DataRegistry._cache["bonds"].erase("test_pair_dmg")
+	GameState.bond_ranks.erase("test_pair_dmg")
+	# Rank scene gating: B only after C watched/skipped (index compare, not strings).
+	var camp := CampScene.new()
+	var rank_pair := BondData.new()
+	rank_pair.id = "test_rank_pair"
+	GameState.bond_scenes_viewed.clear()
+	GameState.s_pairs.clear()
+	assert_true(camp._rank_scene_unlocked(rank_pair, "C"), "bond rank: C is the entry scene")
+	assert_true(not camp._rank_scene_unlocked(rank_pair, "B"), "bond rank: B stays blocked before C is watched")
+	GameState.bond_scenes_viewed["test_rank_pair"] = ["C"]
+	assert_true(camp._rank_scene_unlocked(rank_pair, "B"), "bond rank: B unlocks after C watched")
+	assert_true(CampScene.rank_index("B") > CampScene.rank_index("C"), "bond rank: index ordering beats string ordering")
+	# S exclusivity: a member already locked into an S pair blocks a second S pair.
+	var s_pair := BondData.new()
+	s_pair.id = "test_s_pair"
+	s_pair.unit_a = "attacker"
+	s_pair.unit_b = "partner"
+	GameState.s_pairs["partner"] = "other_pair"
+	assert_true(not camp._s_pair_free(s_pair), "bond S: member already in an S pair blocks a second one")
+	GameState.s_pairs.clear()
+	assert_true(camp._s_pair_free(s_pair), "bond S: free again after clearing locks")
+	camp.free()
 
 
 ## Không loạn mục tiêu: diệt kẻ 1 xong,CombatResolver phải trừ đúng HP kẻ 2.

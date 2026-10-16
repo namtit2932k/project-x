@@ -87,7 +87,9 @@ func _rebuild_bond_panel() -> void:
 		UIBuilder.label(row, line, 16)
 		for rank_key in ["C", "B", "A"]:
 			var threshold := int(pair.scene_thresholds.get(rank_key, 1 << 30))
-			if points >= threshold and rank_index(GameState.bond_rank_for(String(pair.id))) < rank_index(rank_key) and not GameState.bond_scenes_viewed.get(String(pair.id), []).has(rank_key):
+			if points >= threshold and rank_index(GameState.bond_rank_for(String(pair.id))) < rank_index(rank_key) \
+					and not GameState.bond_scenes_viewed.get(String(pair.id), []).has(rank_key) \
+					and _rank_scene_unlocked(pair, rank_key):
 				var btn := UIBuilder.button(row, "View %s scene" % rank_key, 14)
 				btn.pressed.connect(func() -> void: _watch_bond_scene(pair, rank_key))
 		# S rank: after A plus story milestone, both alive, one exclusive pair per character.
@@ -101,6 +103,16 @@ func _rebuild_bond_panel() -> void:
 ## "C"=0, "B"=1, "A"=2, "S"=3; unknown/missing = -1.
 static func rank_index(rank: String) -> int:
 	return GameState.BOND_RANKS.find(rank)
+
+
+## D05: a rank's scene opens only after the previous rank's scene was watched or skipped
+## (B after C, A after B); C is the entry scene.
+func _rank_scene_unlocked(pair: Resource, rank_key: String) -> bool:
+	var idx := rank_index(rank_key)
+	if idx <= 0:
+		return true
+	var prev_rank: String = GameState.BOND_RANKS[idx - 1]
+	return GameState.bond_scenes_viewed.get(String(pair.id), []).has(prev_rank)
 
 
 ## One exclusive S pair per character (GameState.s_pairs maps unit -> pair_id).

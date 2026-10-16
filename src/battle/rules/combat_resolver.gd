@@ -73,7 +73,9 @@ static func _strike_plan(state: BattleState, attacker: UnitState, defender: Unit
 ## configured rounding; new formulas are designer-selectable without touching call sites.
 static func _damage(state: BattleState, attacker: UnitState, defender: UnitState) -> int:
 	var scaling := int(defender.defense) if attacker.damage_type == "physical" else int(defender.resistance)
-	var bonus := BondSystem.support_attack_bonus(state, attacker)
+	# D05: the bond adjacency bonus lands on the stat chosen by rules_config.bond_bonus_stat
+	# (default "power" = damage); it only enters the formula that owns that stat.
+	var bonus := BondSystem.stat_bonus(state, attacker, "power")
 	var raw := 0
 	match String(DataRegistry.rule("damage_formula_id", "atk_minus_def")):
 		"atk_minus_def":
@@ -103,7 +105,8 @@ static func _hit_pct(state: BattleState, a: UnitState, d: UnitState) -> int:
 	var skill_scale := int(DataRegistry.rule("hit_scale_skill", 3))
 	var avoid_scale := int(DataRegistry.rule("hit_scale_speed_avoid", 2))
 	var variance := int(DataRegistry.rule("hit_variance", 10))
-	var support := BondSystem.support_attack_bonus(state, a)
+	# D05: bond bonus no longer feeds accuracy (only the bond_bonus_stat damage entry does).
+	var support := BondSystem.stat_bonus(state, a, "hit")
 	var raw := base + a.hit_bonus + a.skill * skill_scale + support - (d.speed * avoid_scale + state.terrain_avoid_at(d.pos))
 	# Deterministic display uses the mean variance; rolls add +/- variance in execute? No:
 	# execute rolls dice for hit/crit outcomes only; variance applies to damage rolls.

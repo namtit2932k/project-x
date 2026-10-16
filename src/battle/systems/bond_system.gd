@@ -24,6 +24,14 @@ static func support_attack_bonus(state: BattleState, unit: UnitState) -> int:
 	return _adjacency_bonus(state, unit)
 
 
+## D05: the adjacency bonus applies only to the stat chosen by rules_config.bond_bonus_stat
+## (default "power"); other stats get 0, so accuracy never benefits with the default config.
+static func stat_bonus(state: BattleState, unit: UnitState, stat_name: String) -> int:
+	if String(DataRegistry.rule("bond_bonus_stat", "power")) != stat_name:
+		return 0
+	return _adjacency_bonus(state, unit)
+
+
 static func _adjacency_bonus(state: BattleState, unit: UnitState) -> int:
 	var total := 0
 	var bonuses: Dictionary = DataRegistry.rule("bond_bonus_by_rank", {})
@@ -42,28 +50,25 @@ static func _adjacency_bonus(state: BattleState, unit: UnitState) -> int:
 	return mini(total, int(DataRegistry.rule("max_adjacent_bond_bonus", 16)))
 
 
-## Rewards every eligible pair whose members both participated (one member attacked in combat
-## and the other is adjacent to either combatant alive at combat time).
+## D05 bond points: after each combat, every eligible pair gets points when ONE member took
+## part in the engagement (attacked OR was attacked) and the OTHER member is alive, on the
+## player side, standing adjacent (manhattan = 1) to that participant. One award per pair
+## per engagement. Healing keeps its own rule in reward_heal().
 static func reward_combat_pairs(state: BattleState, attacker: UnitState, defender: UnitState) -> void:
-	# Bond points come from valid actions between pair members on the same side. Combat itself
-	# is only a bond action through the SUPPORT: an adjacent pair-member ally of the attacker.
-	# Rewarding attacker-vs-defender membership directly would reward enemy connections only
-	# (both sides of a strike are of opposing sides), which never matches a designer pair.
-	reward_support_actions(state, attacker)
-
-
-## Support rewards: for each pair containing `actor`, the other member is an alive same-side
-## ally adjacent to the actor -> +points (attack from an adjacent partner, or being healed).
-static func reward_support_actions(state: BattleState, actor: UnitState) -> void:
 	var amount := int(DataRegistry.rule("bond_points_combat_action", 2))
 	for pair in DataRegistry.all_bond_pairs():
-		var other_id := _other_member_id(pair, actor.id)
-		if other_id == "":
-			continue
-		var ally: UnitState = state.units.get(other_id, null)
-		if ally != null and ally.alive and ally.side == actor.side \
-				and RangeHandler.manhattan(ally.pos, actor.pos) == 1:
-			add_points(state, pair, amount)
+		for participant in [attacker, defender]:
+			if participant == null or _other_member_id(pair, participant.id) == "":
+				continue
+			# Pairs only earn points for player-side engagements ("cùng phe người chơi").
+			if participant.side != "player":
+				continue
+			var other_id := _other_member_id(pair, participant.id)
+			var ally: UnitState = state.units.get(other_id, null)
+			if ally != null and ally.alive and ally.side == "player" \
+					and RangeHandler.manhattan(ally.pos, participant.pos) == 1:
+				add_points(state, pair, amount)
+				break
 
 
 ## Heal is a valid support action between pair members (explicit, distance-independent:
