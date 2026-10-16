@@ -47,10 +47,7 @@ func _ready() -> void:
 
 	if String(ResultStore.last_result.get("status", "")) == "lose":
 		# Defeat: the chapter was NOT advanced; the squad stays in camp to retry it.
-		var retry_btn := UIBuilder.button(self, "Retry chapter", 22)
-		retry_btn.position = Vector2(1660, 730)
-		retry_btn.size = Vector2(200, 50)
-		retry_btn.pressed.connect(func() -> void: retry_chapter.emit())
+		_add_retry_button()
 	elif not GameState.has_next_chapter():
 		var done_label := UIBuilder.label(self, "Campaign complete", 22)
 		done_label.position = Vector2(1640, 690)
@@ -60,6 +57,10 @@ func _ready() -> void:
 		menu_after.position = Vector2(1660, 730)
 		menu_after.size = Vector2(200, 50)
 		menu_after.pressed.connect(func() -> void: to_menu.emit())
+	elif not GameState.completed_chapters.has(String(GameState.current_chapter().id)):
+		# D06: "Next chapter" unlocks only after the CURRENT chapter was won (defensive
+		# path: defeat banner rewind-rescue or a load made before any victory).
+		_add_retry_button()
 	else:
 		var next_btn := UIBuilder.button(self, "Next chapter", 22)
 		next_btn.position = Vector2(1660, 730)
@@ -70,6 +71,15 @@ func _ready() -> void:
 	menu_btn.position = Vector2(1660, 810)
 	menu_btn.size = Vector2(200, 50)
 	menu_btn.pressed.connect(func() -> void: to_menu.emit())
+
+
+## Retry reopens the CURRENT chapter without any campaign-wide loss bookkeeping (D06:
+## a defeat writes nothing, so the retry never counts as a defeat either).
+func _add_retry_button() -> void:
+	var retry_btn := UIBuilder.button(self, "Retry chapter", 22)
+	retry_btn.position = Vector2(1660, 730)
+	retry_btn.size = Vector2(200, 50)
+	retry_btn.pressed.connect(func() -> void: retry_chapter.emit())
 
 
 func _rebuild_bond_panel() -> void:

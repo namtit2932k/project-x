@@ -231,24 +231,7 @@ func _priority_plan(state: BattleState, unit: UnitState, protect: bool) -> Dicti
 	return {"unit_id": unit.id, "move_cell": best_cell, "target_id": ""}
 
 
-## Mirrors Main._merge_battle_into_campaign outcome handling for the smoke run.
-func _merge_like_main(director: BattleDirector, player_sides: Array) -> void:
+## Uses the same campaign merge as Main (CampaignMerge, D06) for the smoke run.
+func _merge_like_main(director: BattleDirector, _player_sides: Array) -> void:
 	var chapter := GameState.current_chapter()
-	var result: Dictionary = ResultStore.last_result
-	var policy: String = String(DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "temp_injury"))
-	for unit_id in GameState.roster:
-		var entry: Dictionary = GameState.roster[unit_id]
-		if not director.state.units.has(unit_id):
-			continue
-		var state_unit: UnitState = director.state.units[unit_id]
-		entry.exp = int(entry.get("exp", 0)) + int(state_unit.exp)
-		if not state_unit.alive and policy != "permadeath":
-			entry.alive = true
-			entry["defeats"] = int(entry.get("defeats", 0)) + 1
-	if String(result.get("status", "")) == "win":
-		GameState.completed_chapters[String(chapter.id)] = true
-		var outcomes := {}
-		for faction_id in result.get("reconcile", {}):
-			var fo: Dictionary = result["reconcile"][faction_id]
-			outcomes[faction_id] = {"persuaded": bool(fo.get("persuaded", false)), "kills": int(fo.get("kills", 0)), "events": fo.get("events", [])}
-		GameState.reconcile_outcomes[String(chapter.id)] = outcomes
+	CampaignMerge.merge(director.state, chapter, ResultStore.last_result)

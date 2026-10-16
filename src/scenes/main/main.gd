@@ -87,7 +87,8 @@ func _start_battle(deploy: Dictionary) -> void:
 
 func _show_post_battle(win: bool) -> void:
 	var chapter := GameState.current_chapter()
-	_merge_battle_into_campaign(win)
+	# D06: the merge itself decides win/lose from the stored result; defeat touches nothing.
+	CampaignMerge.merge(_battle_director.state if _battle_director != null else null, chapter, ResultStore.last_result)
 	var post := PostBattleScene.build(chapter)
 	post.continue_pressed.connect(_show_camp)
 	if win:
@@ -117,43 +118,8 @@ func _on_retry_chapter() -> void:
 
 # ------------------------------------------------------------------ campaign merge
 
-## Applies one battle's outcome to the campaign roster: exp, casualties per difficulty,
-## chapter completion, reconcile outcomes. Never called mid-battle.
-func _merge_battle_into_campaign(win: bool) -> void:
+## Thin wrapper kept for callers/tests: the merge logic itself lives in the static
+## CampaignMerge (src/core), not in the scene controller.
+func _merge_battle_into_campaign(_win: bool) -> void:
 	var chapter := GameState.current_chapter()
-	var result: Dictionary = ResultStore.last_result
-	var policy: String = String(DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "temp_injury"))
-	for unit_id in GameState.roster:
-		var entry: Dictionary = GameState.roster[unit_id]
-		var state_unit = null
-		if _battle_director != null and _battle_director.state.units.has(unit_id):
-			state_unit = _battle_director.state.units[unit_id]
-		if state_unit == null:
-			continue
-		# EXP -> roster (leveling math TBD; keep gains banked).
-		entry.exp = int(entry.get("exp", 0)) + int(state_unit.exp)
-		if not state_unit.alive:
-			match policy:
-				"permadeath":
-					entry.alive = false
-				"none":
-					entry.alive = true
-				_:
-					# temp_injury placeholder: survivors restore with a scratch of HP.
-					entry.alive = true
-					entry["defeats"] = int(entry.get("defeats", 0)) + 1
-	if win:
-		# D05/D06: bond points earned this battle flow into the campaign after a WIN only;
-		# the camp reads GameState.bond_points, not the battle-local copy.
-		if _battle_director != null:
-			for pair_id in _battle_director.state.bond_points:
-				GameState.bond_points[pair_id] = int(GameState.bond_points.get(pair_id, 0)) \
-						+ int(_battle_director.state.bond_points[pair_id])
-		GameState.completed_chapters[String(chapter.id)] = true
-		if result.has("reconcile"):
-			var outcomes := {}
-			for faction_id in result["reconcile"]:
-				var fo: Dictionary = result["reconcile"][faction_id]
-				outcomes[faction_id] = {"persuaded": bool(fo.get("persuaded", false)), "kills": int(fo.get("kills", 0)), "events": fo.get("events", [])}
-			GameState.reconcile_outcomes[String(chapter.id)] = outcomes
-	# Defeat keeps the campaign at this chapter so the player can retry (retry flow TBD).
+	CampaignMerge.merge(_battle_director.state if _battle_director != null else null, chapter, ResultStore.last_result)

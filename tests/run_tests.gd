@@ -15,6 +15,7 @@ func _ready() -> void:
 	await test_bond_and_reconcile()
 	await test_bond_cap()
 	await test_bond_rules_d05()
+	await test_campaign_merge_d06()
 	await test_evacuate()
 	await test_terrain_costs()
 	await test_save_load()
@@ -145,6 +146,74 @@ func test_bond_rules_d05() -> void:
 	GameState.s_pairs.clear()
 	assert_true(camp._s_pair_free(s_pair), "bond S: free again after clearing locks")
 	camp.free()
+
+
+
+## N06 (D06): only a victory merges battle outcome into the campaign, in ONE place
+## (CampaignMerge); defeat writes nothing (no EXP, no bond, no defeats counter) and the
+## camp hides "Next chapter" while the current chapter is still uncleared.
+func test_campaign_merge_d06() -> void:
+	await 0.0
+	GameState.new_game()
+	GameState.build_roster()
+	var chapter := GameState.current_chapter()
+	var state: BattleState = _plain_map_enemy_state()
+	var hero := _spawn(state, "unit_swordsman", "faction_p", Vector2i(0, 0), false, false, "player")
+	hero.exp = 12
+	state.bond_points = {"bond_swordsman_knight": 4}
+	# Defeat: nothing merges, not even the dead unit's defeats counter.
+	hero.alive = false
+	CampaignMerge.merge(state, chapter, {"status": "lose"})
+	assert_true(int(GameState.roster["unit_swordsman"]["exp"]) == 0, "campaign merge D06: defeat stores no EXP")
+	assert_true(GameState.bond_points.is_empty(), "campaign merge D06: defeat stores no bond points")
+	assert_true(int(GameState.roster["unit_swordsman"]["defeats"]) == 0, "campaign merge D06: defeat never counts a loss")
+	assert_true(not GameState.completed_chapters.has(String(chapter.id)), "campaign merge D06: defeat does not complete the chapter")
+	assert_true(bool(GameState.roster["unit_swordsman"]["alive"]), "campaign merge D06: roster untouched on defeat (retry replays pre-battle roster)")
+	# Victory: EXP, casualties, bond, completion and reconcile all merge.
+	GameState.completed_chapters.clear()
+	hero.alive = true
+	CampaignMerge.merge(state, chapter, {"status": "win"})
+	assert_true(int(GameState.roster["unit_swordsman"]["exp"]) == 12, "campaign merge D06: win merges EXP")
+	assert_true(int(GameState.bond_points.get("bond_swordsman_knight", 0)) == 4, "campaign merge D06: win merges bond points")
+	assert_true(GameState.completed_chapters.has(String(chapter.id)), "campaign merge D06: win completes the chapter")
+	# Camp UI: retry button while uncleared, "Next chapter" only after the chapter won.
+	var second := ChapterData.new()
+	second.id = "chapter_ch02"
+	second.order = 2
+	second.map_id = String(chapter.map_id)
+	DataRegistry._cache["chapters"]["chapter_ch02"] = second
+	GameState.completed_chapters.clear()
+	ResultStore.last_result = {"status": "lose"}
+	var camp := CampScene.new()
+	add_child(camp)
+	await get_tree().process_frame
+	assert_true(_find_button(camp, "Retry chapter") != null and _find_button(camp, "Next chapter") == null, "camp D06: defeat shows Retry, hides Next chapter")
+	ResultStore.last_result = {"status": "win"}
+	GameState.completed_chapters[String(chapter.id)] = true
+	var camp2 := CampScene.new()
+	add_child(camp2)
+	await get_tree().process_frame
+	assert_true(_find_button(camp2, "Next chapter") != null and _find_button(camp2, "Retry chapter") == null, "camp D06: cleared chapter shows Next chapter")
+	ResultStore.last_result = {"status": "win"}
+	GameState.completed_chapters.clear()   # defensive gate: result win but chapter uncleared
+	var camp3 := CampScene.new()
+	add_child(camp3)
+	await get_tree().process_frame
+	assert_true(_find_button(camp3, "Next chapter") == null, "camp D06: Next chapter hidden while the current chapter is uncleared")
+	DataRegistry._cache["chapters"].erase("chapter_ch02")
+	camp.queue_free()
+	camp2.queue_free()
+	camp3.queue_free()
+
+
+func _find_button(root: Node, text: String) -> Button:
+	if root is Button and String(root.text) == text:
+		return root
+	for child in root.get_children():
+		var found := _find_button(child, text)
+		if found != null:
+			return found
+	return null
 
 
 ## Không loạn mục tiêu: diệt kẻ 1 xong,CombatResolver phải trừ đúng HP kẻ 2.
