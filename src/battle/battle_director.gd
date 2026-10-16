@@ -14,9 +14,9 @@ var rewind_budget: int = 0            # -1 = unlimited
 var player_sides: Array = ["player"]
 
 
-func setup(p_map: Resource, deploy: Dictionary, difficulty: String) -> void:
+func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: int = -1) -> void:
 	state = BattleState.new()
-	state.setup(p_map, deploy)
+	state.setup(p_map, deploy, seed_value)
 	rewind = SnapshotStack.new()
 	objectives.clear()
 	for cfg in state.objectives_config:

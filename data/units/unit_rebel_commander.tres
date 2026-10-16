@@ -31,5 +31,6 @@ growths = {
 }
 skill_ids = []
 is_protagonist = false
+reconcile_event_key = "spared_commander"
 in_roster = false
 bio = "Placeholder bio - see Character.docx."

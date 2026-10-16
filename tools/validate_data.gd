@@ -23,6 +23,7 @@ func _ready() -> void:
 	check_chapters()
 	check_dialogues()
 	check_bonds()
+	check_reconcile_keys()
 	print("Validation done: %d errors, %d warnings" % [errors, warnings])
 	get_tree().quit(1 if errors > 0 else 0)
 
@@ -120,6 +121,31 @@ func check_units() -> void:
 		for skill_id in u.skill_ids:
 			if DataRegistry.get_data("skills", String(skill_id)) == null:
 				_err("unit %s: unknown skill %s" % [id, skill_id])
+		# D03: reconcile event keys must be declared on a unit of that remnant faction
+		# (UnitData.reconcile_event_key), never invented in faction data.
+		if String(u.reconcile_event_key) != "" and DataRegistry.get_faction(String(u.faction_id)) == null:
+			_err("unit %s: reconcile_event_key with unknown faction %s" % [id, u.faction_id])
+
+
+## D03: every required event key of a remnant faction must come from a unit of that
+## faction (UnitData.reconcile_event_key), so no dead vocabulary hides in faction data.
+func check_reconcile_keys() -> void:
+	var keys_by_faction := {}
+	for unit_id in DataRegistry.all_ids("units"):
+		var u := DataRegistry.get_unit(unit_id)
+		var key := String(u.reconcile_event_key)
+		if key != "":
+			if not keys_by_faction.has(String(u.faction_id)):
+				keys_by_faction[String(u.faction_id)] = []
+			keys_by_faction[String(u.faction_id)].append(key)
+	for faction_id in DataRegistry.all_ids("factions"):
+		var f := DataRegistry.get_faction(faction_id)
+		if f == null or String(f.remnant_id) == "":
+			continue
+		var known: Array = keys_by_faction.get(faction_id, [])
+		for ev in f.reconcile.get("required_events", []):
+			if str(ev) not in known:
+				_err("faction %s: required event '%s' has no unit reconcile_event_key" % [faction_id, str(ev)])
 
 
 func check_items() -> void:
@@ -185,18 +211,18 @@ func check_chapters() -> void:
 		var c := DataRegistry.get_chapter(id)
 		if DataRegistry.get_map(String(c.map_id)) == null:
 			_err("chapter %s: unknown map %s" % [id, c.map_id])
-	# Campaign-critical units (D02) count toward deploy_max; a requirement pile above the
-	# deploy cap makes the chapter literally undeployable.
-	var required_count := 0
-	for unit_id in c.deployable_unit_ids:
-		if DataRegistry.get_unit(String(unit_id)) == null:
-			_err("chapter %s: unknown deployable unit %s" % [id, unit_id])
-			continue
-		var ud_req := DataRegistry.get_unit(String(unit_id))
-		if bool(ud_req.is_protagonist) or bool(ud_req.must_survive):
-			required_count += 1
-	if required_count > int(c.deploy_max):
-		_err("chapter %s: %d required-live units exceed deploy_max %d" % [id, required_count, int(c.deploy_max)])
+		# Campaign-critical units (D02) count toward deploy_max; a requirement pile above the
+		# deploy cap makes the chapter literally undeployable.
+		var required_count := 0
+		for unit_id in c.deployable_unit_ids:
+			if DataRegistry.get_unit(String(unit_id)) == null:
+				_err("chapter %s: unknown deployable unit %s" % [id, unit_id])
+				continue
+			var ud_req := DataRegistry.get_unit(String(unit_id))
+			if bool(ud_req.is_protagonist) or bool(ud_req.must_survive):
+				required_count += 1
+		if required_count > int(c.deploy_max):
+			_err("chapter %s: %d required-live units exceed deploy_max %d" % [id, required_count, int(c.deploy_max)])
 		if String(c.story_dialogue_id) != "" and DataRegistry.get_dialogue(String(c.story_dialogue_id)) == null:
 			_err("chapter %s: unknown story dialogue %s" % [id, c.story_dialogue_id])
 		if String(c.post_dialogue_id) != "" and DataRegistry.get_dialogue(String(c.post_dialogue_id)) == null:

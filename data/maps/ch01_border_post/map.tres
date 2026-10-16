@@ -36,7 +36,7 @@ npc_placements = Array[Dictionary]([])
 objectives = Array[Dictionary]([{
 "type": "eliminate",
 "params": {
-"target_unit_ids": Array[String]([]),
+"target_unit_ids": Array[String](["unit_rebel_soldier_1", "unit_rebel_soldier_2", "unit_rebel_soldier_3"]),
 },
 }])
 item_placements = Array[Dictionary]([])

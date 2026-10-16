@@ -22,20 +22,14 @@ static func record_event(state: BattleState, faction_id: String, event_key: Stri
 		EventBus.reconcile_state_changed.emit()
 
 
-## Spared remnant-faction enemies record an event. The key comes from designer data
-## (FactionData.reconcile.spared_event_keys: unit_id -> event key); "spared_<unit_id>"
-## stays as fallback. Keeping unit->key mapping outside unit_id parsing avoids fragile id
-## matching against required_events in data.
+## Spared remnant-faction enemies record their event key straight from UnitData (D03):
+## no unit_id parsing, no per-faction mapping table. Units without a key record nothing.
 static func record_spared_units(state: BattleState) -> void:
 	for u in state.alive_units():
 		if not state.reconcile_state.has(u.faction_id):
 			continue
-		var f := DataRegistry.get_faction(String(u.faction_id))
-		var mapping: Dictionary = {}
-		if f != null and f.reconcile.has("spared_event_keys"):
-			mapping = f.reconcile["spared_event_keys"]
-		var key := String(mapping.get(u.id, "spared_%s" % u.id))
-		record_event(state, u.faction_id, key)
+		if String(u.reconcile_event_key) != "":
+			record_event(state, u.faction_id, String(u.reconcile_event_key))
 
 
 ## Final evaluation after map victory: threshold + required events. Recomputed from the
