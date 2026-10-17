@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="MapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/maps/map_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "map_test_capture"
+display_name = "TEST: Capture the signal tower"
+terrain_rows = Array[String]([
+"............",
+"............",
+"............",
+"....#.......",
+"............",
+".....f......",
+"............",
+"............",
+])
+deploy_cells = Array[Vector2i]([Vector2i(8, 1), Vector2i(3, 6), Vector2i(4, 6), Vector2i(5, 6)])
+enemy_placements = Array[Dictionary]([{
+"unit_id": "unit_rebel_soldier_2",
+"cell": Vector2i(2, 0),
+}, {
+"unit_id": "unit_rebel_soldier_3",
+"cell": Vector2i(2, 2),
+}])
+npc_placements = Array[Dictionary]([])
+objectives = Array[Dictionary]([{
+"type": "capture",
+"params": {
+"zones": [{
+"x": 8,
+"y": 0,
+"w": 2,
+"h": 2,
+}],
+"turns_required": 2,
+},
+}])
+item_placements = Array[Dictionary]([])
+turn_limit = 0
+result_priority = "lose"

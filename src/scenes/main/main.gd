@@ -32,6 +32,7 @@ func _show_menu() -> void:
 	var menu := MenuScene.new()
 	menu.new_game.connect(_on_new_game)
 	menu.continue_game.connect(_on_continue_game)
+	menu.test_battle.connect(_start_test_battle)
 	_swap_to(menu)
 
 
@@ -83,6 +84,29 @@ func _start_battle(deploy: Dictionary) -> void:
 	battle.setup(_battle_director)
 	battle.battle_finished.connect(func(win: bool) -> void: _show_post_battle(win))
 	battle.quit_to_menu.connect(_show_menu)   # N08: pause-quit skips merge and post-battle
+	_swap_to(battle)
+
+
+## N12: debug-only test-map battle — default squad straight onto the map, no chapter.
+## The result never merges back into the campaign; after the battle, back to the menu.
+func _start_test_battle(map_id: String) -> void:
+	var map := DataRegistry.get_map(String(map_id))
+	if map == null:
+		push_error("Main: unknown test map %s" % map_id)
+		return
+	var deploy := {}
+	var i := 0
+	for unit_id in GameState.roster:
+		if not bool(GameState.roster[unit_id].alive) or i >= map.deploy_cells.size():
+			continue
+		deploy[unit_id] = map.deploy_cells[i]
+		i += 1
+	_battle_director = BattleDirector.new()
+	_battle_director.setup(map, deploy, GameState.difficulty)
+	var battle := BattleScene.new()
+	battle.setup(_battle_director)
+	battle.battle_finished.connect(func(_win: bool) -> void: _show_menu())
+	battle.quit_to_menu.connect(_show_menu)
 	_swap_to(battle)
 
 

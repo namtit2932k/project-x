@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="MapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/maps/map_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "map_test_retrieve"
+display_name = "TEST: Retrieve the border relic"
+terrain_rows = Array[String]([
+"............",
+"....#.......",
+"............",
+"......#.....",
+"............",
+"....#.......",
+"............",
+"............",
+])
+deploy_cells = Array[Vector2i]([Vector2i(0, 7), Vector2i(1, 7)])
+enemy_placements = Array[Dictionary]([{
+"unit_id": "unit_rebel_soldier_1",
+"cell": Vector2i(10, 3),
+}])
+npc_placements = Array[Dictionary]([])
+objectives = Array[Dictionary]([{
+"type": "retrieve",
+"params": {
+"item_id": "item_border_relic",
+"exit_zone_x": 0,
+"exit_zone_y": 6,
+"exit_zone_w": 3,
+"exit_zone_h": 2,
+},
+}])
+item_placements = Array[Dictionary]([{
+"item_id": "item_border_relic",
+"cell": Vector2i(11, 0),
+}])
+turn_limit = 0
+result_priority = "lose"

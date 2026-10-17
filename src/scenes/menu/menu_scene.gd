@@ -4,7 +4,8 @@ class_name MenuScene
 
 signal new_game
 signal continue_game
-signal options_changed
+signal test_battle(map_id: String)   # N12: debug-only quick battle entry per test map
+var _test_maps_panel: Control = null
 
 var _diff_button: Button
 
@@ -35,6 +36,10 @@ func _ready() -> void:
 	diff.pressed.connect(_on_cycle_difficulty)
 	_diff_button = diff
 
+	if OS.is_debug_build():
+		var test_btn := UIBuilder.button(box, "Test maps", 20)
+		test_btn.pressed.connect(_open_test_maps)
+
 	var quit := UIBuilder.button(box, "Quit", 20)
 	quit.pressed.connect(func() -> void: get_tree().quit())
 
@@ -42,6 +47,27 @@ func _ready() -> void:
 	var options := UIBuilder.panel(self, 1500, 640, 360, 300)
 	var obox := UIBuilder.vbox(options, 10)
 	obox.add_child(OptionsPanel.new())
+
+
+## Debug-only map picker (N12): one button per map_test_* entry in the registry.
+## Selecting starts the battle straight away — no chapter loop, no story scene.
+func _open_test_maps() -> void:
+	if _test_maps_panel != null:
+		_test_maps_panel.queue_free()
+	var panel := UIBuilder.panel(self, 600, 160, 400, 420)
+	_test_maps_panel = panel
+	var box := UIBuilder.vbox(panel, 8)
+	UIBuilder.label(box, "Test maps (debug build only)", 22)
+	for map_id in DataRegistry.all_ids("maps"):
+		if not String(map_id).begins_with("map_test_"):
+			continue
+		var map := DataRegistry.get_map(String(map_id))
+		var btn := UIBuilder.button(box, map.display_name, 18)
+		var chosen: String = String(map_id)
+		btn.pressed.connect(func() -> void:
+			_test_maps_panel = null
+			panel.queue_free()
+			test_battle.emit(chosen))
 
 
 func _reset_options_and_emit(kind: String) -> void:

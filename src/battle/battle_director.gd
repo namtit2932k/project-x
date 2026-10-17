@@ -134,7 +134,7 @@ func run_next_enemy_plan() -> Dictionary:
 	if state.phase != BattleState.PHASE_ENEMY:
 		return {}
 	for u in state.alive_units():
-		if u.side == "player" or u.acted:
+		if u.side != "enemy" or u.acted:
 			continue
 		var plan := EnemyAI.plan_unit(state, u, _enemy_target_sides())
 		if not plan.is_empty():

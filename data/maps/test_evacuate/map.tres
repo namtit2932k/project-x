@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="MapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/maps/map_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "map_test_evacuate"
+display_name = "TEST: Evacuate the villagers"
+terrain_rows = Array[String]([
+"............",
+"...#........",
+"............",
+"......#.....",
+"............",
+"..#.........",
+"............",
+"............",
+])
+deploy_cells = Array[Vector2i]([Vector2i(1, 5), Vector2i(2, 6), Vector2i(3, 6)])
+enemy_placements = Array[Dictionary]([{
+"unit_id": "unit_rebel_soldier_1",
+"cell": Vector2i(10, 0),
+}, {
+"unit_id": "unit_rebel_soldier_2",
+"cell": Vector2i(9, 2),
+}])
+npc_placements = Array[Dictionary]([{
+"unit_id": "unit_beastwoman",
+"cell": Vector2i(0, 1),
+}])
+objectives = Array[Dictionary]([{
+"type": "evacuate",
+"params": {
+"mode": "clear_all",
+"npc_ids": ["unit_beastwoman"],
+},
+}])
+item_placements = Array[Dictionary]([])
+turn_limit = 0
+result_priority = "lose"
