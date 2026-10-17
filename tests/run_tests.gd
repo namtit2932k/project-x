@@ -34,6 +34,7 @@ func _ready() -> void:
 	await test_second_target_damage()
 	await test_second_target_via_clicks()
 	await test_capture_zones_contested()
+	await test_reconcile_hud()
 	print("\n%d checks, %d failures" % [checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -558,6 +559,66 @@ func test_movement() -> void:
 	assert_true(move_cells.has(Vector2i(0, 3)), "movement: around the wall")
 	var reach_enemy := MovementHandler.compute_move_cells(state, enemy)
 	assert_true(not reach_enemy.has(Vector2i(0, 0)), "movement: mover passes; enemy range blocked by walls")
+
+
+func test_reconcile_hud() -> void:
+	## N10: chip per remnant faction, attitude flips on kills, feedback dialogue plays
+	## on the transition, and rewind displays the restored attitude again.
+	GameState.new_game()
+	GameState.build_roster()
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "normal")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	main._swap_to(battle)
+	await get_tree().process_frame
+	assert_true(battle._reconcile_chip_box != null and battle._reconcile_chip_box.get_child_count() == 1, "reconcile: one chip for the remnant faction")
+	assert_true(battle._reconcile_notice != null and battle._reconcile_notice.visible, "reconcile: battle-start limit-kills warning shown")
+	var chip: VBoxContainer = battle._reconcile_chip_box.get_child(0)
+	assert_true((chip.get_child(1) as Label).text.contains("Neutral"), "reconcile: chip starts Neutral (event not yet recorded, kills 0 is neutral per attitude() rules)")
+	# Kill a rebel unit: the chip flips to Lost and its feedback dialogue appears
+	# (transitions read the FactionData.feedback ids).
+	var commander: UnitState = director.state.units["unit_rebel_commander"]
+	var hero: UnitState = director.state.units["unit_swordsman"]
+	commander.hp = 1
+	commander.defense = 0     # deterministic kill for the chip test
+	commander.pos = hero.pos + Vector2i(1, 0)
+	director.commit("attack", {"unit_id": hero.id, "target_id": commander.id})
+	await get_tree().process_frame   # chip children are queue_free'd: one frame to settle
+	chip = battle._reconcile_chip_box.get_child(0)
+	assert_true((chip.get_child(1) as Label).text.contains("Lost"), "reconcile: kill flips the chip to Lost")
+	var feedback_seen := [false]
+	for child in battle.get_children():
+		if child is CanvasLayer:
+			for c in child.get_children():
+				if c is DialoguePlayer:
+					feedback_seen[0] = true
+	assert_true(feedback_seen[0], "reconcile: feedback dialogue played on the attitude transition")
+	# Rewind: the attitude is restored and the chip must show it again (display follows state).
+	battle._on_rewind()
+	await get_tree().process_frame   # rewind refreshes the HUD on a future-resolved signal
+	chip = battle._reconcile_chip_box.get_child(0)
+	assert_true((chip.get_child(1) as Label).text.contains("Neutral"), "reconcile: rewind restores the pre-kill chip")
+	main.queue_free()
+
+	# PrepScreen carries the same warning when the map has a remnant faction (T12 detail).
+	var prep := PrepScene.build(chapter)
+	add_child(prep)
+	await get_tree().process_frame
+	var found := [false]
+	for label_child in prep.get_children():
+		if label_child is PanelContainer:
+			for line in label_child.get_children():
+				if line is VBoxContainer:
+					for text_node in line.get_children():
+						if text_node is Label and String(text_node.text).find("persuade the remnants") >= 0:
+							found[0] = true
+	assert_true(found[0], "reconcile: prep screen shows the limit-kills note")
+	prep.free()
 
 
 func test_capture_zones_contested() -> void:

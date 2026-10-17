@@ -37,6 +37,21 @@ func _ready() -> void:
 	UIBuilder.label(obj_box, "Fail: protagonist down = game over.", 16)
 	if int(map.turn_limit) > 0:
 		UIBuilder.label(obj_box, "Turn limit: %d" % int(map.turn_limit), 16)
+	# N10: when the map carries a remnant faction, warn about kills without the hidden number.
+	var remnant_found := false
+	var placements: Array = []
+	placements.append_array(map.enemy_placements)
+	placements.append_array(map.npc_placements)
+	for p in placements:
+		var ud := DataRegistry.get_unit(String(p.unit_id))
+		if ud == null:
+			continue
+		var fid := String(p.get("faction_override", "")) if String(p.get("faction_override", "")) != "" else String(ud.faction_id)
+		var fac := DataRegistry.get_faction(fid)
+		if fac != null and String(fac.remnant_id) != "":
+			remnant_found = true
+	if remnant_found:
+		UIBuilder.label(obj_box, "Note: limit your kills if you want to persuade the remnants.", 16)
 
 	# Deploy roster panel.
 	var list_panel := UIBuilder.panel(self, 600, 130, 760, 500)

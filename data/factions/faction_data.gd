@@ -15,3 +15,7 @@ class_name FactionData
 }
 ## UI attitude color per reconcile progress: safe / neutral / lost.
 @export var attitude_colors: Dictionary = {"safe": Color(0.3, 0.8, 0.4), "neutral": Color(0.9, 0.85, 0.3), "lost": Color(0.85, 0.3, 0.3)}
+## Optional attitude-transition dialogue ids (N10): {"neutral": dialogue_id, "lost":
+## dialogue_id}. The battle HUD plays the matching dialogue when the attitude chip flips
+## into that state; rewind back also fires it (display follows the restored state).
+@export var feedback: Dictionary = {}

@@ -14,3 +14,7 @@ reconcile = {
 "unit_rebel_commander": "spared_commander",
 },
 }
+feedback = {
+"neutral": "dlg_rebel_feedback_neutral",
+"lost": "dlg_rebel_feedback_lost",
+}

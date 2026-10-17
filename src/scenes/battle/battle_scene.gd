@@ -28,6 +28,9 @@ var _rewind_button: Button
 var _end_turn_button: Button
 var _skip_btn_: Button = null
 var _combat_skip: bool = false
+var _reconcile_chip_box: HBoxContainer = null   # N10: one attitude chip per remnant faction
+var _reconcile_notice: Label = null             # N10: "limit kills" warning at battle start
+var _reconcile_attitudes: Dictionary = {}       # faction_id -> last attitude (transition detect)
 
 
 func setup(p_director: BattleDirector) -> void:
@@ -41,8 +44,10 @@ func _ready() -> void:
 	_build_ui()
 	EventBus.combat_resolved.connect(_on_combat_resolved)
 	EventBus.objectives_changed.connect(func(_progress: Array) -> void: _update_objective_label())
+	EventBus.reconcile_state_changed.connect(_refresh_reconcile_hud)
 	director.emit_objectives()
 	map_view.queue_redraw()
+	_build_reconcile_hud()
 
 
 func _build_ui() -> void:
@@ -619,3 +624,67 @@ func _refresh_overlays() -> void:
 		for t in active_targets:
 			targets[active_targets[t]] = true
 	map_view.set_overlays(move_cells, attacks, targets)
+
+
+# ------------------------------------------------------------------ N10 reconcile HUD
+
+## One colored chip per remnant faction (from reconcile_state keys), driven by
+## ReconcileSystem.attitude(); plus the battle-start warning (no threshold leak).
+func _build_reconcile_hud() -> void:
+	var factions: Array = director.state.reconcile_state.keys()
+	if factions.is_empty():
+		return
+	_reconcile_notice = UIBuilder.label(_ui_root(),
+		"Limit your kills if you want to persuade the remnants - watch the attitude chips.", 18)
+	_reconcile_notice.position = Vector2(24, 960)
+	_reconcile_notice.size = Vector2(1500, 40)
+	_reconcile_chip_box = HBoxContainer.new()
+	_reconcile_chip_box.add_theme_constant_override("separation", 14)
+	_reconcile_chip_box.position = Vector2(1240, 900)
+	_reconcile_chip_box.size = Vector2(660, 44)
+	_ui_root().add_child(_reconcile_chip_box)
+	_refresh_reconcile_hud()
+
+
+func _attitude_word(attack: String) -> String:
+	match attack:
+		"safe": return "Safe"
+		"lost": return "Lost"
+		_: return "Neutral"
+
+
+func _refresh_reconcile_hud() -> void:
+	if _reconcile_chip_box == null:
+		return
+	for c in _reconcile_chip_box.get_children():
+		c.queue_free()
+	for faction_id in director.state.reconcile_state:
+		var f := DataRegistry.get_faction(String(faction_id))
+		var att := ReconcileSystem.attitude(director.state, String(faction_id))
+		var chip := VBoxContainer.new()
+		chip.add_theme_constant_override("separation", 2)
+		_reconcile_chip_box.add_child(chip)
+		var swatch := ColorRect.new()
+		swatch.custom_minimum_size = Vector2(200, 10)
+		swatch.color = f.attitude_colors.get(att, Color.WHITE) if f != null else Color.WHITE
+		chip.add_child(swatch)
+		var text := "%s: %s" % [f.display_name if f != null else String(faction_id), _attitude_word(att)]
+		var lbl := UIBuilder.label(chip, text, 14)
+		lbl.size = Vector2(200, 22)
+		# Feedback dialogue when the attitude FLIPS into a state (rewind flips count too, N10).
+		var previous: String = String(_reconcile_attitudes.get(String(faction_id), ""))
+		if previous != "" and previous != att and f != null and not f.feedback.is_empty():
+			var dlg_id: Variant = f.feedback.get(att, "")
+			if String(dlg_id) != "":
+				_play_feedback_dialogue(String(dlg_id))
+		_reconcile_attitudes[String(faction_id)] = att
+
+
+func _play_feedback_dialogue(dialogue_id: String) -> void:
+	var dlg := DataRegistry.get_dialogue(dialogue_id)
+	if dlg == null:
+		push_warning("BattleScene: missing reconcile feedback dialogue %s" % dialogue_id)
+		return
+	var layer := _forecast_layer()   # above the map, below nothing critical
+	var player := DialoguePlayer.build(dlg)
+	layer.add_child(player)

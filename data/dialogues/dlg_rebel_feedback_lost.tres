@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/dialogues/dialogue_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "dlg_rebel_feedback_lost"
+display_name = "Rebel attitude: lost"
+lines = Array[Dictionary]([{
+"speaker": "Rebel officer",
+"text": "Too many graves. There is nothing left to talk about. [Placeholder attitude feedback.]",
+}])

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/dialogues/dialogue_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "dlg_rebel_feedback_neutral"
+display_name = "Rebel attitude: neutral"
+lines = Array[Dictionary]([{
+"speaker": "Rebel officer",
+"text": "Blood on your hands already... but we are still listening. Keep the field quiet if the peace talks matter. [Placeholder attitude feedback.]",
+}])

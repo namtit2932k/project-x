@@ -196,6 +196,9 @@ func use_rewind(frame_index: int) -> bool:
 	if rewind_budget > 0:
 		rewind_uses_left -= 1
 	_on_state_changed()
+	# Rewind can flip an attitude chip back (N10): the HUD listens on this signal, and the
+	# restored reconcile_state is already in place by now.
+	EventBus.reconcile_state_changed.emit()
 	return true
 
 
