@@ -36,6 +36,7 @@ func _ready() -> void:
 	await test_capture_zones_contested()
 	await test_reconcile_hud()
 	await test_story_flags_and_ending()
+	await test_pause_menu()
 	print("\n%d checks, %d failures" % [checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -620,6 +621,52 @@ func test_reconcile_hud() -> void:
 							found[0] = true
 	assert_true(found[0], "reconcile: prep screen shows the limit-kills note")
 	prep.free()
+
+
+func test_pause_menu() -> void:
+	## N08: Esc opens the pause menu, blocks map clicks and the enemy phase loop until
+	## Resume; Quit-to-menu fires the dedicated signal (no merge path).
+	GameState.new_game()
+	GameState.build_roster()
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "normal")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	main._swap_to(battle)
+	await get_tree().process_frame
+	var hero: UnitState = director.state.units["unit_swordsman"]
+	battle._toggle_pause()
+	assert_true(battle.paused and battle._pause_menu != null, "pause: toggle opens the menu")
+	battle._on_left_click(hero.pos)   # blocked while paused
+	assert_true(battle.selected_unit_id == "", "pause: map clicks do nothing while paused")
+	battle._on_end_phase()            # blocked: banner/phase machinery stalls
+	assert_true(director.state.phase == BattleState.PHASE_PLAYER, "pause: end-of-phase refused while paused")
+	# The enemy phase loop parks: start it with a foe ready, plan must not execute.
+	var foe := _spawn(director.state, "pause_foe", "faction_rebel_ch01", hero.pos + Vector2i(3, 0), false, false, "enemy")
+	director.state.phase = BattleState.PHASE_ENEMY
+	# Fire-and-forget start: the coroutine parks on its pause gate until Resume.
+	get_tree().create_timer(0.0).timeout.connect(battle._run_enemy_phase)
+	await get_tree().create_timer(0.5).timeout
+	assert_true(foe.acted == false, "pause: enemy plans stall while paused")
+	# Resume: the parked loop resumes and the enemy acts through the director.
+	battle._on_resume()
+	assert_true(battle.paused == false, "pause: resume clears the flag")
+	await get_tree().create_timer(1.2).timeout
+	assert_true(foe.acted == true, "pause: after resume the enemy phase proceeds")
+	# Quit signal wiring: dedicated path, not battle_finished.
+	var quit_seen: Array = [false]
+	battle.quit_to_menu.connect(func() -> void: quit_seen[0] = true)
+	battle._pause_menu = null   # detached state: fire the pause quit lambda path
+	battle.paused = false
+	battle._toggle_pause()
+	assert_true(battle._pause_menu != null, "pause: re-open works")
+	battle._pause_menu.quit_to_menu.emit()
+	assert_true(quit_seen[0], "pause: quit emits the dedicated signal (no merge)")
+	main.queue_free()
 
 
 func test_story_flags_and_ending() -> void:

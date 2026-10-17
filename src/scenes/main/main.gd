@@ -82,6 +82,7 @@ func _start_battle(deploy: Dictionary) -> void:
 	var battle := BattleScene.new()
 	battle.setup(_battle_director)
 	battle.battle_finished.connect(func(win: bool) -> void: _show_post_battle(win))
+	battle.quit_to_menu.connect(_show_menu)   # N08: pause-quit skips merge and post-battle
 	_swap_to(battle)
 
 

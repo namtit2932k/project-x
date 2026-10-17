@@ -4,6 +4,7 @@ class_name BattleScene
 ## Everything here is presentation; rules live inside the director/rule classes.
 
 signal battle_finished(win: bool)
+signal quit_to_menu   # N08: pause menu quit — straight to the menu, no campaign merge
 
 enum Mode { IDLE, UNIT_SELECTED, TARGET_SELECT, CONFIRM_ATTACK, BUSY }
 
@@ -17,6 +18,8 @@ var active_targets: Dictionary = {}     # target_id -> cell
 var hover_cell := Vector2i(-1, -1)
 var _pending_target_id := ""           # D01: target chosen, awaiting forecast confirmation
 var _forecast_panel: ForecastPanel = null
+var paused: bool = false                # N08: pause blocks map input and the phase loops
+var _pause_menu: PauseMenu = null
 
 # UI panels
 var _objective_label: Label
@@ -130,6 +133,11 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if paused:
+		return
+	if event.is_action_pressed("ui_cancel") and mode != Mode.BUSY and director.state.battle_over.is_empty():
+		_toggle_pause()
+		return
 	if event is InputEventMouseButton and event.pressed:
 		var cell := map_view.global_to_cell(event.position)
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -139,7 +147,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_left_click(cell: Vector2i) -> void:
-	if mode == Mode.BUSY or mode == Mode.CONFIRM_ATTACK or not director.state.in_bounds(cell):
+	if paused or mode == Mode.BUSY or mode == Mode.CONFIRM_ATTACK or not director.state.in_bounds(cell):
 		return   # forecast waiting on Confirm/Cancel; map clicks are inert
 	var unit: UnitState = director.state.unit_at(cell)
 	match mode:
@@ -184,6 +192,8 @@ func _on_left_click(cell: Vector2i) -> void:
 
 
 func _on_right_click(cell: Vector2i) -> void:
+	if paused:
+		return
 	if mode == Mode.CONFIRM_ATTACK:
 		_cancel_selection()   # D01: right-click during the forecast = Cancel (não commit)
 		return
@@ -472,7 +482,7 @@ func _play_combat(strikes: Array) -> void:
 # ------------------------------------------------------------------ turn flow
 
 func _on_end_phase() -> void:
-	if mode == Mode.BUSY or director.state.phase != BattleState.PHASE_PLAYER or not director.state.battle_over.is_empty():
+	if paused or mode == Mode.BUSY or director.state.phase != BattleState.PHASE_PLAYER or not director.state.battle_over.is_empty():
 		return
 	mode = Mode.BUSY
 	_cancel_selection()
@@ -489,6 +499,10 @@ func _on_end_phase() -> void:
 ## Enemy AI plays through the same director path, with small delays for readability.
 func _run_enemy_phase() -> void:
 	while director.state.battle_over.is_empty():
+		# N08: park the whole phase loop while pausing — nothing applies until Resume.
+		if paused:
+			await get_tree().process_frame
+			continue
 		var plan := director.run_next_enemy_plan()
 		if plan.is_empty():
 			break
@@ -502,6 +516,9 @@ func _run_enemy_phase() -> void:
 func _run_npc_phase() -> void:
 	# NPC actors walk toward escort goals through the same director path (snapshot + objectives).
 	while director.state.battle_over.is_empty():
+		if paused:
+			await get_tree().process_frame
+			continue
 		var plan_room := director.run_next_npc_plan()
 		if plan_room.is_empty():
 			break
@@ -624,6 +641,27 @@ func _refresh_overlays() -> void:
 		for t in active_targets:
 			targets[active_targets[t]] = true
 	map_view.set_overlays(move_cells, attacks, targets)
+
+
+# ------------------------------------------------------------------ N08 pause
+
+## Esc opens/closes the pause menu. While open, map input and the enemy/NPC loops stall
+## (the loops wait on process_frame until paused is cleared); nothing mid-battle is saved.
+func _toggle_pause() -> void:
+	if paused:
+		return
+	paused = true
+	_pause_menu = PauseMenu.new()
+	_pause_menu.resumed.connect(_on_resume)
+	_pause_menu.quit_to_menu.connect(func() -> void:
+		paused = false
+		quit_to_menu.emit())
+	add_child(_pause_menu)
+
+
+func _on_resume() -> void:
+	paused = false
+	_pause_menu = null
 
 
 # ------------------------------------------------------------------ N10 reconcile HUD
