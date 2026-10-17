@@ -29,7 +29,8 @@ func _ready() -> void:
 	await test_escort()
 	await test_end_phase_enemy_acts()
 	await test_second_move_blocked()
-	await test_click_attack_auto()
+	await test_forecast_confirm_attack()
+	await test_forecast_matches_execution()
 	await test_second_target_damage()
 	await test_second_target_via_clicks()
 	print("\n%d checks, %d failures" % [checks, failures])
@@ -255,11 +256,13 @@ func test_second_target_via_clicks() -> void:
 	var e2_before: int = e2.hp
 	battle._on_left_click(hero1.pos)
 	battle._on_left_click(e1.pos)
+	battle._confirm_forecast()   # D01: forecast opens on the red-cell click, Confirm commits
 	await get_tree().create_timer(4.0).timeout
 	await get_tree().process_frame
 	assert_true(not e1.alive, "second target: first foe killed via clicks")
 	battle._on_left_click(hero2.pos)
 	battle._on_left_click(e2.pos)
+	battle._confirm_forecast()
 	await get_tree().create_timer(4.0).timeout
 	await get_tree().process_frame
 	assert_true(e2.hp < e2_before, "second target: second foe takes damage via clicks (hp %d -> %d)" % [e2_before, e2.hp])
@@ -267,8 +270,9 @@ func test_second_target_via_clicks() -> void:
 	main.queue_free()
 
 
-## Hồi quy luồng tương tác mới: không có nút Attack/Wait; click địch trong ô đỏ = auto combat.
-func test_click_attack_auto() -> void:
+## N01 (D01): click địch trong ô đỏ mở ForecastPanel (chưa commit); Confirm → giao chiến;
+## Cancel (chuột phải là Cancel) quay lại bước chọn và KHÔNG commit gì cả.
+func test_forecast_confirm_attack() -> void:
 	GameState.new_game()
 	GameState.build_roster()
 	var main: Node = load("res://src/scenes/main/main.gd").new()
@@ -286,17 +290,63 @@ func test_click_attack_auto() -> void:
 	EventBus.combat_resolved.connect(func(_s: Array) -> void: combat_calls[0] += 1)
 	var hero: UnitState = director.state.units["unit_swordsman"]
 	battle._on_left_click(hero.pos)                 # select — không có menu Attack/Wait
-	assert_true(battle._action_menu.get_child_count() == 0, "auto combat: no attack/wait buttons in menu")
+	assert_true(battle._action_menu.get_child_count() == 0, "forecast: no attack/wait buttons in menu")
 	var hp_before: int = defender.hp
-	battle._on_left_click(defender.pos)             # click địch trong ô đỏ → auto battle
-	assert_true(battle.mode == BattleScene.Mode.BUSY, "auto combat: combat screen starts immediately")
+	battle._on_left_click(defender.pos)             # click địch trong ô đỏ → forecast, chưa commit
+	assert_true(battle.mode == BattleScene.Mode.CONFIRM_ATTACK, "forecast: red-cell click opens the confirm state")
+	assert_true(battle._forecast_panel != null, "forecast: panel is visible")
+	assert_true(hero.acted == false and defender.hp == hp_before, "forecast: nothing committed before Confirm")
+	# Cancel: quay lại bước chọn, vẫn giữ selection, không combat nào nổ ra.
+	battle._on_right_click(defender.pos)
+	assert_true(combat_calls[0] == 0, "forecast: cancel commits nothing")
+	assert_true(battle.mode == BattleScene.Mode.UNIT_SELECTED, "forecast: cancel returns to the selection step")
+	assert_true(hero.acted == false and defender.hp == hp_before, "forecast: cancel leaves state intact")
+	# Confirm: cùng mục tiêu, cùng vị trí, giao chiến theo forecast đã xem.
+	battle._on_left_click(defender.pos)
+	battle._confirm_forecast()
+	assert_true(battle._forecast_panel == null, "forecast: panel closes on Confirm")
 	await get_tree().create_timer(4.0).timeout
 	await get_tree().process_frame
-	assert_true(combat_calls[0] >= 1, "auto combat: resolver strike list was played")
-	assert_true(hero.acted == true, "auto combat: attacker committed after the fight")
-	assert_true(battle.mode == BattleScene.Mode.IDLE, "auto combat: flow returns to idle after combat screen")
-	assert_true(defender.hp <= hp_before and defender.hp >= 0, "auto combat: defender HP updated on the map state")
+	assert_true(combat_calls[0] >= 1, "forecast: resolver strike list was played after Confirm")
+	assert_true(hero.acted == true, "forecast: attacker committed after Confirm")
+	assert_true(battle.mode == BattleScene.Mode.IDLE, "forecast: flow returns to idle after combat screen")
+	assert_true(defender.hp <= hp_before and defender.hp >= 0, "forecast: defender HP updated on the map state")
 	main.queue_free()
+
+
+## N01 (D01): số trong forecast của CombatResolver trùng với HP mất trên map khi hit là
+## 100%/crit 0 — "preview = combat = HP". Forecast cũng phải chứa double attack cùng bonus
+## bond vì nó gọi chính _strike_plan của execute().
+func test_forecast_matches_execution() -> void:
+	await 0.0
+	var state: BattleState = _plain_map_enemy_state()
+	var attacker := _spawn(state, "atk_f", "faction_p", Vector2i(0, 0), false, false, "player")
+	attacker.power = 10
+	attacker.defense = 2
+	attacker.crit_bonus = -200      # deterministic: never crit
+	attacker.speed = 0
+	var defender := _spawn(state, "def_f", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	defender.speed = 0              # hit clamps at 100, no double for either side
+	var forecast := CombatResolver.forecast(state, attacker, defender)
+	assert_true(int(forecast["sequence"][0]["hit_pct"]) == 100, "forecast parity: deterministic hit 100 setup")
+	var expected_dmg := int(forecast["sequence"][0]["damage"])
+	assert_true(expected_dmg > 0, "forecast parity: damage is positive")
+	var hp_before: int = defender.hp
+	var strikes := CombatResolver.execute(state, attacker, defender)
+	assert_true(strikes.size() >= 1 and bool(strikes[0]["hit"]), "forecast parity: first strike hits as previewed")
+	assert_true(int(defender.hp) == hp_before - expected_dmg, "forecast parity: HP loss equals the forecast damage (%d)" % expected_dmg)
+	# Double attack flows into the forecast (same _strike_plan as execution).
+	attacker.speed = 10
+	var forecast_double := CombatResolver.forecast(state, attacker, defender)
+	var attacker_strikes := 0
+	for entry in forecast_double["sequence"]:
+		if String(entry["side"]) == "attacker":
+			attacker_strikes += 1
+	assert_true(attacker_strikes == 2, "forecast parity: double attack appears in the sequence")
+	# The panel is a pure display built from the same dictionary.
+	var panel := ForecastPanel.build(forecast, attacker, defender)
+	assert_true(panel.get_child_count() > 0, "forecast panel: rendered without recalculation")
+	panel.free()
 
 
 ## Hồi quy: một unit chỉ di chuyển MỘT lần mỗi phase — move thứ hai bị chặn dù chưa acted."

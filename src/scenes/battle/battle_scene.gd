@@ -5,7 +5,7 @@ class_name BattleScene
 
 signal battle_finished(win: bool)
 
-enum Mode { IDLE, UNIT_SELECTED, TARGET_SELECT, BUSY }
+enum Mode { IDLE, UNIT_SELECTED, TARGET_SELECT, CONFIRM_ATTACK, BUSY }
 
 const CELL := BattleMapView.CELL
 
@@ -15,6 +15,8 @@ var mode: int = Mode.IDLE
 var selected_unit_id := ""
 var active_targets: Dictionary = {}     # target_id -> cell
 var hover_cell := Vector2i(-1, -1)
+var _pending_target_id := ""           # D01: target chosen, awaiting forecast confirmation
+var _forecast_panel: ForecastPanel = null
 
 # UI panels
 var _objective_label: Label
@@ -52,8 +54,8 @@ func _build_ui() -> void:
 	_info_label.position = Vector2(24, 920)
 	_info_label.size = Vector2(700, 60)
 
-	_hint_label = UIBuilder.label(_ui_root(), "Click unit: move range - click red enemy: auto battle - after move: click again / else / right-click = Wait", 24)
-	_hint_label.position = Vector2(560, 60)
+	_hint_label = UIBuilder.label(_ui_root(), "Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait", 20)
+	_hint_label.position = Vector2(400, 60)
 
 	_end_turn_button = UIBuilder.button(_ui_root(), "End phase", 22)
 	_end_turn_button.position = Vector2(1740, 990)
@@ -86,6 +88,17 @@ func _canvas() -> CanvasLayer:
 ## CanvasLayer giữ HUD nhưng không có root property — container Control bên trong nó là nơi
 ## các widget sống. IGNORE filter để chuột không bị UI chặn trước bản đồ.
 var _ui_root_node: Control = null
+var _forecast_layer_node: CanvasLayer = null
+
+
+## Dedicated layer for the D01 ForecastPanel to own forecast input: the forecast eats
+## map clicks (MOUSE_FILTER_STOP) while its own Confirm/Cancel buttons still work.
+func _forecast_layer() -> CanvasLayer:
+	if _forecast_layer_node == null:
+		_forecast_layer_node = CanvasLayer.new()
+		_forecast_layer_node.layer = 5
+		add_child(_forecast_layer_node)
+	return _forecast_layer_node
 
 
 func _ui_root() -> Control:
@@ -114,27 +127,25 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		var cell := map_view.global_to_cell(event.position)
-		if cell == hover_cell or true:
-			pass
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_on_left_click(cell)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			_cancel_selection()
+			_on_right_click(cell)
 
 
 func _on_left_click(cell: Vector2i) -> void:
-	if mode == Mode.BUSY or not director.state.in_bounds(cell):
-		return
+	if mode == Mode.BUSY or mode == Mode.CONFIRM_ATTACK or not director.state.in_bounds(cell):
+		return   # forecast waiting on Confirm/Cancel; map clicks are inert
 	var unit: UnitState = director.state.unit_at(cell)
 	match mode:
 		Mode.IDLE:
 			if unit != null:
 				_select_unit(unit)
 		Mode.UNIT_SELECTED:
-			# Click địch trong ô đỏ (tính từ vị trí hiện tại) = vào màn giao chiến ngay.
+			# Click địch trong ô đỏ (tính từ vị trí hiện tại) = mở forecast để xác nhận (D01).
 			var standing_target := _target_at(cell)
 			if standing_target != "":
-				_commit_attack(standing_target)
+				_open_forecast(standing_target)
 				return
 			var sel := _selected()
 			if unit != null and unit.id == selected_unit_id:
@@ -155,10 +166,10 @@ func _on_left_click(cell: Vector2i) -> void:
 			else:
 				_cancel_selection()
 		Mode.TARGET_SELECT:
-			# Sau khi move: chỉ hiển thị ô đỏ; click địch = đánh, click ô khác = kết thúc hành động.
+			# Sau khi move: click địch = mở forecast; click ô khác = kết thúc hành động.
 			var target_id := _target_at(cell)
 			if target_id != "":
-				_commit_attack(target_id)
+				_open_forecast(target_id)
 				return
 			var sel2 := _selected()
 			if sel2 != null and sel2.moved:
@@ -168,16 +179,24 @@ func _on_left_click(cell: Vector2i) -> void:
 
 
 func _on_right_click(cell: Vector2i) -> void:
+	if mode == Mode.CONFIRM_ATTACK:
+		_cancel_selection()   # D01: right-click during the forecast = Cancel (não commit)
+		return
 	var sel := _selected()
-	if sel != null and sel.moved and not sel.acted and mode != Mode.BUSY:
-		_do_wait()   # right click sau khi move = chốt Wait
+	if sel != null and sel.moved and not sel.acted and mode == Mode.TARGET_SELECT:
+		_do_wait()   # T09: right click sau khi move = chốt Wait
 		return
 	_cancel_selection()
-
 
 func _cancel_selection() -> void:
 	if mode == Mode.BUSY:
 		return
+	_close_forecast()
+	if mode == Mode.CONFIRM_ATTACK:
+		var sel := _selected()
+		if sel != null:
+			_select_unit(sel)   # quay lại bước trước: chọn unit / chọn mục tiêu
+			return
 	mode = Mode.IDLE
 	selected_unit_id = ""
 	active_targets.clear()
@@ -310,6 +329,44 @@ func _find_skill_target(unit: UnitState, skill: Resource) -> UnitState:
 
 
 var _last_strikes: Array = []
+
+
+# ------------------------------------------------------------------ D01 forecast
+
+## Click địch trong ô đỏ → ForecastPanel (không commit). Panel hiển thị đúng chuỗi
+## CombatResolver.forecast (đã gồm double attack và bonus bond).
+func _open_forecast(target_id: String) -> void:
+	var sel := _selected()
+	if sel == null or sel.carried_item != "":
+		return
+	var target: UnitState = director.state.units.get(target_id, null)
+	if target == null or not target.alive:
+		return
+	_pending_target_id = target_id
+	mode = Mode.CONFIRM_ATTACK
+	_hide_action_menu()
+	map_view.set_overlays({}, {}, {})
+	var forecast := CombatResolver.forecast(director.state, sel, target)
+	if _forecast_panel != null:
+		_forecast_panel.queue_free()
+	_forecast_panel = ForecastPanel.build(forecast, sel, target)
+	_forecast_layer().add_child(_forecast_panel)
+	_forecast_panel.confirmed.connect(_confirm_forecast)
+	_forecast_panel.cancelled.connect(func() -> void: _cancel_selection())
+
+
+## Confirm: the previously displayed forecast becomes the real committed combat.
+func _confirm_forecast() -> void:
+	var target_id := _pending_target_id
+	_close_forecast()
+	_commit_attack(target_id)
+
+
+func _close_forecast() -> void:
+	if _forecast_panel != null:
+		_forecast_panel.queue_free()
+	_forecast_panel = null
+	_pending_target_id = ""
 
 
 ## Click địch trong ô đỏ = vào màn giao chiến ngay (theo luồng tương tác chốt);
