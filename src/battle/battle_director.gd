@@ -213,6 +213,9 @@ func _on_state_changed() -> void:
 		if result.get("status", "") == "win":
 			ReconcileSystem.record_spared_units(state)
 			result["reconcile"] = ReconcileSystem.evaluate(state)
+			# T11/D08: the post-battle screen reads earned exp and level-ups from the result.
+			result["exp"] = state.exp_gained.duplicate()
+			result["level_ups"] = state.level_ups.duplicate()
 		ResultStore.last_result = result
 
 

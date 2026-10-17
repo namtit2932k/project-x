@@ -22,6 +22,8 @@ var objectives_config: Array = []        # [{type, params}] straight from map da
 
 var bond_points: Dictionary = {}         # pair_id -> points earned this battle
 var bond_rank_carry: Dictionary = {}     # pair_id -> rank snapshot from campaign (read-only copy)
+var exp_gained: Dictionary = {}          # unit_id -> exp earned this battle (player side only, D08)
+var level_ups: Array = []                # [{unit_id, level, gains:{stat:+n}}] for post-battle display
 
 var reconcile_state: Dictionary = {}     # faction_id -> {kills:int, events:Array[String], evaluated:bool, persuaded:bool}
 var npc_unit_ids: Array = []             # escort-style NPC actors of this map
@@ -155,6 +157,17 @@ func unit_at(cell: Vector2i) -> UnitState:
 	return null
 
 
+## Grants exp to a player-side unit (D08) and records the battle-wide total for the
+## post-battle screen. Snapshot restore simply overwrites both containers.
+func exp_gained_set(unit_id: String, amount: int) -> void:
+	if not units.has(unit_id):
+		return
+	var u: UnitState = units[unit_id]
+	u.exp += amount
+	if amount > 0:
+		exp_gained[unit_id] = int(exp_gained.get(unit_id, 0)) + amount
+
+
 func alive_units() -> Array:
 	return units.values().filter(func(u: UnitState) -> bool: return u.alive)
 
@@ -197,6 +210,8 @@ func to_dict() -> Dictionary:
 		"objective_counters": _deep_copy(objective_counters),
 		"units": _deep_copy(units_dict),
 		"bond_points": _deep_copy(bond_points),
+		"exp_gained": _deep_copy(exp_gained),
+		"level_ups": _deep_copy(level_ups),
 		"reconcile_state": _deep_copy(reconcile_state),
 		"item_ground": _deep_copy(item_ground),
 		"rng_seed": rng_seed,
@@ -209,6 +224,8 @@ func from_dict(d: Dictionary) -> void:
 	battle_over = _deep_copy(d.get("battle_over", {}))
 	objective_counters = _deep_copy(d.get("objective_counters", {}))
 	bond_points = _deep_copy(d.get("bond_points", {}))
+	exp_gained = _deep_copy(d.get("exp_gained", {}))
+	level_ups = _deep_copy(d.get("level_ups", []))
 	reconcile_state = _deep_copy(d.get("reconcile_state", {}))
 	item_ground = _deep_copy(d.get("item_ground", {}))
 	# RNG state is NOT snapshot-restored (D04/N04): a rewind continues the same random

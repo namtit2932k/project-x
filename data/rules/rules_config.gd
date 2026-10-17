@@ -20,10 +20,13 @@ class_name RulesConfig
 @export var hit_scale_speed_avoid: int = 2
 @export var crit_scale_skill: int = 2
 
-## EXP (TBD final numbers, configurable).
+## EXP (D08): only the player side earns; a full batch per level; level cap. Numbers TBD
+## final, designer-tunable.
 @export var exp_gain_hit: int = 10
 @export var exp_gain_kill: int = 30
 @export var exp_gain_nonlethal_loss: int = 4
+@export var exp_per_level: int = 100
+@export var level_cap: int = 20
 
 ## ------------------------------------------------------------ terrain
 ## terrain_costs: địa hình × movement_type -> chi phí (bảng đúng schema交接; movement type từ ClassDef).

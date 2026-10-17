@@ -37,6 +37,7 @@ func _ready() -> void:
 	await test_reconcile_hud()
 	await test_story_flags_and_ending()
 	await test_pause_menu()
+	await test_exp_and_levels()
 	print("\n%d checks, %d failures" % [checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -667,6 +668,78 @@ func test_pause_menu() -> void:
 	battle._pause_menu.quit_to_menu.emit()
 	assert_true(quit_seen[0], "pause: quit emits the dedicated signal (no merge)")
 	main.queue_free()
+
+
+func test_exp_and_levels() -> void:
+	## N11 (D08): player side earns exp (also on a miss), enemies never bank exp,
+	## level-ups roll growths with the battle RNG, stat bonus survives save/load.
+	await 0.0
+	var state: BattleState = _plain_map_enemy_state()
+	state.exp_gained.clear()
+	state.level_ups.clear()
+	var defender := _spawn(state, "def_player", "faction_p", Vector2i(1, 0), false, false, "player")
+	var attacker := _spawn(state, "atk_enemy", "faction_e", Vector2i(0, 0), false, false, "enemy")
+	# Deterministic miss from the enemy attacker: hit chance clamps to 0.
+	attacker.hit_bonus = -999
+	var defender_before_exp: int = defender.exp
+	CombatResolver.execute(state, attacker, defender)
+	assert_true(int(defender.exp) == defender_before_exp + int(DataRegistry.rule("exp_gain_nonlethal_loss", 4)), "exp: surviving player defender earns even when the strike misses")
+	assert_true(int(attacker.exp) == 0, "exp: an enemy attacker never banks exp")
+	assert_true(int(state.exp_gained.get("def_player", 0)) > 0, "exp: result tracking records the defender gain")
+	# Player kill: hit + kill exp for the attacker; the slain target takes none.
+	var killer := _spawn(state, "killer", "faction_p", Vector2i(2, 0), false, false, "player")
+	killer.power = 900
+	killer.crit_bonus = -500
+	var victim := _spawn(state, "victim", "faction_e", Vector2i(3, 0), false, false, "enemy")
+	victim.hp = 1
+	victim.speed = 0
+	CombatResolver.execute(state, killer, victim)
+	var expected := int(DataRegistry.rule("exp_gain_hit", 10)) + int(DataRegistry.rule("exp_gain_kill", 30))
+	assert_true(int(killer.exp) == expected, "exp: kill pays hit + kill (%d)" % killer.exp)
+	assert_true(int(victim.exp) == 0, "exp: the slain unit banks nothing")
+	# Level-up math with deterministic growth chance (100% and 0%): whole batches only.
+	var state2: BattleState = _plain_map_enemy_state()
+	var lev := _spawn(state2, "lev", "faction_p", Vector2i(0, 0), false, false, "player")
+	lev.growths = {"atk": 100, "spd": 0}
+	lev.exp = int(DataRegistry.rule("exp_per_level", 100)) * 2 + 60   # 2.6 batches
+	CombatResolver._grant_levels(state2, lev)
+	assert_true(lev.level == 3, "levels: two whole batches consumed (level %d)" % lev.level)
+	assert_true(int(lev.exp) == 60, "levels: remainder stays as the new starting exp")
+	assert_true(int(lev.power) == 6 + 2, "levels: 100%% growth grants atk twice (atk=%d)" % lev.power)
+	assert_true(lev.speed == 6, "levels: 0%% growth never grants spd")
+	assert_true(int(lev.stat_bonus.get("atk", 0)) == 2, "levels: stat_bonus records atk+2")
+	assert_true(state2.level_ups.size() == 2, "levels: two level-up entries recorded")
+	# Enemy units at the cap boundary never level.
+	var capped := _spawn(state2, "capped", "faction_e", Vector2i(4, 0), false, false, "enemy")
+	capped.exp = 99999
+	var capped_power: int = capped.power
+	CombatResolver._grant_levels(state2, capped)
+	assert_true(capped.level == 1 and capped.power == capped_power, "levels: enemies and non-players never level")
+	# Merge carries level + stat_bonus; save round-trip keeps the bonus.
+	GameState.new_game()
+	GameState.build_roster()
+	var chapter := GameState.current_chapter()
+	var merge_state: BattleState = _plain_map_enemy_state()
+	var merged_hero := _spawn(merge_state, "unit_swordsman", "faction_p", Vector2i(0, 0), false, false, "player")
+	merged_hero.level = 2
+	merged_hero.stat_bonus = {"atk": 2, "hp": 1}
+	CampaignMerge.merge(merge_state, chapter, {"status": "win"})
+	var roster_entry: Dictionary = GameState.roster["unit_swordsman"]
+	assert_true(int(roster_entry["level"]) == 2, "merge: merged level stored")
+	assert_true(int(roster_entry["stat_bonus"].get("atk", 0)) == 2, "merge: atk bonus stored")
+	assert_true(int(roster_entry["stat_bonus"].get("hp", 0)) == 1, "merge: hp bonus stored")
+	assert_true(not SaveService.save_campaign().is_empty(), "merge: save writes")
+	GameState.new_game()
+	GameState.build_roster()
+	assert_true(SaveService.load_campaign(), "merge: load reads")
+	assert_true(int(GameState.roster["unit_swordsman"]["stat_bonus"].get("atk", 0)) == 2, "merge: stat bonus survives save/load")
+
+	# from_data replays the roster stat bonus onto a fresh battle unit (D08).
+	var ud := DataRegistry.get_unit("unit_swordsman")
+	var battle_state: BattleState = _plain_map_enemy_state()
+	var replayed := UnitState.from_data(ud, Vector2i(0, 0))
+	var base_atk: int = int(ud.base_stat("atk", 0))
+	assert_true(int(replayed.power) == base_atk + 2, "from_data: roster atk bonus applied (power %d)" % replayed.power)
 
 
 func test_story_flags_and_ending() -> void:

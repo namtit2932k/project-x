@@ -41,10 +41,17 @@ func _ready() -> void:
 		var fo: Dictionary = result["reconcile"][faction_id]
 		UIBuilder.label(box, "- %s: %d kills -> %s" % [f.display_name if f != null else faction_id, int(fo.get("kills", 0)), "persuaded" if bool(fo.get("persuaded", false)) else "not persuaded"], 16)
 
+	# T11 remedial + D08: exp from the result (player side only), level-ups with stat gains.
 	UIBuilder.label(box, "EXP earned:", 20)
 	for unit_id in result.get("exp", {}):
 		var ud := DataRegistry.get_unit(String(unit_id))
-		UIBuilder.label(box, "- %s +d%d" % [ud.display_name if ud != null else unit_id, int(result["exp"][unit_id])], 16)
+		UIBuilder.label(box, "- %s +%d" % [ud.display_name if ud != null else unit_id, int(result["exp"][unit_id])], 16)
+	for lu in result.get("level_ups", []):
+		var gains_text := ""
+		for stat_id in lu["gains"]:
+			gains_text += "%s+%d " % [stat_id, int(lu["gains"][stat_id])]
+		var lu_ud := DataRegistry.get_unit(String(lu["unit_id"]))
+		UIBuilder.label(box, "LEVEL UP: %s -> Lv %d (%s)" % [lu_ud.display_name if lu_ud != null else String(lu["unit_id"]), int(lu["level"]), gains_text], 16)
 
 	var post := UIBuilder.button(self, "Continue", 24)
 	post.position = Vector2(60, 840)

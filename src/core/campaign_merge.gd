@@ -19,7 +19,14 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 			continue
 		var state_unit: UnitState = battle_state.units[String(unit_id)]
 		var entry: Dictionary = GameState.roster[unit_id]
-		entry.exp = int(entry.get("exp", 0)) + int(state_unit.exp)
+		# D08: the battle carries the unit's starting exp (from_data) through level-ups;
+		# the merged value is simply the live remainder plus already-applied levels.
+		entry.exp = int(state_unit.exp)
+		entry["level"] = int(state_unit.level)
+		var carry: Dictionary = entry.get("stat_bonus", {})
+		for stat_id in state_unit.stat_bonus:
+			carry[String(stat_id)] = int(carry.get(String(stat_id), 0)) + int(state_unit.stat_bonus[stat_id])
+		entry["stat_bonus"] = carry
 		if not state_unit.alive:
 			match policy:
 				"permadeath":
