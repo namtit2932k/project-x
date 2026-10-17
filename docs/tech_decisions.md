@@ -1,8 +1,34 @@
-# Technical decisions (Milestone 1)
+# Technical decisions
 
-## Từ bỏ forecast panel theo yêu cầu UX (phiên mới nhất)
-- Luồng tương tác chốt: move → chỉ hiển thị **ô đỏ tầm đánh** (cận chiến 1 ô, đánh xa xa hơn theo `ClassDef.range`); **không còn nút Attack/Wait**; click địch trong ô đỏ → màn giao chiến chơi ngay (CombatResolver vẫn là nguồn tính duy nhất, state HP cập nhật tại commit); click lại chính unit / ô khác / right-click sau move = chốt **Wait**.
-- Forecast panel bị bỏ khỏi UI — nếu designer muốn lại bước "dự báo → xác nhận", `CombatResolver.forecast()` vẫn sẵn sàng (preview = dry-run), chỉ cần nối lại panel.
+## Round-2 handoff (tài liệu "đợt 2", D01–D12 / N01–N13)
+
+- **Forecast KHÔI PHỤC lại theo D01** (ghi đè đoạn cũ dưới đây): chọn unit (đã move hay chưa) →
+  click địch trong ô đỏ (tính từ vị trí đứng) → `ForecastPanel` (src/scenes/battle/forecast_panel.gd)
+  hiện dự báo lấy 100% từ `CombatResolver.forecast()` gồm double attack và bonus bond → Confirm mới
+  commit `attack` qua director; Cancel / right-click hủy, unit vẫn ở vị trí cũ. Wait-sau-move: click
+  lại chính unit / click ô khác / right-click.
+- **Critical units (D02):** `UnitState.must_survive` + `BattleState.critical_units()`; chết bất kỳ
+  unit nào critical → thua ngay. Prep tự chọn và khóa các unit bắt buộc khi chúng có trong
+  `deployable_unit_ids`; `spared_commander` là `reconcile_event_key` trên UnitData (D03).
+- **Rewind (D04):** `per_use` chính thức; chỉ frame PLAYER là điểm khôi phục (có snapshot đầu lượt);
+  **RNG không restore** — `BattleState.from_dict` giữ seed hiện hành, replay sau rewind ra kết quả khác.
+  Banner thua có nút Rewind nếu còn lượt; Nightmare không có.
+- **Merge chỉ khi thắng (D06):** `src/core/campaign_merge.gd` — static `CampaignMerge.merge(...)`,
+  thua không ghi gì vào GameState; màn thua có Retry chapter / Main menu (+ Rewind trên banner);
+  camp ẩn "Next chapter" nếu chương chưa thắng.
+- **EXP/level-up (D08):** chỉ phía người chơi tích EXP (attack cả khi bị né đều được cộng);
+  `exp_per_level`, `level_cap`, `exp_gain_*` trong rules_config; roll growths bằng battle RNG, kết quả
+  lưu `stat_bonus` trong roster và ứng lại vào chỉ số gốc mỗi trận; hậu trận liệt kê lên cấp.
+- **Story flags & dialogue (D09):** `GameState.story_flags` lưu trong save; DialoguePlayer đặt cờ qua
+  `set_flag`, hỗ trợ `portrait`. **True ending placeholder (D10):** `counts_for_true_ending` trên
+  ChapterData + `GameState.is_true_ending_eligible()` hiển thị ở camp.
+- **Esc pause (D11):** OptionPanel dùng chung với menu; khi pause chặn input bàn phím chuột và vòng
+  pha địch treo; Quit to menu có hộp xác nhận mất tiến độ trận.
+- **Test maps (N12):** 5 map `data/maps/test_<type>` + mục menu debug; smoke từng map (thắng/thua).
+- **Fix engine trong đợt này:** `run_next_enemy_plan` không còn ở unit NPC trong pha địch — escortee
+  đi bộ đúng trong pha NPC riêng của nó.
+
+## Milestone-1 decisions (đợt 1, giữ lại làm lịch sử)
 
 
 
@@ -41,6 +67,6 @@
 
 - Skill effects: only `heal`; `damage_strike` etc. need effect implementation when designer defines the kit.
 - Prep deployment is auto cell assignment (no drag-drop placement); overlay for enemy threat ranges (structure ready via `RangeHandler`).
-- Retry-after-defeat flow, per-map turn-limit enforcement UI, event dialog objects in maps — data + small glue.
+- Per-map turn-limit enforcement UI, event dialog objects in maps — data + small glue (event executor).
 - DialoguePlayer placeholder styling; charset/portraits pending art.
-- `spared_commander` event key mapping currently `spared_<unit_id>`; remnant faction keys use ids.
+- Superseded: reconcile event keys now come from `UnitData.reconcile_event_key` (D03) — the old `spared_<unit_id>` derivation is gone.

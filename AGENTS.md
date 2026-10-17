@@ -61,7 +61,7 @@ Put new code in the matching folder. If a new top-level folder seems needed, ask
 - Movement: allowed through allies; cannot end on an occupied tile; cannot pass enemies or blocked tiles; cost depends on terrain.
 - Selecting any unit (player, enemy, NPC) shows its move range; attack range is shown from the edge of the move range. Move range and attack range use different colors and update after moves or deaths.
 - Combat flow: choose valid target → show forecast (hit, crit, damage, counter) → confirm → combat screen (attacker first, then counter if able) → return to map.
-- Defeat: protagonist dies = game over. Map-specific fail conditions come from map data. Casualty handling of other characters depends on difficulty (**TBD**).
+- Defeat: any critical unit (protagonist or must-survive) dies = game over. Map-specific fail conditions come from map data. Casualty policy per difficulty lives in `rules_config.casualty_by_difficulty` (see D06).
 - Objective types: eliminate, escort, defend, retrieve (carrier may only move), capture and hold, evacuate. Primary objective and fail conditions must show in prep and in battle.
 - Bond: pairs earn points from valid adjacent or support actions; points unlock C/B/A scenes; rank rises after the scene is viewed or skipped; only unlocked ranks give adjacency bonus (C +3, B +5, A +8, S +10; max total adjacent bonus +16). S unlocks after A plus a story milestone, both alive; one S pair per character. Eligible pairs come from a designer-provided list, never inferred from gender.
 - Reconciliation: separate from map victory. Each faction has its own conditions; low damage alone is not enough. Player gets feedback by dialogue or attitude color; the threshold is hidden. Store which conditions happened and the outcome so post-battle story can read them.
@@ -72,19 +72,80 @@ Put new code in the matching folder. If a new top-level folder seems needed, ask
 
 Track here. Remove an item once the designer confirms it.
 
-- Damage formula, hit/crit rates, strike order
-- Terrain costs and class special actions
-- Final roster and classes
-- Casualty/permadeath rules per difficulty
-- Per-map conditions
-- Bond pair list and S routes
-- Reconciliation thresholds
-- Ch01 win objective vs reconcile: a plain rout kills the commander, so `spared_commander` never fires and persuade stays unreachable. Designer to pick: targeted objectives (commander excluded), commander surrender, or a bigger kill_threshold.
-- Rewind valid restore point: currently the newest PLAYER-phase frame incl. a turn-start snapshot (DESIGNER: action-level or turn-level only?). RNG state restores so the re-roll sequence stays identical (reseed alternative pending).
-- Bond point actions implemented as: attack supported by an adjacent pair-member ally, and heal between pair members (bond_points_combat_action). Bonus applies to damage AND hit — designer confirms which one.
-- Defeat flow placeholder: camp shows "Retry chapter" (replays the same chapter); designer confirms retry vs load-save.
-- Who is the protagonist: only unit_swordsman has is_protagonist = true; game over on protagonist down (World doc: leader + beastwoman co-lead pending).
-- Scope mismatches between docs: "evacuate" objective, Nightmare difficulty and a future shop appear in the concept deck but not all in the coder brief
+- Special action of Beastwoman (beast transformation) and other classes — `special_action_id` empty for now
+- Final damage/hit/crit formula numbers (schema implemented, numbers are placeholders)
+- Final terrain cost/bonus table
+- Story content and the true-ending scene
+- Final bond pair list and S routes (current list is a placeholder incl. two pairs for Swordsman)
+- Casualty *effects* for non-permadeath difficulties ("wounded" is recorded, no other mechanic yet)
+
+## 7b. Decisions log (round-2 design document)
+
+---
+
+Committed here from the round-2 "đợt 2" handoff; removed from section 7. **D01 and D02 are
+directly confirmed by the designer. D03–D12 are reasonable proposals fixed so the agent did
+not have to wait — every number/flag lives in `rules_config` or data and can be changed
+without code edits.** Round-2 doc wins over the round-1 doc when they conflict.
+
+- **D01 — Forecast restored (confirmed).** Attack flow: select unit (may move) → click an
+  enemy on a red tile (measured from the current position) → ForecastPanel → Confirm/Cancel
+  (right click = Cancel) → combat screen. Panel shows both sides: name, HP, Hit%, Crit%,
+  damage per strike, double attack second strike, and whether a counter happens — 100% from
+  `CombatResolver.forecast()`. No Attack/Wait buttons; Wait-after-move stays
+  re-click-the-unit / click-a-non-target-tile / right click.
+- **D02 — Protagonist (confirmed).** Only Swordsman has `is_protagonist = true`. Added
+  `must_survive` to UnitData (`true` for Beastwoman); the death of any protagonist or
+  must-survive unit loses immediately (`protagonist_death_loses`; `BattleState.critical_units()`).
+  Prep auto-selects and locks such units when present in `deployable_unit_ids`, they count
+  toward `deploy_max`; validator checks forced units ≤ deploy_max.
+- **D03 — Ch01 data & reconciliation.** Ch01 objective eliminate targets the three soldiers
+  only; the commander survives and "surrenders" on victory. `reconcile_event_key` on UnitData;
+  the commander carries `spared_commander`, recorded only for living units on remnant sides.
+  `faction_rebel_ch01` keeps `required_events=["spared_commander"]`, `kill_threshold=4`
+  (placeholder number for the first map). Reconcile blocks removed from the base factions.
+- **D04 — Rewind.** Counting mode `per_use` is official (one click = one use regardless of
+  restored steps). Valid restore points: PLAYER-phase snapshots only (each confirmed player
+  command plus one snapshot per turn start). Rewind undoes the last player action; from a
+  turn start it drops to the last action of the previous turn, skipping the enemy/NPC phase
+  in between. RNG is NOT restored (no seed reset in `from_dict`) — replays roll differently.
+  Defeat banner shows a Rewind button when budget allows (never on Nightmare); victory never.
+- **D05 — Bond.** Points: after every combat, for each valid pair, when one member fought
+  (attacker or defender) and the other lives, is player-side and stands adjacent (manhattan
+  1) — plus the same value for a support skill (heal) between pair members
+  (`bond_points_combat_action`, cap 20/battle/pair). Adjacency bonus applies to the stat in
+  `rules_config.bond_bonus_stat` (default `power`), never to hit. Rank order compared via
+  GameState.BONDS index; B requires C viewed/skipped, A requires B. S needs A, both alive,
+  past `s_milestone_chapter_id`, and exclusivity (one S pair per character). Pairs (placeholder):
+  `bond_swordsman_knight`, `bond_swordsman_beastwoman`, `bond_lancer_gunner` with placeholder
+  C/B/A/S dialogues; validator reports a missing dialogue for any threshold rank.
+- **D06 — Defeat & casualties.** Only a VICTORY merges into the campaign (exp, casualties,
+  bond, reconcile, chapter completion); defeat writes nothing. Defeat result screen offers
+  Retry chapter (same chapter, pre-battle roster), Main menu, and Rewind on the banner.
+  Camp hides "Next chapter" while the current chapter is not completed. Casualties:
+  Story/Normal = temp_injury (fuel restoration, "wounded" recorded), Hard/Nightmare = permadeath.
+- **D07 — Scope.** Nightmare stays. No shop (camp keeps a stub only). Evacuate keeps its deck
+  definition. An "escape" objective type is backlog P3, not in the slice.
+- **D08 — EXP & level-ups.** Only the player side earns EXP; attacking or being attacked pays
+  even when the target avoids (`exp_gain_hit`, `exp_gain_nonlethal_loss`, `exp_gain_kill` in
+  config). `exp_per_level = 100`, `level_cap = 20`. On level-up each growth stat rolls its
+  percentage on the battle RNG; gains accumulate into roster `stat_bonus` and are recomputed
+  into base stats each battle. Post-battle lists who leveled and which stats rose.
+- **D09 — Dialogue & story flags.** Each line optionally carries `portrait` (path, empty =
+  placeholder) and `set_flag` (story flag). `GameState.story_flags` Dictionary saved in
+  campaign saves (SAVE_VERSION-aware, old saves read as empty). `DialoguePlayer` sets flags on
+  playback. CSV import tool = backlog P3.
+- **D10 — True ending (placeholder).** `counts_for_true_ending` on ChapterData (ch01 true);
+  `GameState.is_true_ending_eligible()` = every flagged chapter completed AND its remnant
+  factions persuaded. Camp shows this status; the real ending scene awaits content.
+- **D11 — Esc pause & quit.** Esc in battle opens pause: Resume / Options (reuses the shared
+  options panel) / Quit to menu with a confirm box explaining battle progress is lost (saves
+  are between battles only; closing the window likewise). Pausing blocks map input and stalls
+  the enemy phase loop.
+- **D12 — Numbers unchanged.** `atk_minus_def`, rounding floor, `win_lose_priority = lose`,
+  current hit/crit and terrain tables, 12-character roster. `turn_limit > 0`: running out =
+  defeat, turns left shown on the HUD; ch01 has none. Beastwoman's beast transformation is
+  NOT implemented (`special_action_id` empty).
 
 ## 8. Assets and UI
 
@@ -124,6 +185,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-10-18 (2) — Buffy (Codebuff) — done: toàn bộ đợt 2 (tài liệu "đợt 2" D01–D12/N01–N13): N01 forecast khôi phục (Mode.CONFIRM_ATTACK + ForecastPanel lấy số 100% từ CombatResolver.forecast), N02 must_survive/critical_units (Swordsman protagonist, Beastwoman phải sống, prep khóa unit bắt buộc), N03 ch01 target 3 lính + sparing commander `spared_commander`, N04 rewind per_use chỉ PLAYER frame + RNG không khôi phục + Rewind trên banner thua, N05 bond D05 (điểm combat/heal cặp kề, bonus vào bond_bonus_stat, so rank theo index, S độc quyền, thêm 2 cặp + dialogue C/B/A/S), N06 CampaignMerge chỉ khi thắng + Retry/Menu/Rewind + camp ẩn Next, N07 story_flags + portrait/set_flag + counts_for_true_ending + round-trip save, N08 Esc pause dùng chung OptionsPanel, N09 capture qua pha địch + zones[] + contested_rule, N10 HUD reconcile chips + prep/battle warning + feedback dialogue khi đổi thái độ, N11 EXP/level-up cho phía người chơi (exp_gain_hit khi bị né cũng được, stat_bonus vào roster, hậu trận liệt kê), N12: năm map test `test_<type>` + menu "Test maps" debug-only + smoke từng map 10/10; fix engine: `run_next_enemy_plan` không còn ở unit NPC trong pha địch; N13: Decisions log D01–D12 vào §7b (D01/D02 designer chốt; D03–D12 đề xuất chốt tạm), dọn mục 7, README/how_to_run/tech_decisions theo luồng mới. Checks cuối: validation 0/0, run_tests 184/184, smoke ch01 21/21, smoke maps 10/10, boot sạch; từng mục commit riêng. — in progress: none. — next: T14–T16 (đợt 1), backlog P3 (escape, CSV dialogue tool, special actions, ending/bond scenes nội dung thật). — issues: none.
 
 - 2026-10-15 (6) — Buffy (Codebuff) — done: P0 review fixes theo handoff doc: T01 side tách khỏi faction (đội hỗn hợp Empire+Kingdom hoạt động: select/move/pass-through/eliminate/AI/map view màu theo side + faction_override), T02 command.check() trong director (trước mỗi apply; attack bằng manhattan trong [min..max], check cả skill/pickup, carrier move-only, AI move bị từ chối → wait), T03 rewind deep-copy lồng nhau + RNG state + khôi phục chỉ frame PLAYER + turn-start snapshot + labels/label, T04 escort dùng target_cell (thêm map sample valley_escort), T05 reconcile chỉ cho remnant faction (empire/kingdom rỗng), spared_event_keys mapping, evaluate cùng schema mọi lần, T06 bond điểm từ attack có đồng minh cặp kề + heal cặp, merge bond_points vào GameState sau trận, so rank theo BOND_RANKS index, S exclusive, T07 advance_chapter dùng current_chapter().id + advance trước camp trên thắng + Retry chapter khi thua + new_game giữ difficulty/options + merge roster thiếu + story_branch, T08 DataRegistry nạp .tres/.res/.remap cho export. Tests 92/92, smoke 12/12, validation 0. — in progress: P1 (T09-T13, T14-T16). — next: hành trình P1 theo thứ tự tài liệu. — issues: ch01 rout vẫn làm persuade bất khả thi (mở quyết định designer §7).
 

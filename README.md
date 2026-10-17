@@ -40,9 +40,10 @@ godot --path .
 | Select unit (any faction shows its ranges) | Left click |
 | Move | Left click a highlighted move tile |
 | Attack / Wait / skill | Action menu after moving |
-| Forecast & confirm | Click a highlighted target → Confirm |
-| Cancel | Right click |
+| Forecast & confirm | Click an enemy on a red tile → ForecastPanel → Confirm |
+| Cancel (also decline Confirm) | Right click |
 | End phase | "End phase" button (bottom right) |
+| Pause menu | Esc |
 | Rewind (costs one use) | "Rewind" button |
 
 A unit moves **once per phase**; after moving it may attack, wait or use a skill — changing position again requires Rewind.
@@ -52,11 +53,17 @@ A unit moves **once per phase**; after moving it may attack, wait or use a skill
 ```sh
 godot --headless --path . --quit-after 5        # boot check, no script errors
 godot --headless --path . res://tools/validate_data.tscn     # data validation (0 errors expected)
-godot --headless --path . res://tests/run_tests.tscn         # rule tests (movement/combat/objectives/rewind/bond/save)
+godot --headless --path . res://tests/run_tests.tscn         # rule tests (movement/combat/objectives/rewind/bond/exp/save)
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI end-to-end
+godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test maps, win + lose each
 ```
 
-Current: rule tests **92/92**, AI smoke **12/12**, validation **0 errors**.
+Current: rule tests **184/184**, full-battle smoke **21/21**, test-map smoke **10/10**, validation **0 errors**.
+
+Debug builds also get a **Test maps** entry on the main menu: every `data/maps/test_*` map
+starts a battle straight away with the default roster (no chapter loop; results never merge
+into the campaign), covering escort / defend / retrieve / capture / evacuate beside ch01's
+eliminate.
 
 ## Architecture
 
@@ -81,9 +88,7 @@ tests/       headless rule tests + full-battle smoke
 docs/        how to run, technical decisions
 ```
 
-## Design decisions still open (placeholders in data, flagged in AGENTS.md)
-
-Damage formula/rates, terrain cost fine-tuning, final roster & classes, casualty rules per difficulty, per-map conditions, the full bond pair list & S routes, reconciliation thresholds and rewind counting mode (`per_use` implemented, `per_step` pending the designer).
+Round-2 design decisions (forecast restored, must-survive heroes, rewind `per_use` + RNG not restored, win-only merge, EXP/level-ups, story flags, Esc pause, test maps) are logged in [AGENTS.md](AGENTS.md) §7b. Still open (placeholders in data): final damage/hit/crit numbers, the final terrain table, story content, the final bond pair list & S routes, and wounded-casualty effects for non-permadeath difficulties.
 
 ## Roadmap
 

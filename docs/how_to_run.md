@@ -27,17 +27,18 @@ godot --headless --path . --quit-after 5   # boot check (no rendering)
 - Skill: action-menu button when the unit has one (e.g. Heal).
 - Right click (before moving): cancel current selection/step.
 - **End phase** button: hands over to enemy -> NPC phases, then next turn.
+- **Esc**: pause menu (Resume / Options / Quit to menu with a progress-lost warning).
 - **Rewind** button: restores the newest valid PLAYER-phase snapshot (turn start after the
-  enemy/NPC bookkeeping; costs one use; budget by difficulty: story ∞, normal 5, hard 3,
-  nightmare 0). Nested state (counters, reconcile kills, bond points, ground items, RNG
-  state) is restored too.
+  enemy/NPC bookkeeping; costs one use, `per_use` mode; budget by difficulty: story ∞,
+  normal 5, hard 3, nightmare 0). RNG is intentionally NOT restored, so a replay after a
+  rewind rolls different results (D04).
 
 ## Validation & tests (headless)
 
 ```
 godot --headless --path . res://tools/validate_data.tscn    # data validation (0 errors expected)
-godot --headless --path . res://tests/run_tests.tscn        # 92 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/save)
-godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI, end-to-end through BattleDirector
+godot --headless --path . res://tests/run_tests.tscn        # 184 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/exp/save)
+godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI, end-to-end through BattleDirector (21 checks)
 godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test maps, one scripted win + one lose scenario each
 ```
 
