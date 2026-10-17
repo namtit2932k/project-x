@@ -90,7 +90,7 @@ func _apply(kind: String, payload: Dictionary) -> bool:
 			return true
 		"end_phase":
 			if state.phase == BattleState.PHASE_PLAYER:
-				_emit_phase_event()
+				dispatch_objective_event("player_phase_ended")
 			return _advance_phase()
 		_:
 			push_error("BattleDirector: unknown command kind %s" % kind)
@@ -117,6 +117,14 @@ func commit_ai_plan(plan: Dictionary) -> bool:
 
 
 ## Ends the current player phase (the scene ends enemy/NPC phases via end_phase as well).
+## Single place where objective plugins receive world events (N09/T10). Phase endings,
+## unit events and future triggers all funnel through this helper.
+func dispatch_objective_event(event_type: String, data: Dictionary = {}) -> void:
+	for obj in objectives:
+		obj.on_event(state, event_type, data)
+
+
+
 func end_player_phase() -> bool:
 	return commit("end_phase", {})
 
@@ -263,12 +271,14 @@ func _advance_phase() -> bool:
 
 
 func _emit_phase_event() -> void:
-	for obj in objectives:
-		obj.on_event(state, "player_phase_ended", {})
+	dispatch_objective_event("player_phase_ended")
 
 
 ## Called by the scene when the enemy phase finishes: hands over to NPC phase or next turn.
+## The enemy end of phase reaches the objectives first (N09: capture must judge holding
+## through the enemy phase before the handover happens).
 func advance_after_enemy_phase() -> void:
+	dispatch_objective_event("enemy_phase_ended")
 	state.phase = BattleState.PHASE_NPC
 	EventBus.phase_changed.emit(state.phase, state.turn)
 

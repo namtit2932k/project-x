@@ -33,6 +33,7 @@ func _ready() -> void:
 	await test_forecast_matches_execution()
 	await test_second_target_damage()
 	await test_second_target_via_clicks()
+	await test_capture_zones_contested()
 	print("\n%d checks, %d failures" % [checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -557,6 +558,67 @@ func test_movement() -> void:
 	assert_true(move_cells.has(Vector2i(0, 3)), "movement: around the wall")
 	var reach_enemy := MovementHandler.compute_move_cells(state, enemy)
 	assert_true(not reach_enemy.has(Vector2i(0, 0)), "movement: mover passes; enemy range blocked by walls")
+
+
+func test_capture_zones_contested() -> void:
+	## N09: hold over the ENEMY phase too (enemy_phase_ended), multiple zones, and the
+	## contested rule: an enemy standing inside a zone resets the streak.
+	var map := MapData.new()
+	map.id = "capture_map"
+	var rows_cap: Array[String] = ["......", "......", "......", "......"]
+	map.terrain_rows = rows_cap
+	map.deploy_cells = [Vector2i(0, 0)]
+	map.objectives = [{"type": "capture", "params": {
+		"zones": [{"x": 0, "y": 0, "w": 2, "h": 2}], "turns_required": 2,
+	}}]
+	var director := BattleDirector.new()
+	director.setup(map, {}, "normal")
+	var holder := _spawn(director.state, "cap_p", "faction_p", Vector2i(0, 0), false, false, "player")
+	var foe := _spawn(director.state, "cap_e", "faction_cap", Vector2i(5, 3), false, false, "enemy")
+	# Turn 1: player ends the phase inside the zone → streak 1; the enemy phase leaves it
+	# held (enemy outside), so enemy_phase_ended must NOT clear the streak.
+	director.end_player_phase()
+	var streak1: int = int(director.state.objective_counters.get("capture_streak", -1))
+	assert_true(streak1 == 1, "capture: player end of phase sets streak 1 (streak=%d)" % streak1)
+	director.advance_after_enemy_phase()
+	streak1 = int(director.state.objective_counters.get("capture_streak", -1))
+	assert_true(streak1 == 1, "capture: enemy_phase_ended keeps a held streak (streak=%d)" % streak1)
+	# Turn 2 prep: the enemy walks INTO the zone during its phase → enemy_phase_ended
+	# (contested_rule default) resets the streak to 0 instead of advancing.
+	foe.pos = Vector2i(0, 1)
+	director.state.phase = BattleState.PHASE_ENEMY   # simulate entering the enemy end again
+	director.advance_after_enemy_phase()
+	var streak2: int = int(director.state.objective_counters.get("capture_streak", -1))
+	assert_true(streak2 == 0, "capture: enemy inside the zone resets the streak (streak=%d)" % streak2)
+	# No player in the zone at the enemy end also resets (holder evacuates then returns).
+	holder.pos = Vector2i(5, 0)
+	director.state.phase = BattleState.PHASE_ENEMY
+	director.advance_after_enemy_phase()
+	streak2 = int(director.state.objective_counters.get("capture_streak", -1))
+	assert_true(streak2 == 0, "capture: empty zone at enemy end keeps streak 0 (streak=%d)" % streak2)
+	holder.pos = Vector2i(0, 0)                       # back in the zone
+	foe.pos = Vector2i(5, 3)                          # enemy leaves; the zone is uncontestested
+	# Turn 2 win: player end 1 → enemy end holds → player end 2 → win.
+	director.state.phase = BattleState.PHASE_PLAYER
+	director.end_player_phase()
+	director.advance_after_enemy_phase()
+	director.advance_to_player_phase()
+	assert_true(int(director.state.objective_counters.get("capture_streak", 0)) == 1, "capture: held turn count recovered to 1")
+	director.end_player_phase()
+	assert_true(director.state.battle_over.get("status", "") == "win", "capture: two full held turns win the map")
+	# Legacy single-zone params keep working alongside zones[].
+	var map_legacy := MapData.new()
+	map_legacy.id = "capture_legacy"
+	map_legacy.terrain_rows = rows_cap
+	map_legacy.deploy_cells = [Vector2i(0, 0)]
+	map_legacy.objectives = [{"type": "capture", "params": {
+		"zone_x": 0, "zone_y": 0, "zone_w": 1, "zone_h": 1, "turns_required": 1,
+	}}]
+	var director_legacy := BattleDirector.new()
+	director_legacy.setup(map_legacy, {}, "normal")
+	_spawn(director_legacy.state, "leg_p", "faction_p", Vector2i(0, 0), false, false, "player")
+	director_legacy.end_player_phase()
+	assert_true(director_legacy.state.battle_over.get("status", "") == "win", "capture: legacy zone params still work")
 
 
 func _spawn(state: BattleState, id: String, faction: String, pos: Vector2i, prot: bool = false, make_walls: bool = false, side: String = "") -> UnitState:

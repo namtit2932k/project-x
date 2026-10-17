@@ -1,7 +1,10 @@
 extends ObjectiveBase
 class_name ObjectiveCapture
-## Occupy the zone with player units at the end of each player phase; consecutive turns
-## tracked by the director's phase event. Enemies stepping in reset the streak.
+## Capture & hold (N09): player units must hold every zone. The streak advances at the
+## end of the player phase and must still be held at the end of the enemy phase.
+## contested_rule (default "enemy_presence"): an enemy standing inside a zone blocks the
+## count and resets the streak; an unoccupied zone resets it as well. Only data params,
+## so maps may declare several zones or tune the rule without code changes.
 
 var _params: Dictionary
 
@@ -15,13 +18,26 @@ func identify() -> String:
 
 
 func describe() -> String:
-	return "Capture & hold: keep player units inside the marked zone %s consecutive turns." % [_params.get("turns_required", 1)]
+	return "Capture & hold: keep player units inside every marked zone %s consecutive turns." % [_params.get("turns_required", 1)]
 
 
-func zone() -> Rect2i:
+## All required zones. "zones" [{x, y, w, h}] first; the single legacy zone_x/y/w/h still works.
+func zones() -> Array:
+	var out: Array = []
+	var raw_zones: Array = _params.get("zones", [])
+	for z in raw_zones:
+		out.append(_rect_from(z))
+	if out.is_empty():
+		out.append(_rect_from(_params))
+	return out
+
+
+static func _rect_from(d: Dictionary) -> Rect2i:
 	return Rect2i(
-		int(_params.get("zone_x", 0)), int(_params.get("zone_y", 0)),
-		int(_params.get("zone_w", 1)), int(_params.get("zone_h", 1)))
+		int(d.get("x", d.get("zone_x", 0))),
+		int(d.get("y", d.get("zone_y", 0))),
+		int(d.get("w", d.get("zone_w", 1))),
+		int(d.get("h", d.get("zone_h", 1))))
 
 
 func evaluate(state: BattleState) -> Dictionary:
@@ -32,15 +48,34 @@ func evaluate(state: BattleState) -> Dictionary:
 	return {"status": "ongoing", "progress": "%d/%d turns" % [streak, required]}
 
 
-func on_event(state: BattleState, event_type: String, _data: Dictionary) -> void:
-	if event_type != "player_phase_ended":
-		return
-	var z := zone()
-	var occupied := false
-	for u in state.alive_units():
-		if z.has_point(u.pos) and u.side == "player":
-			occupied = true
-			break
-	var streak := int(state.objective_counters.get("capture_streak", 0))
-	state.objective_counters["capture_streak"] = streak + 1 if occupied else 0
+## Zone survey shared by both phase-end events: {all_held, contested}.
+func _survey(state: BattleState) -> Dictionary:
+	var contested := false
+	for z in zones():
+		var player_inside := false
+		var enemy_inside := false
+		for u in state.alive_units():
+			if z.has_point(u.pos):
+				if u.side == "player":
+					player_inside = true
+				else:
+					enemy_inside = true
+		if enemy_inside and String(_params.get("contested_rule", "enemy_presence")) == "enemy_presence":
+			contested = true
+		if not player_inside:
+			contested = true
+	return {"all_held": not contested, "contested": contested}
 
+
+func on_event(state: BattleState, event_type: String, _data: Dictionary) -> void:
+	if event_type != "player_phase_ended" and event_type != "enemy_phase_ended":
+		return
+	var streak := int(state.objective_counters.get("capture_streak", 0))
+	var held := _survey(state)
+	match event_type:
+		"player_phase_ended":
+			state.objective_counters["capture_streak"] = streak + 1 if held["all_held"] else 0
+		"enemy_phase_ended":
+			# Holding through the enemy phase is required (N09): the phase may run, enemies
+			# may step in, or the player may be pushed or wiped out of the zone.
+			state.objective_counters["capture_streak"] = streak if held["all_held"] else 0
