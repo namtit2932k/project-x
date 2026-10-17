@@ -56,6 +56,28 @@ func _ready() -> void:
 	_show_line()
 
 
+## Shows the line portrait when the asset exists; an empty or missing file leaves the
+## placeholder rendering untouched (nothing crashes, content can arrive later).
+func _show_portrait(path: String) -> void:
+	if _portrait_rect != null:
+		_portrait_rect.queue_free()
+		_portrait_rect = null
+	if path == "" or not FileAccess.file_exists(path.replace("res://", ProjectSettings.globalize_path("res://"))):
+		return
+	var tex: Texture2D = load(path)
+	if tex == null:
+		return
+	_portrait_rect = TextureRect.new()
+	_portrait_rect.texture = tex
+	_portrait_rect.custom_minimum_size = Vector2(400, 480)
+	_portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	add_child(_portrait_rect)
+	_portrait_rect.position = Vector2(160, 220)
+
+
+var _portrait_rect: TextureRect = null
+
+
 func header_anchor() -> Control:
 	return self
 
@@ -69,6 +91,14 @@ func _show_line() -> void:
 		_finish(false)
 		return
 	var line: Dictionary = _lines[_index]
+	# D09: a line may set a story flag and/or show a portrait beside the text box. The flag
+	# is written straight into GameState story_flags (saved with the campaign); a missing
+	# portrait asset simply renders without the picture (placeholder art pipeline).
+	var flag_key := String(line.get("set_flag", ""))
+	if flag_key != "":
+		GameState.story_flags[flag_key] = true
+	var portrait_path := String(line.get("portrait", ""))
+	_show_portrait(portrait_path)
 	_name_label.text = String(line.get("speaker", ""))
 	_text_label.text = String(line.get("text", ""))
 	_prompt.text = "[%d/%d]  Click / Space: continue  -  Esc: skip" % [_index + 1, _lines.size()]

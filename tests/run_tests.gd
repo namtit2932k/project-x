@@ -35,6 +35,7 @@ func _ready() -> void:
 	await test_second_target_via_clicks()
 	await test_capture_zones_contested()
 	await test_reconcile_hud()
+	await test_story_flags_and_ending()
 	print("\n%d checks, %d failures" % [checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
 
@@ -619,6 +620,48 @@ func test_reconcile_hud() -> void:
 							found[0] = true
 	assert_true(found[0], "reconcile: prep screen shows the limit-kills note")
 	prep.free()
+
+
+func test_story_flags_and_ending() -> void:
+	## N07: DialoguePlayer writes set_flag into GameState, the flag round-trips through
+	## SaveService, and the true-ending check follows completed chapters + persuade.
+	GameState.new_game()
+	GameState.build_roster()
+	assert_true(GameState.is_true_ending_eligible() == false, "true ending: locked while the chapter is not finished")
+	# set_flag through the reusable DialoguePlayer: a line with set_flag writes the flag.
+	var dlg := DialogueData.new()
+	dlg.id = "dlg_test_flag"
+	dlg.lines = [{"speaker": "Narrator", "text": "The peace envoy is recorded.", "set_flag": "flag_test_call"}]
+	var player := DialoguePlayer.build(dlg)
+	add_child(player)
+	await get_tree().process_frame
+	player._finish(false)
+	assert_true(GameState.story_flags.get("flag_test_call", false) == true, "dialogue: set_flag writes the story flag")
+	# Round-trip through the manual save (flags survive save/load).
+	GameState.completed_chapters["chapter_ch01"] = true
+	var ok_save: bool = not SaveService.save_campaign().is_empty()
+	assert_true(ok_save, "story flags: save writes successfully")
+	GameState.story_flags.clear()
+	var loaded: bool = SaveService.load_campaign()
+	assert_true(loaded, "story flags: load reads successfully")
+	assert_true(GameState.story_flags.get("flag_test_call", false) == true, "story flags: flag survives save/load round-trip")
+	# True ending: ch01 finished but the remnant was not persuaded → still locked.
+	GameState.reconcile_outcomes = {"chapter_ch01": {"faction_rebel_ch01": {"persuaded": false}}}
+	assert_true(GameState.is_true_ending_eligible() == false, "true ending: un-persuaded remnant locks it")
+	GameState.reconcile_outcomes = {"chapter_ch01": {"faction_rebel_ch01": {"persuaded": true}}}
+	assert_true(GameState.is_true_ending_eligible() == true, "true ending: all true-ending chapters done + remnants persuaded")
+	# Camp screen shows the state without crashing headless.
+	GameState.current_chapter_id = "chapter_ch01"
+	var camp := CampScene.new()
+	add_child(camp)
+	await get_tree().process_frame
+	var found_note := [false]
+	for c in camp.get_children():
+		if c is Label and String(c.text).find("True ending:") == 0:
+			found_note[0] = true
+	assert_true(found_note[0], "true ending: camp shows the eligibility note")
+	camp.queue_free()
+	GameState.completed_chapters.clear()   # keep global test state clean
 
 
 func test_capture_zones_contested() -> void:

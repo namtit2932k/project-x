@@ -12,3 +12,4 @@ deployable_unit_ids = Array[String](["unit_swordsman", "unit_knight", "unit_lanc
 deploy_max = 5
 story_dialogue_id = "dlg_ch01_intro"
 post_dialogue_id = "dlg_ch01_post"
+counts_for_true_ending = true

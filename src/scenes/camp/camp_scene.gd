@@ -35,6 +35,11 @@ func _ready() -> void:
 	_scene_box = UIBuilder.vbox(bond_panel, 6)
 	_rebuild_bond_panel()
 
+	# D10: show the true-ending eligibility derived from finished chapters + persuade.
+	var ending_word := "possible" if GameState.is_true_ending_eligible() else "locked"
+	var ending_note := UIBuilder.label(self, "True ending: %s (every true-ending chapter finished, remnants persuaded)" % ending_word, 16)
+	ending_note.position = Vector2(60, 700)
+
 	var save_btn := UIBuilder.button(self, "Save", 22)
 	save_btn.position = Vector2(60, 730)
 	save_btn.size = Vector2(180, 50)

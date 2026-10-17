@@ -9,4 +9,6 @@ class_name ChapterData
 @export var deployable_unit_ids: Array[String] = []
 @export var deploy_max: int = 6                    # TBD with designer
 @export var story_dialogue_id: String = ""         # pre-battle story scene
-@export var post_dialogue_id: String = ""          # post-battle scene reading outcomes
+@export var post_dialogue_id: String = ""          # post-battle story scene reading outcomes
+## D10: chapters feeding the true-ending check. Placeholder choice for ch01 only.
+@export var counts_for_true_ending: bool = false
