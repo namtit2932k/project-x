@@ -14,7 +14,9 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+# Reference/design docs (not shipped): demo parity plan + docs/reference
+demo_parity_plan/
+docs/reference/
 
-# Temporary files
-*.tmp
-*.temp
+# Godot editor metadata (.uid files) — regenerated per workspace
+*.uid
