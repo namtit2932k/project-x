@@ -33,11 +33,21 @@ func _show_menu() -> void:
 	menu.new_game.connect(_on_new_game)
 	menu.continue_game.connect(_on_continue_game)
 	menu.test_battle.connect(_start_test_battle)
+	if OS.is_debug_build():
+		menu.legacy_chapter.connect(_on_legacy_chapter)
 	_swap_to(menu)
 
 
 func _on_new_game() -> void:
 	GameState.new_game()
+	GameState.build_roster()
+	_play_story_of_current_chapter()
+
+
+## F4.3/P-08 (P01 temp decision): debug-only entry into the legacy ch01 campaign.
+func _on_legacy_chapter() -> void:
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	_play_story_of_current_chapter()
 

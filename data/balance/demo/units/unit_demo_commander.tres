@@ -24,3 +24,5 @@ carried_items = Array[String]([])
 ai_profile = "ProtectPersuade"
 priority_target_id = ""
 reconcile_event_key = "spared_commander"
+is_protagonist = false
+in_roster = false

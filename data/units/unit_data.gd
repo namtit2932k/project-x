@@ -35,12 +35,28 @@ class_name UnitData
 ## Reconcile event key recorded when this unit of a remnant faction survives to the end (D03).
 @export var reconcile_event_key: String = ""
 @export var in_roster: bool = true
+## F4.2: campaign membership for the roster filter ("" = legacy/unassigned, "demo" = the
+## demo parity campaign). Keeps demo roster data from merging into the old campaign.
+@export var campaign_tag: String = ""
 ## Short description used in prep/camp UI (from Character.docx; placeholder text fine).
 @export var bio: String = ""
 
 
+## Alias table between the legacy stat keys and the GDD keys (D-A2/F1.1): either key set
+## reads through, so a legacy unit (ch01) and a GDD unit (demo) share the same accessors.
+const STAT_KEY_ALIASES := {
+	"atk": "str", "str": "atk",
+	"skl": "skill", "skill": "skl",
+	"spd": "speed", "speed": "spd",
+	"mov": "move", "move": "mov",
+}
+
 ## base_stats lookup with fallback to the class default so missing keys never crash.
+## Legacy keys read through the alias table (atk->str, skl->skill, spd->speed, mov->move);
+## crit/hit have no GDD counterpart and only exist on legacy data.
 func base_stat(key: String, fallback: int) -> int:
 	if base_stats.has(key):
 		return int(base_stats[key])
+	if STAT_KEY_ALIASES.has(key) and base_stats.has(STAT_KEY_ALIASES[key]):
+		return int(base_stats[STAT_KEY_ALIASES[key]])
 	return fallback

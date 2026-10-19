@@ -123,6 +123,44 @@ directly confirmed by the designer. D03–D12 are reasonable proposals fixed so 
 not have to wait — every number/flag lives in `rules_config` or data and can be changed
 without code edits.** Round-2 doc wins over the round-1 doc when they conflict.
 
+**P-01 source hierarchy (19.10.2026, `DEMO_PARITY_NEXT_STEPS.md`):** approved GDD
+(`docs/reference/*.docx`) > D01, D02 (designer-confirmed) > D03–D12 only when they do not
+conflict with the GDD > demo (data + UI behaviour) > old repo. **D05, D07, D08, D12 are
+superseded provisionally by P-02/P-03/P-04/P-05 (19.10.2026).**
+
+### P-decisions P-01…P-15 (provisional, 19.10.2026 — from DEMO_PARITY_NEXT_STEPS.md)
+
+| ID | Decision | Reverse via |
+| --- | --- | --- |
+| P-01 | Source order: approved GDD > D01/D02 > D03–D12 (not conflicting) > demo > old repo. | Update this §7b. |
+| P-02 | Bond bonus lands on ALL of accuracy, avoid, crit, damage (`bond_bonus_targets`); points rule of D05 unchanged. | Edit `rules_config.bond_bonus_targets`. |
+| P-03 | The shop IS built (shop demo parity); `shop_enabled = true` for campaign demo, legacy camp keeps its stub. | `shop_enabled = false`. |
+| P-04 | No in-battle EXP/level-up: `exp_enabled = false` by default (`combat code kept`; tests self-enable). Progress via mid-battle points (W10). | `exp_enabled = true`. |
+| P-05 | `combat_formula_set = "gdd"` (F-CC1…F-CC7) is the default; "legacy" keeps old formulas. Old tests set `legacy` locally, none deleted. | `combat_formula_set = "legacy"`. |
+| P-06 | Rewind per_use + no RNG restore stay; ADD post-Trade boundary, Chọn-mốc screen, quick rewind to last player boundary (W11). | Trim W11 scope. |
+| P-07 | `must_survive` stays for legacy `unit_beastwoman`; the DEMO protagonist is `unit_demo_swordsman` (`is_protagonist = true`). | Data edit. |
+| P-08 | `chapter_ch01` leaves the main flow (`campaign_tag = "legacy"`); debug-only menu entry. Base-layer classes/units carry the GDD stat table (Appendix C) read through the F1 alias. | `campaign_tag` data edit. |
+| P-09 | D06 stays (defeat merges nothing); add losing-screen points breakdown marked "not applied" (GDD-UI §7, W13). | UX scope trim. |
+| P-10 | D09/D10/D11 stay; pause gains read-only "Xem Đội Hình" usable during Enemy Phase (W13). | UX trim. |
+| P-11 | Demo bond: Swordsman–Knight start rank C with 2 points; B at 5 points (`bond_demo_swordsman_knight`; `[PENDING-GDD: Bond]`). | Data edit. |
+| P-12 | In-battle action menu per GDD-UI §4 (Attack/Heal/Use Item/Visit/Trade/Wait) replaces "re-click unit = Wait" for the DEMO campaign; Forecast preview + Confirm/Cancel, right-click = cancel. | Keep D01 flow for legacy. |
+| P-13 | Config flags (data-only, no hardcode): `combat_formula_set`, `exp_enabled`, `shop_enabled`, `fog_enabled`, plus `bond_bonus_targets`. | RulesConfig edit. |
+| P-14 | Frame is 1280×720 only (no dual resolution); every scene rebuilt on containers when W1/W12/W13 run. | Approved D-A3. |
+| P-15 | D-B1…D-B13 defaults stay as recorded; `[PENDING-GDD]` items follow the demo. | Designer answers. |
+
+### Known mismatches until W5 (F7 — do NOT trust demo maps as rules-correct yet)
+
+The importer maps demo objectives onto EXISTING legacy plugins, so these behaviours are
+known-wrong against GDD/demo until the W5 rewrite:
+
+- **Protect (zone)** exports as `defend` and counts **player** phase ends; GDD counts
+  **enemy** phases.
+- **Escort turn variant** (`escort_turns`) also counts player phases; must switch to enemy phases.
+- **Seize** exports as the legacy `capture` plugin (contested/held rules differ from GDD hold-through-enemy-phases).
+- **Retrieve**: legacy plugin does NOT lose the battle when the carrier dies (item drops);
+  GDD/demo = immediate loss. Also "pickup ends the move step at `item_tile`" is not implemented.
+- Priority-target AI, restraint and enemy-stat multipliers are data fields only — not wired in combat yet (W3/W7).
+
 - **D01 — Forecast restored (confirmed).** Attack flow: select unit (may move) → click an
   enemy on a red tile (measured from the current position) → ForecastPanel → Confirm/Cancel
   (right click = Cancel) → combat screen. Panel shows both sides: name, HP, Hit%, Crit%,
@@ -220,6 +258,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-10-19 (2) — Buffy (Codebuff) — done: đợt F (mốc M0) theo demo_parity_plan/DEMO_PARITY_NEXT_STEPS.md: F1 — UnitData.base_stat có bảng alias hai chiều (atk↔str, skl↔skill, spd↔speed, mov↔move); UnitState thêm mag/luck/base_vision/weapon_id/template_id/priority_target_id, from_data nhận instance_id; migrate 12 class + 12 unit roster ch01 sang bảng GDD Phụ lục C (tools/migrate_legacy_gdd_stats.gd, chay lại được; rebel giữ khóa cũ qua alias; weapon_id + damage_type theo class_weapons.json — Magician/Magic Swordsman thành magic). F2 — BattleState.units khóa theo instance_id (placement.instance_id, thiếu thì dùng unit_id); npc_unit_ids resolve theo instance; priority_target_id template được đổi sang instance của bản cùng template; to_dict/from_dict + snapshot mang template_id. F3 — importer chỉ đặt in_roster cho unit_demo_swordsman/knight và is_protagonist cho swordsman; validator chặn placement dùng quân roster và bắt mọi chapter có ≥1 protagonist trong deployable; thêm unit_npc_guide thay quân roster làm NPC trong các map test/sample. F4 — DataRegistry.chapters_sorted(tag) lọc theo campaign_tag (chapter không tag = legacy); GameState.campaign_tag (mặc định "demo", save cũ đọc là "legacy"); build_roster/merge_roster lọc theo UnitData.campaign_tag; menu debug "Legacy chapter (ch01)"; chapter_ch01 mang campaign_tag="legacy". F5 — RulesConfig thêm combat_formula_set/exp_enabled/shop_enabled/fog_enabled/base_vision_default/bond_bonus_targets (P-13; demo overlay bật shop); BondSystem đọc bond_bonus_targets theo P-02 (accuracy/avoid/crit/damage); EXP chặn bởi exp_enabled (test exp tự bật cờ cục bộ). F6 — tests/smoke_demo_maps.gd+.tscn: 62 checks trên 6 map demo (số quân mỗi phe, chỉ số demo swordsman/knight, id instance không trùng, objective_type khớp battle_demo.json, rebel đọc atk qua alias). Fix test cũ: bond P-02 (accuracy hưởng bonus — D05 cũ bị P-02 thay), smoke/test gắn tag legacy, unit NPC đổi id. AGENTS.md: bảng P-01…P-15, chú thích bậc nguồn P-01, mục Known mismatches until W5 (F7). README/how_to_run thêm lệnh smoke_demo_maps. Kiểm tra cuối: validation 0/0 cả hai lượt, run_tests 184/184, smoke 21/21, smoke maps 10/10, negative 25/25, smoke demo maps 62/62. — in progress: none. — next: W3 lõi chiến đấu (combat_formula_set="gdd", F-CC1..F-CC7, vector vàng cả hai profile), W1 khung 1280×720 chạy song song, W4 menu hành động + preview (P-12), W5 rewrite mục tiêu theo MapData (protect_zone/protect_unit/seize mới; escort_turns đếm enemy phase; Retrieve thua khi carrier chết), rồi W7 AI/W8 hòa giải/W9 roster. — issues: thứ tự menu ch01/debug theo P-08 là quyết định tạm chờ designer; lệch law khác ghi trong mục Known mismatches until W5 của §7b.
 
 - 2026-10-19 — Buffy (Codebuff) — done: W2 của DEMO_PARITY_PLAN v2 (demo_parity_plan/): schema dữ liệu theo GDD — WeaponData mới (data/weapons/weapon_data.gd) + 12 vũ khí GDD; UnitData thêm base_vision/ai_profile/priority_target_id/controllable/carried_items; ItemData thêm consumable (heal/buff + price); MapData thêm map_deploy_cap/turn_par/deploy_tiles/objective params/villages/faction/bonds/aftermath_lines; ChapterData.campaign_tag; RulesConfig thêm double_threshold/bond_stack_max/max_item_slots/HP bands/enemy_stat_multiplier & restraint theo độ khó/terrain glyphs h,c,x,v + terrain_vision. Cơ chế balance_profile (T2.7): DataRegistry nạp lớp gốc rồi lớp data/balance/demo/ (id trùng ghi đè, id mới thêm vào) + rules overlay riêng cho profile; demo rules đặt rules_config.tres (Forest +12). tools/import_demo_data.gd (T2.8) sinh .tres từ JSON demo: units lớp demo dùng prefix unit_demo_ để KHÔNG đè roster ch04... (unit_swordsman/id người thật giữ nguyên trong lớp gốc), factions faction_neutral/faction_river_guard, item_demo_document, 6 map demo_01..06 (chuyển glyph F→f, V→v, W→w) + 6 chapter_demo (campaign_tag demo), item consumable + giá shop. Validator (T2.9/T2.10) chạy 2 lượt (base + profile) với checks mới: cả hai bộ khóa chỉ số (cấm trộn), vũ khí (range min>max chặn, Combat cần attack_type, Heal cần might), unit strict layer (hp 15–60, move 4–7 chỉ cho controllable, base_vision 3–6, max_item_slots), AI profiles, map checklist Phụ lục E (deploy cap 1–10, turn_par bắt buộc & ràng buộc với turn_limit/escort/protect/seize, làng đúng một reward, key_unit/faction, bond pair)... escort_turns plugin mới (objective_escort_turns.gd) cho biến thể hộ tống theo lượt. Tests mới tests/test_validate_negative.gd (25 case âm tính checklist Phụ lục E; không rò resource). Kiểm tra cuối: validation 0/0 cả base lẫn profile demo; run_tests 184/184; smoke 21/21; smoke maps 10/10; negative 25/25; boot sạch. — in progress: none. — next: W3 lõi chiến đấu (CombatResolver theo F-CC1..7, forecast full exchange, BondSystem cap 4 nguồn), W4 commands new (heal/use_item/visit/trade), W5 objective rewrite theo MapData mới. — issues: class demo ghi đè class_swordsman/knight/healer của lớp gốc theo D-A1/D-A5 (id người thật vẫn giữ data, chỉ số class đổi theo profile) — cần xác nhận designer khi chơi ch01 trên profile demo.
 

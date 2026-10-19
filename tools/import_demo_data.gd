@@ -309,6 +309,11 @@ func _generate_demo_profile(demo: Dictionary, goods: Dictionary) -> void:
 		# D03: the remnant leader records the spare event on survival.
 		if str(u.get("ai_profile", "")) == "ProtectPersuade" and class_key == "Commander":
 			props["reconcile_event_key"] = "spared_commander"
+		# F3: only the two player characters join the roster; enemies/NPCs stay out of
+		# GameState.roster so camp never lists them. P-07: the demo protagonist is the
+		# Swordsman (dying ends the battle).
+		props["is_protagonist"] = key == "swordsman"
+		props["in_roster"] = key == "swordsman" or key == "knight"
 		_write_tres("res://data/units/unit_data.gd", "UnitData", props,
 				"%s/units/unit_demo_%s.tres" % [OUT_BALANCE, key])
 
@@ -363,29 +368,38 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 	var deploy_cells: Array[Vector2i] = []
 	var enemy_placements: Array[Dictionary] = []
 	var npc_placements: Array[Dictionary] = []
+	# F2.2: battle lookups key on the per-map instance id, so objective params reference
+	# instance ids. Template ids stay only in UnitData fields (priority_target_id, bonds).
+	var instance_ids_by_template: Dictionary = {}
 	var catalog: Dictionary = _demo.get("unit_catalog", {})
 	for d: Dictionary in m.get("deployments", []):
 		var template := str(d.get("template", ""))
 		var ud: Dictionary = catalog.get(template, {})
 		var cell := Vector2i(int(d.get("x", 0)), int(d.get("y", 0)))
 		if str(ud.get("side", "player")) == "enemy":
+			var e_instance := str(d.get("id", template))
 			enemy_placements.append({
 				"unit_id": "unit_demo_" + template,
 				"cell": cell,
-				"instance_id": str(d.get("id", template)),
+				"instance_id": e_instance,
 				"ai": true,
 			})
-			if not enemy_target_ids.has("unit_demo_" + template):
-				enemy_target_ids.append("unit_demo_" + template)
+			if not enemy_target_ids.has(e_instance):
+				enemy_target_ids.append(e_instance)
+			if not instance_ids_by_template.has(template):
+				instance_ids_by_template[template] = e_instance
 		elif bool(ud.get("controllable", true)):
 			deploy_cells.append(cell)
 		else:
+			var n_instance := str(d.get("id", template))
 			npc_placements.append({
 				"unit_id": "unit_demo_" + template,
 				"cell": cell,
-				"instance_id": str(d.get("id", template)),
+				"instance_id": n_instance,
 				"ai": false,
 			})
+			if not instance_ids_by_template.has(template):
+				instance_ids_by_template[template] = n_instance
 
 	var objectives: Array[Dictionary] = []
 	var item_placements: Array[Dictionary] = []
@@ -395,12 +409,15 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 		"Elimination":
 			objectives.append({"type": "eliminate", "params": {"target_unit_ids": enemy_target_ids}})
 		"Escort":
+			# F2.2: the escort target must resolve to the placed instance, which carries the
+			# same name as the demo deployment id (e.g. messenger).
+			var escort_instance := str(instance_ids_by_template.get(str(m.get("escort_unit_id", "")), ""))
 			var goal: Dictionary = m.get("escort_goal", {})
 			if not goal.is_empty():
 				objectives.append({
 					"type": "escort",
 					"params": {
-						"npc_unit_id": "unit_demo_" + str(m.get("escort_unit_id", "")),
+						"npc_unit_id": escort_instance,
 						"target_cell_x": int(goal.get("x", 0)),
 						"target_cell_y": int(goal.get("y", 0)),
 					},
@@ -409,7 +426,7 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 				objectives.append({
 					"type": "escort_turns",
 					"params": {
-						"npc_unit_id": "unit_demo_" + str(m.get("escort_unit_id", "")),
+						"npc_unit_id": escort_instance,
 						"turns_required": int(m.get("escort_turns_required", 1)),
 					},
 				})

@@ -9,17 +9,18 @@ display_name = "Swordsman"
 class_id = "class_swordsman"
 faction_id = "faction_empire"
 portrait = ""
+sprite = ""
 level = 1
 base_stats = {
-"hp": 22,
-"atk": 7,
-"def": 5,
-"res": 2,
-"skl": 7,
-"spd": 7,
-"mov": 5,
-"crit": 10,
-"hit": 0,
+"hp": 32,
+"str": 11,
+"mag": 2,
+"skill": 10,
+"speed": 9,
+"move": 5,
+"luck": 8,
+"def": 7,
+"res": 4
 }
 growths = {
 "hp": 60,
@@ -27,9 +28,17 @@ growths = {
 "def": 40,
 "res": 30,
 "skl": 50,
-"spd": 50,
+"spd": 50
 }
+base_vision = 0
+ai_profile = ""
+priority_target_id = ""
+controllable = true
+carried_items = []
 skill_ids = []
 is_protagonist = true
+must_survive = false
+reconcile_event_key = ""
 in_roster = true
+campaign_tag = "legacy"
 bio = "Placeholder bio - see Character.docx."

@@ -75,11 +75,14 @@ func setup(p_map: Resource, deploy: Dictionary, seed_value: int = -1) -> void:
 	objectives_config = []
 	for o in p_map.objectives:
 		objectives_config.append({"type": String(o.type), "params": o.params})
-	# NPC actors (escort style)
+	# NPC actors (escort style): F2.2 uses the battle instance id, not the template id, so
+	# objective plugins always look up the placed copy.
 	npc_unit_ids.clear()
 	for npc in p_map.npc_placements:
-		npc_unit_ids.append(String(npc.unit_id))
+		npc_unit_ids.append(_instance_id_from_placement(npc))
 	# Units: control side comes from the placement source, not from faction ids.
+	# F2.1: five of six demo maps place two copies of one template; the units dict keys on
+	# the unique instance id (or the template id when a placement declares none).
 	units.clear()
 	_deploy_map_units(p_map, "enemy", p_map.enemy_placements)
 	_deploy_map_units(p_map, "npc", p_map.npc_placements)
@@ -89,6 +92,8 @@ func setup(p_map: Resource, deploy: Dictionary, seed_value: int = -1) -> void:
 		if ud != null and can_place(cell):
 			var u := UnitState.from_data(ud, cell, GameState.roster[unit_id].level if GameState.roster.has(unit_id) else -1)
 			u.side = "player"
+			# F2.2: player units keep the template id as the instance id — every campaign
+		# reference (roster, bonds, prep) already speaks template ids for them.
 			units[String(unit_id)] = u
 	# Items on ground
 	for item in p_map.item_placements:
@@ -105,6 +110,39 @@ func setup(p_map: Resource, deploy: Dictionary, seed_value: int = -1) -> void:
 		var f := DataRegistry.get_faction(String(u.faction_id))
 		if f != null and String(f.remnant_id) != "":
 			reconcile_state[String(u.faction_id)] = {"kills": 0, "events": [], "evaluated": false, "persuaded": false}
+	_resolve_priority_targets()
+
+
+## F2.2: placements may carry an instance_id (demo maps do); otherwise the template id
+## doubles as the instance id (legacy ch01 placements, player deploy keys).
+func _instance_id_from_placement(placement: Dictionary) -> String:
+	var instance := String(placement.get("instance_id", ""))
+	return instance if instance != "" else String(placement.get("unit_id", ""))
+
+
+## F2.2: UnitData.priority_target_id is a template reference; the AI must aim at the
+## placed instance of that template, so re-point every copy onto a real battle unit.
+func _resolve_priority_targets() -> void:
+	var by_template := {}
+	for u in units.values():
+		if not by_template.has(u.template_id):
+			by_template[u.template_id] = []
+		by_template[u.template_id].append(u.id)
+	for u in units.values():
+		if String(u.priority_target_id) == "":
+			continue
+		var candidates: Array = by_template.get(u.priority_target_id, [])
+		var resolved := ""
+		for candidate in candidates:
+			if String(candidate) != u.id:
+				resolved = String(candidate)
+				break
+		if resolved == "" and not candidates.is_empty():
+			resolved = String(candidates[0])
+		if String(resolved) == u.id:
+			u.priority_target_id = ""
+		else:
+			u.priority_target_id = String(resolved)
 
 
 func _deploy_map_units(p_map: Resource, side: String, placements: Array) -> void:
@@ -115,13 +153,13 @@ func _deploy_map_units(p_map: Resource, side: String, placements: Array) -> void
 			continue
 		var cell: Vector2i = placement.cell
 		if can_place(cell):
-			var u := UnitState.from_data(ud, cell, -1)
+			var u := UnitState.from_data(ud, cell, -1, _instance_id_from_placement(placement))
 			u.side = side
 			# faction_override lets a map place a unit on a different lore faction (e.g. an
 			# empire defector fighting for the rebels) without a duplicate unit entry.
 			if placement.get("faction_override", "") != "":
 				u.faction_id = String(placement.faction_override)
-			units[String(placement.unit_id)] = u
+			units[u.id] = u
 
 
 func can_place(cell: Vector2i) -> bool:

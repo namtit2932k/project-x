@@ -23,3 +23,5 @@ base_stats = {
 carried_items = Array[String]([])
 ai_profile = "StandardAggressive"
 priority_target_id = ""
+is_protagonist = false
+in_roster = false

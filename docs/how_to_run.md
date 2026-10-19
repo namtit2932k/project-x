@@ -40,6 +40,7 @@ godot --headless --path . res://tools/validate_data.tscn    # data validation (0
 godot --headless --path . res://tests/run_tests.tscn        # 184 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/exp/save)
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI, end-to-end through BattleDirector (21 checks)
 godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test maps, one scripted win + one lose scenario each
+godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example maps: sides/stat/objective parity vs battle_demo.json (F6)
 ```
 
 ## Test maps (debug builds only)

@@ -27,6 +27,8 @@ func ok(cond: bool, msg: String) -> void:
 func run_all() -> void:
 	for map_id in ["map_test_escort", "map_test_defend", "map_test_retrieve", "map_test_capture", "map_test_evacuate"]:
 		GameState.new_game()
+		# F4: these smoke scripts play the legacy test maps.
+		GameState.campaign_tag = "legacy"
 		GameState.build_roster()
 		var director := _setup(map_id, ["unit_swordsman", "unit_knight", "unit_lancer", "unit_gunner"])
 		var win: Dictionary = await _run_win(map_id, director)
@@ -68,7 +70,7 @@ func _prep_lose(map_id: String, director: BattleDirector) -> void:
 	var state := director.state
 	match map_id:
 		"map_test_escort":
-			_place_assassin(state, "unit_rebel_soldier_1", "unit_healer")
+			_place_assassin(state, "unit_rebel_soldier_1", "unit_npc_guide")
 		"map_test_defend":
 			# An enemy already inside the zone when the first player phase ends = block lose.
 			var foe: UnitState = state.units["unit_rebel_soldier_2"]
@@ -78,8 +80,8 @@ func _prep_lose(map_id: String, director: BattleDirector) -> void:
 			var foe_id := "unit_rebel_soldier_1" if not state.units.has("unit_rebel_soldier_2") else "unit_rebel_soldier_2"
 			_place_assassin(state, foe_id, "unit_swordsman")
 		"map_test_evacuate":
-			# Evacuee down: beastwoman (must_survive) adjacent one-shot.
-			_place_assassin(state, "unit_rebel_soldier_1", "unit_beastwoman")
+			# F3: the map NPC is unit_npc_guide now (roster units never play map NPCs).
+			_place_assassin(state, "unit_rebel_soldier_1", "unit_npc_guide")
 
 
 func _place_assassin(state: BattleState, foe_id: String, victim_id: String) -> void:
@@ -98,11 +100,11 @@ func _run_win(map_id: String, director: BattleDirector) -> Dictionary:
 	_buff_player(director)
 	match map_id:
 		"map_test_escort":
-			director.state.units["unit_healer"].max_hp += 500
-			director.state.units["unit_healer"].hp = director.state.units["unit_healer"].max_hp
+			director.state.units["unit_npc_guide"].max_hp += 500
+			director.state.units["unit_npc_guide"].hp = director.state.units["unit_npc_guide"].max_hp
 		"map_test_evacuate":
-			director.state.units["unit_beastwoman"].max_hp += 900
-			director.state.units["unit_beastwoman"].hp = director.state.units["unit_beastwoman"].max_hp
+			director.state.units["unit_npc_guide"].max_hp += 900
+			director.state.units["unit_npc_guide"].hp = director.state.units["unit_npc_guide"].max_hp
 	await _play(director, func(st: BattleState, u: UnitState) -> Dictionary: return _win_actor(u, st, map_id))
 	return _outcome(director)
 

@@ -77,6 +77,19 @@ class_name RulesConfig
 	"wall": {"stand": 0, "view": 0, "blocks_line_of_sight": true},
 }
 
+## ------------------------------------------------------------ P-13 feature flags (data-only)
+## Trainer công thức chiến đấu mặc định (P-05): "gdd" (F-CC1…F-CC7) | "legacy" (công thức cũ).
+## CombatResolver xử lý cả hai nhánh; dữ liệu cũ chỉ dùng "legacy".
+@export var combat_formula_set: String = "gdd"
+## EXP và level-up chỉ áp dụng cho campaign demo khi bật (P-04); tắt = ẩn dòng EXP hậu trận.
+@export var exp_enabled: bool = false
+## Cửa hàng (P-03): bật cho campaign demo; chương legacy giữ stub.
+@export var shop_enabled: bool = false
+## Fog of war (W6): tắt tới khi hệ thống fog hoàn tất.
+@export var fog_enabled: bool = false
+## D-B2 placeholder: default base vision khi unit không khai báo (0 = inherit).
+@export var base_vision_default: int = 4
+
 ## ------------------------------------------------------------ rewind
 ## Số lượt rewind mỗi trận theo độ khó: Story không giới hạn (-1); Normal 5; Hard 3; Nightmare 0.
 @export var rewind_per_difficulty: Dictionary = {"story": -1, "normal": 5, "hard": 3, "nightmare": 0}
@@ -124,9 +137,10 @@ class_name RulesConfig
 @export var balance_profile: String = "demo"
 
 ## ------------------------------------------------------------ bond
-## Damage-side bonus stat selector (D05): the adjacency bonus lands on this stat of the
-## attacking unit; "power" adds to damage. Change to e.g. "hit" to move it to accuracy.
-@export var bond_bonus_stat: String = "power"
+## P-02: adjacency bonus lands on the stat groups listed here (GDD-Combat §5): accuracy,
+## avoid, crit and damage. BondSystem maps them onto the combat formula entries; the old
+## single-stat `bond_bonus_stat` must no longer be read.
+@export var bond_bonus_targets: Array[String] = ["accuracy", "avoid", "crit", "damage"]
 ## Bonus theo rank (designer đã chốt); tổng bonus kề ô tối đa +16 (ràng buộc test bằng test).
 @export var bond_bonus_by_rank: Dictionary = {"C": 3, "B": 5, "A": 8, "S": 10}
 @export var max_adjacent_bond_bonus: int = 16

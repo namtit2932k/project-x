@@ -37,10 +37,11 @@ static func execute(state: BattleState, attacker: UnitState, defender: UnitState
 		})
 		if d.hp == 0:
 			strikes[-1]["slain"] = d.id
-	# EXP per D08: only the player side earns; engagement pays even when the target avoids,
-	# the killer takes exp_gain_kill, and a surviving player defender always pays back to the
-	# attacker with exp_gain_nonlethal_loss (the old "must be hit" requirement is gone).
-	if not strikes.is_empty():
+	# EXP per D08/P-04: only while rules_config.exp_enabled is on; the campaign that turns
+	# it off fills progression via mid-battle points instead (W10). Engagement pays even
+	# when the target avoids, the killer takes exp_gain_kill, and a surviving player defender
+	# always pays back to the attacker with exp_gain_nonlethal_loss.
+	if bool(DataRegistry.rule("exp_enabled", false)) and not strikes.is_empty():
 		if attacker.side == "player" and attacker.alive:
 			state.exp_gained_set(attacker.id, int(DataRegistry.rule("exp_gain_hit", 10)))
 			if defender.hp == 0 and defender.side != "player":

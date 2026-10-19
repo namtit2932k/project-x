@@ -116,10 +116,13 @@ func test_bond_rules_d05() -> void:
 	assert_true(int(state.bond_points["test_pair_d05"]) == cap, "bond D05: cap holds on repeat")
 	DataRegistry._cache["bonds"].erase("test_pair_d05")
 	DataRegistry._cache["bonds"].erase("test_pair_cross")
-	# Damage-side bonus stat: with an unlocked-rank pair adjacent to the attacker, damage
-	# grows by exactly the rank bonus; the bond never feeds accuracy with the default config.
+	# P-02: the adjacency bonus lands on EVERY configured target group (accuracy, avoid,
+	# crit, damage). Damage grows by the rank bonus and accuracy now benefits too — the old
+	# D05 "never feeds accuracy" expectation was superseded by P-02 (AGENTS.md (censored)).
 	var base_dmg := CombatResolver._damage(state, attacker, foe)
-	var hit_before_pair := CombatResolver._hit_pct(state, attacker, foe)
+	# Keep the raw hit under the clamp so the bonus stays visible in the percentage.
+	attacker.hit_bonus = -40
+	var hit_base_no_pair := CombatResolver._hit_pct(state, attacker, foe)
 	var dmg_pair := BondData.new()
 	dmg_pair.id = "test_pair_dmg"
 	dmg_pair.unit_a = "attacker"
@@ -127,8 +130,8 @@ func test_bond_rules_d05() -> void:
 	DataRegistry._cache["bonds"]["test_pair_dmg"] = dmg_pair
 	GameState.bond_ranks["test_pair_dmg"] = "C"
 	var bonused_dmg := CombatResolver._damage(state, attacker, foe)
-	assert_true(bonused_dmg == base_dmg + int(DataRegistry.rule("bond_bonus_by_rank", {}).get("C", 3)), "bond D05: adjacency bonus reaches damage (rank C)")
-	assert_true(CombatResolver._hit_pct(state, attacker, foe) == hit_before_pair, "bond D05: accuracy untouched by the bond bonus")
+	assert_true(bonused_dmg == base_dmg + int(DataRegistry.rule("bond_bonus_by_rank", {}).get("C", 3)), "bond P-02: adjacency bonus reaches damage (rank C)")
+	assert_true(CombatResolver._hit_pct(state, attacker, foe) == hit_base_no_pair + int(DataRegistry.rule("bond_bonus_by_rank", {}).get("C", 3)), "bond P-02: accuracy now benefits from the adjacency bonus")
 	DataRegistry._cache["bonds"].erase("test_pair_dmg")
 	GameState.bond_ranks.erase("test_pair_dmg")
 	# Rank scene gating: B only after C watched/skipped (index compare, not strings).
@@ -161,6 +164,8 @@ func test_bond_rules_d05() -> void:
 func test_campaign_merge_d06() -> void:
 	await 0.0
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var chapter := GameState.current_chapter()
 	var state: BattleState = _plain_map_enemy_state()
@@ -241,6 +246,8 @@ func test_second_target_damage() -> void:
 ## Kịch bản người dùng: diệt kẻ 1 bằng hero 1, rồi hero 2 click kẻ 2 phải combat và trừ đúng HP.
 func test_second_target_via_clicks() -> void:
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var main: Node = load("res://src/scenes/main/main.gd").new()
 	add_child(main)
@@ -279,6 +286,8 @@ func test_second_target_via_clicks() -> void:
 ## Cancel (chuột phải là Cancel) quay lại bước chọn và KHÔNG commit gì cả.
 func test_forecast_confirm_attack() -> void:
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var main: Node = load("res://src/scenes/main/main.gd").new()
 	add_child(main)
@@ -357,6 +366,8 @@ func test_forecast_matches_execution() -> void:
 ## Hồi quy: một unit chỉ di chuyển MỘT lần mỗi phase — move thứ hai bị chặn dù chưa acted."
 func test_second_move_blocked() -> void:
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var main: Node = load("res://src/scenes/main/main.gd").new()
 	add_child(main)
@@ -384,6 +395,8 @@ func test_second_move_blocked() -> void:
 ## Hồi quy“end phase xong làng tin mất tiếp”: sau end phase, địch PHẢI hành động và lượt quay về người chơi.
 func test_end_phase_enemy_acts() -> void:
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var main: Node = load("res://src/scenes/main/main.gd").new()
 	add_child(main)
@@ -408,6 +421,8 @@ func test_end_phase_enemy_acts() -> void:
 ## Hồi quy: _swap_to phải nhận được cả Control lẫn Node2D screens (BattleScene).
 func test_main_swap_battle() -> void:
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var main: Node = load("res://src/scenes/main/main.gd").new()
 	add_child(main)   # _ready: menu screen
@@ -427,6 +442,8 @@ func test_main_swap_battle() -> void:
 ## Hồi quy: checkbox toggled bắn khi _ready còn đang dựng — _start_button chưa tồn tại.
 func test_prep_scene() -> void:
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var chapter := GameState.current_chapter()
 	var prep := PrepScene.build(chapter)
@@ -568,6 +585,8 @@ func test_reconcile_hud() -> void:
 	## N10: chip per remnant faction, attitude flips on kills, feedback dialogue plays
 	## on the transition, and rewind displays the restored attitude again.
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var main: Node = load("res://src/scenes/main/main.gd").new()
 	add_child(main)
@@ -628,6 +647,8 @@ func test_pause_menu() -> void:
 	## N08: Esc opens the pause menu, blocks map clicks and the enemy phase loop until
 	## Resume; Quit-to-menu fires the dedicated signal (no merge path).
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var main: Node = load("res://src/scenes/main/main.gd").new()
 	add_child(main)
@@ -671,9 +692,13 @@ func test_pause_menu() -> void:
 
 
 func test_exp_and_levels() -> void:
-	## N11 (D08): player side earns exp (also on a miss), enemies never bank exp,
-	## level-ups roll growths with the battle RNG, stat bonus survives save/load.
+	## N11 (D08/P-04): EXP bật cục bộ trong bài này (exp_enabled mặc định tắt theo P-04; mã
+	## và số chờ designer đảo ngược bằng cờ). Player side earns exp (also on a miss),
+	## enemies never bank exp, level-ups roll growths with the battle RNG.
 	await 0.0
+	var rules: Resource = DataRegistry.rules()
+	var previous_exp_flag: bool = bool(rules.get("exp_enabled"))
+	rules.set("exp_enabled", true)
 	var state: BattleState = _plain_map_enemy_state()
 	state.exp_gained.clear()
 	state.level_ups.clear()
@@ -707,6 +732,7 @@ func test_exp_and_levels() -> void:
 	assert_true(int(lev.exp) == 60, "levels: remainder stays as the new starting exp")
 	assert_true(int(lev.power) == 6 + 2, "levels: 100%% growth grants atk twice (atk=%d)" % lev.power)
 	assert_true(lev.speed == 6, "levels: 0%% growth never grants spd")
+	rules.set("exp_enabled", previous_exp_flag)
 	assert_true(int(lev.stat_bonus.get("atk", 0)) == 2, "levels: stat_bonus records atk+2")
 	assert_true(state2.level_ups.size() == 2, "levels: two level-up entries recorded")
 	# Enemy units at the cap boundary never level.
@@ -717,6 +743,8 @@ func test_exp_and_levels() -> void:
 	assert_true(capped.level == 1 and capped.power == capped_power, "levels: enemies and non-players never level")
 	# Merge carries level + stat_bonus; save round-trip keeps the bonus.
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var chapter := GameState.current_chapter()
 	var merge_state: BattleState = _plain_map_enemy_state()
@@ -730,6 +758,8 @@ func test_exp_and_levels() -> void:
 	assert_true(int(roster_entry["stat_bonus"].get("hp", 0)) == 1, "merge: hp bonus stored")
 	assert_true(not SaveService.save_campaign().is_empty(), "merge: save writes")
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	assert_true(SaveService.load_campaign(), "merge: load reads")
 	assert_true(int(GameState.roster["unit_swordsman"]["stat_bonus"].get("atk", 0)) == 2, "merge: stat bonus survives save/load")
@@ -746,6 +776,8 @@ func test_story_flags_and_ending() -> void:
 	## N07: DialoguePlayer writes set_flag into GameState, the flag round-trips through
 	## SaveService, and the true-ending check follows completed chapters + persuade.
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	assert_true(GameState.is_true_ending_eligible() == false, "true ending: locked while the chapter is not finished")
 	# set_flag through the reusable DialoguePlayer: a line with set_flag writes the flag.
@@ -988,6 +1020,8 @@ func test_rewind_rng_not_reset() -> void:
 func test_rewind_player_frame() -> void:
 	await 0.0
 	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var map := DataRegistry.get_map("map_ch01")
 	var director := BattleDirector.new()

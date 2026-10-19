@@ -44,7 +44,7 @@ item_placements = Array[Dictionary]([])
 objectives = Array[Dictionary]([{
 "type": "eliminate",
 "params": {
-"target_unit_ids": Array[String](["unit_demo_raider", "unit_demo_guard"])
+"target_unit_ids": Array[String](["guard_1", "guard_2"])
 }
 }])
 result_priority = "lose"

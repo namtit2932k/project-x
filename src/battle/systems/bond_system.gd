@@ -24,10 +24,22 @@ static func support_attack_bonus(state: BattleState, unit: UnitState) -> int:
 	return _adjacency_bonus(state, unit)
 
 
-## D05: the adjacency bonus applies only to the stat chosen by rules_config.bond_bonus_stat
-## (default "power"); other stats get 0, so accuracy never benefits with the default config.
+## P-02: the adjacency bonus lands on every target group in rules_config.bond_bonus_targets
+## (accuracy, avoid, crit, damage). Combat formulas ask via their own stat name; the name
+## maps onto the configured target group ("power"/damage side feeds damage, "hit" feeds accuracy).
 static func stat_bonus(state: BattleState, unit: UnitState, stat_name: String) -> int:
-	if String(DataRegistry.rule("bond_bonus_stat", "power")) != stat_name:
+	var group := ""
+	match stat_name:
+		"power", "magic":
+			group = "damage"
+		"hit":
+			group = "accuracy"
+		"avoid":
+			group = "avoid"
+		"crit":
+			group = "crit"
+	var targets: Array = DataRegistry.rule("bond_bonus_targets", ["accuracy", "avoid", "crit", "damage"])
+	if group == "" or not (group in targets):
 		return 0
 	return _adjacency_bonus(state, unit)
 
@@ -61,6 +73,8 @@ static func reward_combat_pairs(state: BattleState, attacker: UnitState, defende
 			if participant == null or _other_member_id(pair, participant.id) == "":
 				continue
 			# Pairs only earn points for player-side engagements ("cùng phe người chơi").
+			# F2: partner lookups stay instance-id based; pairs are template-level data but
+		# player instances carry the template id as their instance id.
 			if participant.side != "player":
 				continue
 			var other_id := _other_member_id(pair, participant.id)

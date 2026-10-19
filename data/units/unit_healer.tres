@@ -9,17 +9,18 @@ display_name = "Healer"
 class_id = "class_healer"
 faction_id = "faction_kingdom"
 portrait = ""
+sprite = ""
 level = 1
 base_stats = {
-"hp": 17,
-"atk": 5,
-"def": 2,
-"res": 7,
-"skl": 8,
-"spd": 6,
-"mov": 4,
-"crit": 5,
-"hit": 0,
+"hp": 26,
+"str": 2,
+"mag": 12,
+"skill": 8,
+"speed": 7,
+"move": 5,
+"luck": 7,
+"def": 4,
+"res": 8
 }
 growths = {
 "hp": 60,
@@ -27,9 +28,17 @@ growths = {
 "def": 40,
 "res": 30,
 "skl": 50,
-"spd": 50,
+"spd": 50
 }
+base_vision = 0
+ai_profile = ""
+priority_target_id = ""
+controllable = true
+carried_items = []
 skill_ids = ["skill_heal"]
 is_protagonist = false
+must_survive = false
+reconcile_event_key = ""
 in_roster = true
+campaign_tag = "legacy"
 bio = "Placeholder bio - see Character.docx."

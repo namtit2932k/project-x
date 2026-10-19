@@ -3,6 +3,8 @@ class_name MenuScene
 ## Main menu: new campaign, continue (manual save between battles), options, quit.
 
 signal new_game
+## F4.3 (P-08): only connected in debug builds — opens the legacy ch01 campaign.
+signal legacy_chapter
 signal continue_game
 signal test_battle(map_id: String)   # N12: debug-only quick battle entry per test map
 var _test_maps_panel: Control = null
@@ -39,6 +41,8 @@ func _ready() -> void:
 	if OS.is_debug_build():
 		var test_btn := UIBuilder.button(box, "Test maps", 20)
 		test_btn.pressed.connect(_open_test_maps)
+		var legacy_btn := UIBuilder.button(box, "Legacy chapter (ch01)", 20)
+		legacy_btn.pressed.connect(func() -> void: legacy_chapter.emit())
 
 	var quit := UIBuilder.button(box, "Quit", 20)
 	quit.pressed.connect(func() -> void: get_tree().quit())

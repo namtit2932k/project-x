@@ -9,17 +9,18 @@ display_name = "Knight"
 class_id = "class_knight"
 faction_id = "faction_empire"
 portrait = ""
+sprite = ""
 level = 1
 base_stats = {
-"hp": 26,
-"atk": 7,
-"def": 9,
-"res": 3,
-"skl": 5,
-"spd": 3,
-"mov": 4,
-"crit": 0,
-"hit": 0,
+"hp": 38,
+"str": 10,
+"mag": 1,
+"skill": 6,
+"speed": 5,
+"move": 6,
+"luck": 5,
+"def": 14,
+"res": 6
 }
 growths = {
 "hp": 60,
@@ -27,9 +28,17 @@ growths = {
 "def": 40,
 "res": 30,
 "skl": 50,
-"spd": 50,
+"spd": 50
 }
+base_vision = 0
+ai_profile = ""
+priority_target_id = ""
+controllable = true
+carried_items = []
 skill_ids = []
 is_protagonist = false
+must_survive = false
+reconcile_event_key = ""
 in_roster = true
+campaign_tag = "legacy"
 bio = "Placeholder bio - see Character.docx."

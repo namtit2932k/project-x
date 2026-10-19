@@ -58,7 +58,7 @@ item_placements = Array[Dictionary]([])
 objectives = Array[Dictionary]([{
 "type": "escort_turns",
 "params": {
-"npc_unit_id": "unit_demo_evacuee",
+"npc_unit_id": "evacuee",
 "turns_required": 3
 }
 }])

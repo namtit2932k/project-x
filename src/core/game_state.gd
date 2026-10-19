@@ -5,6 +5,9 @@ extends Node
 const BOND_RANKS: Array[String] = ["C", "B", "A", "S"]
 
 var difficulty: String = "normal"
+## Active campaign (F4.1): "demo" is the main flow, "legacy" = old ch01 reachable from
+## the debug menu. Saved in the campaign save; old saves read back as legacy below.
+var campaign_tag: String = "demo"
 var current_chapter_id: String = ""
 ## roster: unit_id -> {level:int, exp:int, alive:bool, defeats:int}
 var roster: Dictionary = {}
@@ -29,6 +32,7 @@ var options: Dictionary = {"volume": 0.8, "fullscreen": false}
 func new_game() -> void:
 	# difficulty and options are NOT reset here: the player may pick them on the menu
 	# right before "New campaign" (menu selection must survive the campaign reset).
+	campaign_tag = "demo"
 	current_chapter_id = ""
 	story_branch = ""
 	story_flags.clear()
@@ -43,18 +47,26 @@ func new_game() -> void:
 	options = {"volume": 0.8, "fullscreen": false}
 
 
-## Register every roster unit from data (joined roster for the campaign; TBD story gating).
+## Register the roster of the active campaign (F4.2): only units tagged for it (or
+## untagged legacy characters) join, so demo chapters never mix in the old ch01 roster.
 func build_roster() -> void:
 	roster.clear()
 	for unit_id in DataRegistry.all_ids("units"):
 		var ud := DataRegistry.get_unit(unit_id)
-		if ud == null or not ud.in_roster:
+		if ud == null or not _unit_in_campaign(ud):
 			continue
 		roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0}
 
 
+func _unit_in_campaign(ud: Resource) -> bool:
+	if bool(ud.in_roster) == false:
+		return false
+	var unit_tag := String(ud.campaign_tag)
+	return unit_tag == "" or unit_tag == campaign_tag
+
+
 func current_chapter() -> Resource:
-	var chapters := DataRegistry.chapters_sorted()
+	var chapters := DataRegistry.chapters_sorted(campaign_tag)
 	if chapters.is_empty():
 		push_error("GameState: no chapters in data/")
 		return null
@@ -67,7 +79,7 @@ func current_chapter() -> Resource:
 ## must be completed AND every remnant faction of that chapter persuaded. The ending
 ## scene itself is content work (paused until production story data).
 func is_true_ending_eligible() -> bool:
-	for chapter in DataRegistry.chapters_sorted():
+	for chapter in DataRegistry.chapters_sorted(campaign_tag):
 		if not bool(chapter.counts_for_true_ending):
 			continue
 		var chapter_id := String(chapter.id)
@@ -110,7 +122,7 @@ func advance_chapter() -> void:
 	var chapter := current_chapter()
 	if chapter == null:
 		return
-	var chapters := DataRegistry.chapters_sorted()
+	var chapters := DataRegistry.chapters_sorted(campaign_tag)
 	for i in chapters.size():
 		if String(chapters[i].id) == String(chapter.id):
 			if i + 1 < chapters.size():
@@ -122,7 +134,7 @@ func has_next_chapter() -> bool:
 	var chapter := current_chapter()
 	if chapter == null:
 		return false
-	var chapters := DataRegistry.chapters_sorted()
+	var chapters := DataRegistry.chapters_sorted(campaign_tag)
 	return not chapters.is_empty() and String(chapters[chapters.size() - 1].id) != String(chapter.id)
 
 
@@ -131,7 +143,7 @@ func has_next_chapter() -> bool:
 func merge_roster_with_data() -> void:
 	for unit_id in DataRegistry.all_ids("units"):
 		var ud := DataRegistry.get_unit(unit_id)
-		if ud != null and bool(ud.in_roster) and not roster.has(unit_id):
+		if ud != null and bool(ud.in_roster) and _unit_in_campaign(ud) and not roster.has(unit_id):
 			roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0}
 
 
@@ -142,6 +154,7 @@ func bond_rank_for(pair_id: String) -> String:
 func to_dict() -> Dictionary:
 	return {
 		"difficulty": difficulty,
+		"campaign_tag": campaign_tag,
 		"current_chapter_id": current_chapter_id,
 		"roster": roster,
 		"bond_points": bond_points,
@@ -159,6 +172,10 @@ func to_dict() -> Dictionary:
 
 func from_dict(d: Dictionary) -> void:
 	difficulty = String(d.get("difficulty", "normal"))
+	# F4.1: old saves carry no campaign tag — they were legacy ch01 campaigns, so they read
+	# back as "legacy"; saves written after this field exists keep their tag.
+	if d.has("campaign_tag"):
+		campaign_tag = String(d.get("campaign_tag", campaign_tag))
 	current_chapter_id = String(d.get("current_chapter_id", ""))
 	roster = d.get("roster", {})
 	bond_points = d.get("bond_points", {})

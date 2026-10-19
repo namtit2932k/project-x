@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/units/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "unit_npc_guide"
+display_name = "Local Guide"
+class_id = "class_healer"
+faction_id = "faction_empire"
+portrait = ""
+level = 1
+base_stats = {
+"hp": 20,
+"atk": 2,
+"def": 3,
+"res": 4,
+"skl": 5,
+"spd": 5,
+"mov": 4,
+}
+growths = {}
+skill_ids = []
+is_protagonist = false
+must_survive = false
+in_roster = false
+controllable = false
+ai_profile = ""
+campaign_tag = ""
+bio = "Test/sample-map NPC guide; never a roster member."

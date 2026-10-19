@@ -24,6 +24,8 @@ func ok(cond: bool, msg: String) -> void:
 
 func run() -> void:
 	GameState.new_game()
+	# F4: this smoke plays the legacy ch01 campaign (unit ids and scripted outcomes).
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var chapter := GameState.current_chapter()
 	var map := DataRegistry.get_map(String(chapter.map_id))
@@ -108,6 +110,8 @@ func _ai_step(director: BattleDirector, acting_sides: Array) -> bool:
 ## 2) Win while the commander is also slain -> persuaded = false.
 func run_d03_scenarios() -> void:
 	GameState.new_game()
+	# F4: these scenarios run on the legacy ch01 data.
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	var scenario: Dictionary = await _run_ch01_scenario(true)
 	ok(scenario.has("done"), "smoke spared: scenario reached a battle end state")
@@ -116,6 +120,7 @@ func run_d03_scenarios() -> void:
 	ok(int(scenario["kills"]) == 3, "smoke spared: only three soldiers fell (kills=3)")
 	ok(bool(scenario["persuaded"]), "smoke spared: reconcile persuaded with the spared commander (events + kills 3/4)")
 	GameState.new_game()
+	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	scenario = await _run_ch01_scenario(false)
 	ok(String(scenario["status"]) == "win", "smoke rout: battle won by rout")

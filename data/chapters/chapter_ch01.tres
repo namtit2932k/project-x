@@ -6,6 +6,7 @@
 script = ExtResource("1")
 id = "chapter_ch01"
 order = 1
+campaign_tag = "legacy"
 display_name = "Chapter 1: Crossing the Border"
 map_id = "map_ch01"
 deployable_unit_ids = Array[String](["unit_swordsman", "unit_knight", "unit_lancer", "unit_gunner", "unit_healer", "unit_magician", "unit_beastwoman"])

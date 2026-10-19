@@ -5,6 +5,11 @@
 [resource]
 script = ExtResource("1_rules")
 balance_profile = "demo"
+combat_formula_set = "gdd"
+exp_enabled = false
+shop_enabled = true
+fog_enabled = false
+bond_bonus_targets = Array[String](["accuracy", "avoid", "crit", "damage"])
 terrain_defs = {
 "plain": {"def_bonus": 0, "avoid_bonus": 0, "blocked": false},
 "road": {"def_bonus": 0, "avoid_bonus": 0, "blocked": false},

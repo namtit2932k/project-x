@@ -131,6 +131,9 @@ func check_rules() -> void:
 	for mode in ["damage_formula_id", "rounding", "rewind_count_mode", "win_lose_priority"]:
 		if String(DataRegistry.rule(mode, "")) == "":
 			_warn("rules: '%s' empty" % mode)
+		# P-13/P-05: formula set is data-selectable, never hardcoded.
+		if String(DataRegistry.rule("combat_formula_set", "")) not in ["gdd", "legacy"]:
+			_err("rules: combat_formula_set must be 'gdd' or 'legacy'")
 	var rewind_table: Dictionary = DataRegistry.rule("rewind_per_difficulty", {})
 	var casualty_table: Dictionary = DataRegistry.rule("casualty_by_difficulty", {})
 	for difficulty in DIFFICULTIES:
@@ -356,6 +359,10 @@ func check_maps() -> void:
 		for placement in m.enemy_placements + m.npc_placements:
 			if DataRegistry.get_unit(String(placement.unit_id)) == null:
 				_err("map %s: placement unknown unit %s" % [id, placement.unit_id])
+			elif DataRegistry.get_unit(String(placement.unit_id)).in_roster:
+				# F3.3: roster characters never deploy as map-fixed enemies/NPCs (the demo
+				# overlay keeps unit_demo_* in_roster=false except the two player units).
+				_err("map %s: placement %s is a roster unit (in_roster = true)" % [id, placement.unit_id])
 			if not _cell_in_map(placement.cell, rows):
 				_err("map %s: placement %s out of bounds" % [id, placement.unit_id])
 			elif not passable_ids.has("%d,%d" % [int(placement.cell.x), int(placement.cell.y)]):
@@ -463,10 +470,18 @@ func _cell_in_map(cell: Vector2i, rows: Array) -> bool:
 
 func check_chapters() -> void:
 	_ids("chapters")
+	var orders_by_tag := {}
 	for id in DataRegistry.all_ids("chapters"):
 		if not profile_active and id.begins_with("chapter_demo_"):
 			continue
 		var c := DataRegistry.get_chapter(id)
+		# F4.4: orders stay unique and consecutive inside one campaign tag.
+		var tag := String(c.campaign_tag)
+		if not orders_by_tag.has(tag):
+			orders_by_tag[tag] = []
+		if int(c.order) in orders_by_tag[tag]:
+			_err("chapter %s: duplicate order %d inside tag '%s'" % [id, int(c.order), tag])
+		orders_by_tag[tag].append(int(c.order))
 		if DataRegistry.get_map(String(c.map_id)) == null:
 			_err("chapter %s: unknown map %s" % [id, c.map_id])
 		# Campaign-critical units (D02) count toward deploy_max; a requirement pile above the
@@ -487,6 +502,10 @@ func check_chapters() -> void:
 			_err("chapter %s: unknown story dialogue %s" % [id, c.story_dialogue_id])
 		if String(c.post_dialogue_id) != "" and DataRegistry.get_dialogue(String(c.post_dialogue_id)) == null:
 			_err("chapter %s: unknown post dialogue %s" % [id, c.post_dialogue_id])
+		# F3.3: dying the protagonist/any must-survive unit ends the chapter, so every chapter
+		# must ship at least one in its deploy list or it can only be lost.
+		if required_count == 0 and not unit_error:
+			_err("chapter %s: no protagonist/must-survive unit in deployable_unit_ids" % id)
 		if unit_error:
 			_warn("chapter %s: deploy list had unknown units, required-live count may be off" % id)
 

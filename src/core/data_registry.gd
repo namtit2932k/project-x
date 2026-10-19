@@ -152,10 +152,23 @@ func get_chapter(id: String) -> Resource:
 	return get_data("chapters", id)
 
 
-func chapters_sorted() -> Array[Resource]:
+## Chapters in data order, filtered by campaign tag (F4.1): a non-empty tag returns only
+## that campaign; the empty tag request reads legacy chapters ("" = untagged legacy data
+## is also acceptable, F4.4).
+func chapters_sorted(tag: String = "") -> Array[Resource]:
 	var list: Array[Resource] = []
 	for id: String in _cache["chapters"]:
-		list.append(_cache["chapters"][id])
+		var chapter: Resource = _cache["chapters"][id]
+		# F4.4: an untagged chapter IS legacy data — it only plays in the legacy campaign.
+		var chapter_tag := String(chapter.campaign_tag)
+		if chapter_tag == "":
+			chapter_tag = "legacy"
+		if tag == "":
+			if chapter_tag != "legacy":
+				continue
+		elif chapter_tag != tag:
+			continue
+		list.append(chapter)
 	list.sort_custom(func(a: Resource, b: Resource) -> bool: return a.order < b.order)
 	return list
 

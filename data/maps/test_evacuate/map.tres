@@ -25,14 +25,14 @@ enemy_placements = Array[Dictionary]([{
 "cell": Vector2i(9, 2),
 }])
 npc_placements = Array[Dictionary]([{
-"unit_id": "unit_beastwoman",
+"unit_id": "unit_npc_guide",
 "cell": Vector2i(0, 1),
 }])
 objectives = Array[Dictionary]([{
 "type": "evacuate",
 "params": {
 "mode": "clear_all",
-"npc_ids": ["unit_beastwoman"],
+"npc_ids": ["unit_npc_guide"],
 },
 }])
 item_placements = Array[Dictionary]([])

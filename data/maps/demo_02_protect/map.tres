@@ -45,7 +45,7 @@ item_placements = Array[Dictionary]([])
 objectives = Array[Dictionary]([{
 "type": "escort",
 "params": {
-"npc_unit_id": "unit_demo_messenger",
+"npc_unit_id": "messenger",
 "target_cell_x": 8,
 "target_cell_y": 4
 }

@@ -16,13 +16,13 @@ enemy_placements = Array[Dictionary]([{
 "cell": Vector2i(6, 4),
 }])
 npc_placements = Array[Dictionary]([{
-"unit_id": "unit_healer",
+"unit_id": "unit_npc_guide",
 "cell": Vector2i(0, 0),
 }])
 objectives = Array[Dictionary]([{
 "type": "escort",
 "params": {
-"npc_unit_id": "unit_healer",
+"npc_unit_id": "unit_npc_guide",
 "target_cell_x": 11,
 "target_cell_y": 0,
 },

@@ -23,3 +23,5 @@ base_stats = {
 carried_items = Array[String](["item_potion"])
 ai_profile = ""
 priority_target_id = ""
+is_protagonist = false
+in_roster = true

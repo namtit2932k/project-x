@@ -56,6 +56,7 @@ godot --headless --path . res://tools/validate_data.tscn     # data validation (
 godot --headless --path . res://tests/run_tests.tscn         # rule tests (movement/combat/objectives/rewind/bond/exp/save)
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI end-to-end
 godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test maps, win + lose each
+godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example maps: units, stats, objectives (F6)
 ```
 
 Current: rule tests **184/184**, full-battle smoke **21/21**, test-map smoke **10/10**, validation **0 errors**.
