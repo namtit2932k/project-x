@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="MapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/maps/map_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "map_demo_03"
+display_name = "Ví dụ 3 — Ngừng truy kích"
+terrain_rows = Array[String](["..........", "..f....f..", "..........", "ww........", "ww........", "..........", "..f....f..", ".........."])
+deploy_cells = Array[Vector2i]([Vector2i(3, 2), Vector2i(3, 6)])
+deploy_tiles = Array[Vector2i]([Vector2i(3, 2), Vector2i(3, 6)])
+map_deploy_cap = 2
+turn_par = 6
+turn_limit = 0
+objective_type = "Escort"
+objective_text = "Bảo vệ đoàn dân qua 3 lượt địch, hoặc hạ hết đội gác sông."
+hint_lines = Array[String](["Vàng: người dẫn đoàn, không điều khiển.", "Tránh đổ máu để mở đường đối thoại."])
+aftermath_lines = {
+"Persuaded": Array[String](["Đoàn dân rời bến an toàn.", "Đội gác dừng truy kích.", "Thủ lĩnh nhận lời đối thoại.", "[Thoại chính thức chờ writer.]"]),
+"Unpersuadable": Array[String](["Đoàn dân đã thoát, nhưng thương vong", "khiến đội gác từ chối đối thoại.", "[Thoại chính thức chờ writer.]"]),
+"Engaged": Array[String](["Đội gác rút lui sau trận này.", "Bất đồng vẫn chưa được giải quyết.", "[Thoại chính thức chờ writer.]"]),
+"Lost": Array[String](["Đoàn dân không kịp rời bến.", "Cuộc sơ tán thất bại.", "[Thoại chính thức chờ writer.]"])
+}
+faction = {
+"faction_id": "faction_river_guard",
+"prior_kills": 0
+}
+key_unit_id = "unit_demo_commander"
+villages = Array[Dictionary]([])
+bonds = Array[Dictionary]([{
+"a": "unit_demo_swordsman",
+"b": "unit_demo_knight",
+"level": 1
+}])
+enemy_placements = Array[Dictionary]([{
+"unit_id": "unit_demo_commander",
+"cell": Vector2i(8, 3),
+"instance_id": "commander",
+"ai": true
+}, {
+"unit_id": "unit_demo_river_pursuer",
+"cell": Vector2i(8, 1),
+"instance_id": "pursuer_1",
+"ai": true
+}, {
+"unit_id": "unit_demo_river_pursuer",
+"cell": Vector2i(8, 6),
+"instance_id": "pursuer_2",
+"ai": true
+}])
+npc_placements = Array[Dictionary]([{
+"unit_id": "unit_demo_evacuee",
+"cell": Vector2i(2, 4),
+"instance_id": "evacuee",
+"ai": false
+}])
+item_placements = Array[Dictionary]([])
+objectives = Array[Dictionary]([{
+"type": "escort_turns",
+"params": {
+"npc_unit_id": "unit_demo_evacuee",
+"turns_required": 3
+}
+}])
+result_priority = "lose"

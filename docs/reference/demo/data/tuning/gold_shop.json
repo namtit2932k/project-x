@@ -1,0 +1,12 @@
+{
+  "gold_per_victory": 15,
+  "gold_per_persuasion": 20,
+  "gold_item_retrieve_bonus": 15,
+  "prices": {
+    "potion": 10,
+    "vulnerary": 15,
+    "elixir": 30,
+    "vigor_tonic": 20,
+    "focus_tonic": 20
+  }
+}

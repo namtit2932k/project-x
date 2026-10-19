@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/units/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "unit_demo_knight"
+display_name = "Kỵ sĩ"
+class_id = "class_knight"
+faction_id = "faction_neutral"
+controllable = true
+base_stats = {
+"hp": 34,
+"str": 11,
+"mag": 0,
+"skill": 26,
+"speed": 9,
+"luck": 6,
+"def": 10,
+"res": 3,
+"move": 5
+}
+carried_items = Array[String](["item_potion"])
+ai_profile = ""
+priority_target_id = ""

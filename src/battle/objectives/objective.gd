@@ -30,6 +30,8 @@ static func create(config: Dictionary) -> ObjectiveBase:
 			return ObjectiveEliminate.new(params)
 		"escort":
 			return ObjectiveEscort.new(params)
+		"escort_turns":
+			return ObjectiveEscortTurns.new(params)
 		"defend":
 			return ObjectiveDefend.new(params)
 		"retrieve":

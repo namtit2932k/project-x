@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="MapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/maps/map_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "map_demo_04"
+display_name = "Ví dụ 4 — Giữ vị trí"
+terrain_rows = Array[String](["..........", "....w.....", "....w.....", "..........", "..........", "....w.....", "....w.....", ".........."])
+deploy_cells = Array[Vector2i]([Vector2i(3, 3), Vector2i(3, 4)])
+deploy_tiles = Array[Vector2i]([Vector2i(3, 3), Vector2i(3, 4)])
+map_deploy_cap = 2
+turn_par = 4
+turn_limit = 0
+objective_type = "Protect"
+objective_text = "Không để địch bước vào vùng vàng trong 3 lượt địch."
+hint_lines = Array[String](["Ô vàng: vùng cần giữ. Địch vào bất kỳ ô nào là thua.", "Địch sẽ tìm đường vào vùng; dùng đội hình để chặn."])
+aftermath_lines = {}
+faction = {}
+key_unit_id = ""
+villages = Array[Dictionary]([])
+bonds = Array[Dictionary]([{
+"a": "unit_demo_swordsman",
+"b": "unit_demo_knight",
+"level": 1
+}])
+enemy_placements = Array[Dictionary]([{
+"unit_id": "unit_demo_guard",
+"cell": Vector2i(8, 2),
+"instance_id": "infiltrator_1",
+"ai": true
+}, {
+"unit_id": "unit_demo_guard",
+"cell": Vector2i(8, 5),
+"instance_id": "infiltrator_2",
+"ai": true
+}])
+npc_placements = Array[Dictionary]([])
+item_placements = Array[Dictionary]([])
+objectives = Array[Dictionary]([{
+"type": "defend",
+"params": {
+"zone_x": 1,
+"zone_y": 3,
+"zone_w": 2,
+"zone_h": 2,
+"turns_required": 3,
+"policy": "block"
+}
+}])
+result_priority = "lose"

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapons/weapon_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "weapon_light_rapier"
+display_name = "Light Rapier"
+action_category = "Combat"
+attack_type = "Physical"
+weapon_range = Vector2i(1, 1)
+weapon_might = 5
+weapon_accuracy_mod = 15
+weapon_crit_mod = 10
+heal_might = 0
+heal_range = Vector2i(1, 1)

@@ -12,3 +12,5 @@ class_name ChapterData
 @export var post_dialogue_id: String = ""          # post-battle story scene reading outcomes
 ## D10: chapters feeding the true-ending check. Placeholder choice for ch01 only.
 @export var counts_for_true_ending: bool = false
+## D-A5: campaign tag ("" = campaign gốc; "demo" = 6 map ví dụ). GameState lọc chapters theo tag.
+@export var campaign_tag: String = ""

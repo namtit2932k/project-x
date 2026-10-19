@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/units/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "unit_demo_commander"
+display_name = "Thủ lĩnh"
+class_id = "class_commander"
+faction_id = "faction_river_guard"
+controllable = true
+base_stats = {
+"hp": 26,
+"str": 8,
+"mag": 0,
+"skill": 23,
+"speed": 8,
+"luck": 6,
+"def": 5,
+"res": 4,
+"move": 4
+}
+carried_items = Array[String]([])
+ai_profile = "ProtectPersuade"
+priority_target_id = ""
+reconcile_event_key = "spared_commander"

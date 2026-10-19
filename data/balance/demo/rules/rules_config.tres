@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="RulesConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/rules/rules_config.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+balance_profile = "demo"
+terrain_defs = {
+"plain": {"def_bonus": 0, "avoid_bonus": 0, "blocked": false},
+"road": {"def_bonus": 0, "avoid_bonus": 0, "blocked": false},
+"forest": {"def_bonus": 0, "avoid_bonus": 12, "blocked": false},
+"hill": {"def_bonus": 0, "avoid_bonus": 5, "blocked": false},
+"cover": {"def_bonus": 0, "avoid_bonus": 20, "blocked": false},
+"hazard": {"def_bonus": 0, "avoid_bonus": 0, "blocked": false},
+"village": {"def_bonus": 0, "avoid_bonus": 0, "blocked": false},
+"mountain": {"def_bonus": 2, "avoid_bonus": 30, "blocked": false},
+"water": {"def_bonus": 0, "avoid_bonus": 0, "blocked": true},
+"wall": {"def_bonus": 0, "avoid_bonus": 0, "blocked": true},
+}

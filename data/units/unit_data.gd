@@ -11,10 +11,22 @@ class_name UnitData
 @export var portrait: String = ""        # assets/portraits/<...>.png (placeholder rỗng = chip màu)
 @export var sprite: String = ""          # assets/sprites/<...>.png (placeholder rỗng)
 @export var level: int = 1
-## Chỉ số base theo schema: {hp, atk, def, res, skl, spd, mov, crit, hit}; rng lấy từ ClassDef.range.
+## Chỉ số base. Lớp GDD dùng khóa mới {hp, str, mag, skill, speed, luck, def, res, move, base_vision};
+## lớp cũ (ch01) dùng {hp, atk, def, res, skl, spd, mov, crit, hit}. Validator chấp nhận cả hai;
+## khóa cũ được ánh xạ sang khóa mới ở độ kết xuất (GameState/UnitState), không trộn khóa trong file .tres.
 @export var base_stats: Dictionary = {}
-## Tăng trưởng theo level (TBD số cuối; skeleton chờ designer): {hp, atk, def, res, skl, spd}.
+## Tăng trưởng theo level (D-A4: deprecated — GDD không có level-up; giữ skeleton chờ designer).
 @export var growths: Dictionary = {}
+## Tầm nhìn cơ bản cho fog of war (D-B2, placeholder 3–6; 0 = dùng lớp/faction mặc định).
+@export var base_vision: int = 0
+## AI profile (GDD-Combat §10): "" = mặc định theo side; StandardAggressive | Raider | ProtectPersuade.
+## priority_target_id là mở rộng demo (D-B7): rỗng, chỉ thiết kế tạm cho mục tiêu ưu tiên.
+@export var ai_profile: String = ""
+@export var priority_target_id: String = ""
+## false = exits, AI điều khiển (người đưa tin, dân thường); đủ nghĩa cùng side npc của repo.
+@export var controllable: bool = true
+## Vật phẩm mang theo trong trận (tối đa max_item_slots trong rules_config).
+@export var carried_items: Array[String] = []
 @export var skill_ids: Array[String] = []
 @export var is_protagonist: bool = false
 ## Units the campaign cannot lose (D02): protagonist and, for now, the Beastwoman main heroine.

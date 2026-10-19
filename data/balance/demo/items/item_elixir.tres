@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "item_elixir"
+display_name = "Tiên dược"
+category = "consumable"
+type = "Heal"
+price = 30
+heal_value = 30
+buff_stat = ""
+buff_amount = 0
+buff_duration = 0

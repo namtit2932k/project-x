@@ -1,0 +1,14 @@
+{
+  "Swordsman": "iron_sword",
+  "Knight": "steel_lance",
+  "Lumberjack": "battle_axe",
+  "Lancer": "iron_lance",
+  "Gunner": "hunting_rifle",
+  "Wyvern Knight": "wyvern_lance",
+  "Beastwoman": "claws",
+  "Magician": "fire_tome",
+  "Bard": "light_rapier",
+  "Healer": "healing_staff",
+  "Magic Swordsman": "spell_blade",
+  "Assassin": "twin_daggers"
+}

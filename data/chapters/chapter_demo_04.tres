@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ChapterData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/chapters/chapter_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "chapter_demo_04"
+order = 103
+display_name = "Ví dụ 4 — Giữ vị trí"
+map_id = "map_demo_04"
+deployable_unit_ids = Array[String](["unit_demo_swordsman", "unit_demo_knight"])
+deploy_max = 2
+campaign_tag = "demo"

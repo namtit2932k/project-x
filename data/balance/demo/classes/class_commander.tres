@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BattleClassData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/classes/class_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "class_commander"
+display_name = "Commander"
+move_type = "foot"
+move_range = 4
+attack_range_min = 1
+attack_range_max = 1
+weapon_id = "weapon_sword"
+damage_type = "physical"

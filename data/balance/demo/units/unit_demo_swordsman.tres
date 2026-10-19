@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/units/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "unit_demo_swordsman"
+display_name = "Kiếm sĩ"
+class_id = "class_swordsman"
+faction_id = "faction_neutral"
+controllable = true
+base_stats = {
+"hp": 28,
+"str": 10,
+"mag": 0,
+"skill": 28,
+"speed": 12,
+"luck": 8,
+"def": 7,
+"res": 4,
+"move": 5
+}
+carried_items = Array[String](["item_vigor_tonic", "item_focus_tonic"])
+ai_profile = ""
+priority_target_id = ""

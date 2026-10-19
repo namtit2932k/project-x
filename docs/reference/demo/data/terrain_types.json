@@ -1,0 +1,8 @@
+[
+  {"terrain_type": "Plain", "move_cost": 1, "passable": true, "combat_modifier": 0, "vision_stand_modifier": 0, "vision_viewed_modifier": 0, "blocks_line_of_sight": false},
+  {"terrain_type": "Forest", "move_cost": 2, "passable": true, "combat_modifier": 10, "vision_stand_modifier": -1, "vision_viewed_modifier": -1, "blocks_line_of_sight": false},
+  {"terrain_type": "Hill", "move_cost": 2, "passable": true, "combat_modifier": 5, "vision_stand_modifier": 2, "vision_viewed_modifier": -1, "blocks_line_of_sight": false},
+  {"terrain_type": "Fort/Cover", "move_cost": 1, "passable": true, "combat_modifier": 20, "vision_stand_modifier": 0, "vision_viewed_modifier": 0, "blocks_line_of_sight": false},
+  {"terrain_type": "Hazard", "move_cost": 1, "passable": true, "combat_modifier": 0, "vision_stand_modifier": 0, "vision_viewed_modifier": 0, "blocks_line_of_sight": false},
+  {"terrain_type": "Water/Impassable", "move_cost": 99, "passable": false, "combat_modifier": 0, "vision_stand_modifier": 0, "vision_viewed_modifier": 0, "blocks_line_of_sight": true}
+]

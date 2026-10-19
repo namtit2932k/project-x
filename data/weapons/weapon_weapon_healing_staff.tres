@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/weapons/weapon_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "weapon_healing_staff"
+display_name = "Healing Staff"
+action_category = "Heal"
+attack_type = ""
+weapon_range = Vector2i(1, 1)
+weapon_might = 0
+weapon_accuracy_mod = 0
+weapon_crit_mod = 0
+heal_might = 8
+heal_range = Vector2i(1, 2)

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="FactionData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/factions/faction_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "faction_river_guard"
+display_name = "Đội gác sông"
+remnant_id = "river_guard"
+reconcile = {
+"kill_threshold": 2,
+"required_events": Array[String](["spared_commander"])
+}

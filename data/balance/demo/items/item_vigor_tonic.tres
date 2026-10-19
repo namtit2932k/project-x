@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/items/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "item_vigor_tonic"
+display_name = "Thuốc Sức mạnh"
+category = "consumable"
+type = "Buff"
+price = 20
+heal_value = 0
+buff_stat = "str"
+buff_amount = 5
+buff_duration = 3

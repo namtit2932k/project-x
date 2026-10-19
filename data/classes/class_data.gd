@@ -23,6 +23,8 @@ class_name BattleClassData
 @export var hit_bonus: int = 0
 ## Attacks scale off defense (physical) or resistance (magic). Open decision with designer.
 @export var damage_type: String = "physical"   # physical | magic
+## Default weapon resolved from data/weapons (T2.2); empty = no weapon (unarmed).
+@export var weapon_id: String = ""
 
 ## Placeholder skill ids the class can use (empty = none yet; skills data-only too).
 @export var skill_ids: Array[String] = []

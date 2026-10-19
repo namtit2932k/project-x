@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/units/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "unit_demo_guard"
+display_name = "Lính gác"
+class_id = "class_guard"
+faction_id = "faction_neutral"
+controllable = true
+base_stats = {
+"hp": 22,
+"str": 8,
+"mag": 0,
+"skill": 23,
+"speed": 7,
+"luck": 4,
+"def": 5,
+"res": 3,
+"move": 4
+}
+carried_items = Array[String]([])
+ai_profile = "StandardAggressive"
+priority_target_id = ""

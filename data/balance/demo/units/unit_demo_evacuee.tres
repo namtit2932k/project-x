@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/units/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "unit_demo_evacuee"
+display_name = "Dẫn đoàn"
+class_id = "class_healer"
+faction_id = "faction_neutral"
+controllable = false
+base_stats = {
+"hp": 24,
+"str": 0,
+"mag": 0,
+"skill": 12,
+"speed": 8,
+"luck": 6,
+"def": 4,
+"res": 5,
+"move": 0
+}
+carried_items = Array[String]([])
+ai_profile = ""
+priority_target_id = ""

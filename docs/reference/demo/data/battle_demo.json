@@ -1,0 +1,124 @@
+{
+  "tile_size": 64,
+  "terrain_rules": {
+    ".": {"name": "Đồng", "move_cost": 1, "passable": true, "combat_modifier": 0, "color": "#7c9b73"},
+    "F": {"name": "Rừng", "move_cost": 2, "passable": true, "combat_modifier": 12, "color": "#3d705e"},
+    "V": {"name": "Làng", "move_cost": 1, "passable": true, "combat_modifier": 0, "color": "#98774e"},
+    "W": {"name": "Nước", "move_cost": 99, "passable": false, "combat_modifier": 0, "color": "#456d88"}
+  },
+  "combat_rules": {"double_threshold": 4, "crit_multiplier": 2.5, "bond_bonus_by_level": [0, 3, 5, 8], "bond_bonus_stack_cap": 16},
+  "ai_rules": {"protect_hp_threshold": 0.3, "rally_radius": 3},
+  "items": {
+    "potion": {"name": "Thuốc hồi máu", "type": "Heal", "heal_value": 10},
+    "vulnerary": {"name": "Thuốc trị thương", "type": "Heal", "heal_value": 15},
+    "elixir": {"name": "Tiên dược", "type": "Heal", "heal_value": 30},
+    "vigor_tonic": {"name": "Thuốc Sức mạnh", "type": "Buff", "buff_stat": "str", "buff_amount": 5, "buff_duration": 3},
+    "focus_tonic": {"name": "Thuốc Tập trung", "type": "Buff", "buff_stat": "skill", "buff_amount": 5, "buff_duration": 3}
+  },
+  "scoring": {"kill_tolerance": 2, "ally_points": 50, "kill_points": 50, "perfect_points": 25, "swift_points": 25},
+  "difficulty": {"tier": "Normal", "rewind_charges": 5, "permadeath": false, "restraint_rule_active": true, "enemy_stat_multiplier": 1.0},
+  "weapons": {
+    "sword": {"attack_type": "Physical", "range": [1, 1], "might": 5, "accuracy_mod": 15, "crit_mod": 2},
+    "lance": {"attack_type": "Physical", "range": [1, 1], "might": 6, "accuracy_mod": 12, "crit_mod": 0},
+    "staff": {"action_category": "Heal", "heal_range": [1, 1], "heal_might": 8},
+    "unarmed": {"action_category": "None", "attack_type": "Physical", "range": [0, 0], "might": 0, "accuracy_mod": 0, "crit_mod": 0}
+  },
+  "class_weapons": {"Swordsman": "sword", "Knight": "lance", "Healer": "staff", "Civilian": "unarmed", "Guard": "lance", "Commander": "sword"},
+  "unit_catalog": {
+    "swordsman": {"name": "Kiếm sĩ", "class": "Swordsman", "side": "player", "hp": 28, "move": 5, "str": 10, "mag": 0, "skill": 28, "speed": 12, "luck": 8, "def": 7, "res": 4, "carried_items": ["vigor_tonic", "focus_tonic"]},
+    "knight": {"name": "Kỵ sĩ", "class": "Knight", "side": "player", "hp": 34, "move": 5, "str": 11, "mag": 0, "skill": 26, "speed": 9, "luck": 6, "def": 10, "res": 3, "carried_items": ["potion"]},
+    "messenger": {"name": "Người đưa tin", "class": "Civilian", "side": "player", "controllable": false, "hp": 20, "move": 2, "str": 0, "mag": 0, "skill": 12, "speed": 7, "luck": 8, "def": 2, "res": 5},
+    "evacuee": {"name": "Dẫn đoàn", "class": "Healer", "side": "player", "controllable": false, "hp": 24, "move": 0, "str": 0, "mag": 0, "skill": 12, "speed": 8, "luck": 6, "def": 4, "res": 5},
+    "guard": {"name": "Lính gác", "class": "Guard", "side": "enemy", "ai_profile": "StandardAggressive", "hp": 22, "move": 4, "str": 8, "mag": 0, "skill": 23, "speed": 7, "luck": 4, "def": 5, "res": 3},
+    "raider": {"name": "Kẻ cướp", "class": "Guard", "side": "enemy", "ai_profile": "Raider", "hp": 22, "move": 4, "str": 8, "mag": 0, "skill": 23, "speed": 7, "luck": 4, "def": 5, "res": 3},
+    "messenger_raider": {"name": "Tập kích", "class": "Guard", "side": "enemy", "ai_profile": "StandardAggressive", "priority_target_id": "messenger", "hp": 22, "move": 4, "str": 8, "mag": 0, "skill": 23, "speed": 7, "luck": 4, "def": 5, "res": 3},
+    "commander": {"name": "Thủ lĩnh", "class": "Commander", "side": "enemy", "ai_profile": "ProtectPersuade", "faction_id": "river_guard", "hp": 26, "move": 4, "str": 8, "mag": 0, "skill": 23, "speed": 8, "luck": 6, "def": 5, "res": 4},
+    "river_guard": {"name": "Cận vệ", "class": "Guard", "side": "enemy", "ai_profile": "ProtectPersuade", "faction_id": "river_guard", "hp": 22, "move": 4, "str": 8, "mag": 0, "skill": 23, "speed": 7, "luck": 4, "def": 5, "res": 3},
+    "river_pursuer": {"name": "Truy kích", "class": "Guard", "side": "enemy", "ai_profile": "StandardAggressive", "priority_target_id": "evacuee", "faction_id": "river_guard", "hp": 22, "move": 4, "str": 8, "mag": 0, "skill": 30, "speed": 7, "luck": 4, "def": 5, "res": 3}
+  },
+  "maps": [
+    {
+      "id": "elimination", "title": "Ví dụ 1 — Tiêu diệt", "objective_type": "Elimination", "objective_text": "Đánh bại toàn bộ địch.",
+      "hint_lines": ["Ô làng màu vàng: đưa quân tới rồi chọn Vào làng để nhận 10 vàng.", "Kẻ cướp có thể phá làng nếu tới trước."],
+      "width": 10, "height": 8, "turn_par": 6, "map_deploy_cap": 2,
+      "terrain": ["..........", "..FF...F..", "..FV...F..", "...WW.....", "...WW..F..", ".F.....F..", ".F..F.....", ".........."],
+      "villages": [{"x": 3, "y": 2, "gold_amount": 10}],
+      "bonds": [{"a": "swordsman", "b": "knight", "level": 1}],
+      "deployments": [
+        {"template": "swordsman", "id": "swordsman", "x": 1, "y": 2}, {"template": "knight", "id": "knight", "x": 1, "y": 5},
+        {"template": "raider", "id": "guard_1", "x": 8, "y": 2}, {"template": "guard", "id": "guard_2", "x": 8, "y": 5}
+      ]
+    },
+    {
+      "id": "protect", "title": "Ví dụ 2 — Hộ tống", "objective_type": "Escort", "objective_text": "Hộ tống Người đưa tin tới ô đích vàng ở phía đông.",
+      "escort_unit_id": "messenger", "escort_goal": {"x": 8, "y": 4},
+      "hint_lines": ["Vàng: Người đưa tin là NPC, tự đi sau lượt địch.", "Dọn đường và che chắn; tới ô đích mới hoàn thành màn chơi."],
+      "width": 10, "height": 8, "turn_par": 6, "map_deploy_cap": 2,
+      "terrain": ["..........", "..F.......", "..F..F....", "..........", "...WW.....", "..........", "..F..F....", ".........."],
+      "bonds": [{"a": "swordsman", "b": "knight", "level": 1}],
+      "deployments": [
+        {"template": "swordsman", "id": "swordsman", "x": 2, "y": 2}, {"template": "knight", "id": "knight", "x": 2, "y": 5},
+        {"template": "messenger", "id": "messenger", "x": 1, "y": 4},
+        {"template": "messenger_raider", "id": "raider_1", "x": 8, "y": 2}, {"template": "messenger_raider", "id": "raider_2", "x": 8, "y": 6}
+      ]
+    },
+    {
+      "id": "persuade", "title": "Ví dụ 3 — Ngừng truy kích", "objective_type": "Escort", "objective_text": "Bảo vệ đoàn dân qua 3 lượt địch, hoặc hạ hết đội gác sông.",
+      "escort_unit_id": "evacuee", "escort_turns_required": 3,
+      "hint_lines": ["Vàng: người dẫn đoàn, không điều khiển.", "Tránh đổ máu để mở đường đối thoại."],
+      "aftermath_lines": {
+        "Persuaded": ["Đoàn dân rời bến an toàn.", "Đội gác dừng truy kích.", "Thủ lĩnh nhận lời đối thoại.", "[Thoại chính thức chờ writer.]"],
+        "Unpersuadable": ["Đoàn dân đã thoát, nhưng thương vong", "khiến đội gác từ chối đối thoại.", "[Thoại chính thức chờ writer.]"],
+        "Engaged": ["Đội gác rút lui sau trận này.", "Bất đồng vẫn chưa được giải quyết.", "[Thoại chính thức chờ writer.]"],
+        "Lost": ["Đoàn dân không kịp rời bến.", "Cuộc sơ tán thất bại.", "[Thoại chính thức chờ writer.]" ]
+      },
+      "faction": {"id": "river_guard", "name": "Đội gác sông", "behavior_tag": true, "prior_kills": 0, "kill_threshold": 2, "persuasion_condition": {"type": "named_unit_alive", "unit_id": "commander"}},
+      "key_unit_id": "commander", "width": 10, "height": 8, "turn_par": 6, "map_deploy_cap": 2,
+      "terrain": ["..........", "..F....F..", "..........", "WW........", "WW........", "..........", "..F....F..", ".........."],
+      "bonds": [{"a": "swordsman", "b": "knight", "level": 1}],
+      "deployments": [
+        {"template": "swordsman", "id": "swordsman", "x": 3, "y": 2}, {"template": "knight", "id": "knight", "x": 3, "y": 6},
+        {"template": "evacuee", "id": "evacuee", "x": 2, "y": 4},
+        {"template": "commander", "id": "commander", "x": 8, "y": 3},
+        {"template": "river_pursuer", "id": "pursuer_1", "x": 8, "y": 1},
+        {"template": "river_pursuer", "id": "pursuer_2", "x": 8, "y": 6}
+      ]
+    },
+    {
+      "id": "defend_zone", "title": "Ví dụ 4 — Giữ vị trí", "objective_type": "Protect", "objective_text": "Không để địch bước vào vùng vàng trong 3 lượt địch.",
+      "protect_zone": {"x": 1, "y": 3, "width": 2, "height": 2}, "survive_enemy_phases": 3,
+      "hint_lines": ["Ô vàng: vùng cần giữ. Địch vào bất kỳ ô nào là thua.", "Địch sẽ tìm đường vào vùng; dùng đội hình để chặn."],
+      "width": 10, "height": 8, "turn_par": 4, "map_deploy_cap": 2,
+      "terrain": ["..........", "....W.....", "....W.....", "..........", "..........", "....W.....", "....W.....", ".........."],
+      "bonds": [{"a": "swordsman", "b": "knight", "level": 1}],
+      "deployments": [
+        {"template": "swordsman", "id": "swordsman", "x": 3, "y": 3}, {"template": "knight", "id": "knight", "x": 3, "y": 4},
+        {"template": "guard", "id": "infiltrator_1", "x": 8, "y": 2}, {"template": "guard", "id": "infiltrator_2", "x": 8, "y": 5}
+      ]
+    },
+    {
+      "id": "retrieve_item", "title": "Ví dụ 5 — Thu hồi", "objective_type": "Retrieve", "objective_text": "Lấy tài liệu ở phía đông rồi đưa người cầm về ô an toàn phía tây.",
+      "item_tile": {"x": 8, "y": 4}, "return_tile": {"x": 1, "y": 4},
+      "hint_lines": ["◆ Vàng: tài liệu. ◆ Xanh: ô trở về.", "Người cầm tài liệu chỉ được đi; không đánh hay phản công."],
+      "width": 10, "height": 8, "turn_par": 5, "map_deploy_cap": 2,
+      "terrain": ["..........", "...F......", "....WW....", "..........", "..........", "....WW....", "...F......", ".........."],
+      "bonds": [{"a": "swordsman", "b": "knight", "level": 1}],
+      "deployments": [
+        {"template": "swordsman", "id": "swordsman", "x": 1, "y": 3}, {"template": "knight", "id": "knight", "x": 1, "y": 5},
+        {"template": "guard", "id": "interceptor_1", "x": 6, "y": 1}, {"template": "guard", "id": "interceptor_2", "x": 6, "y": 6}
+      ]
+    },
+    {
+      "id": "capture_point", "title": "Ví dụ 6 — Chiếm cứ điểm", "objective_type": "Seize", "objective_text": "Chiếm điểm vàng ở giữa bản đồ và giữ qua 2 lượt địch liên tiếp.",
+      "control_point": {"x": 5, "y": 4}, "hold_enemy_phases": 2,
+      "hint_lines": ["Đứng trên điểm vàng tới cuối lượt địch để tăng tiến độ.", "Rời điểm hoặc để địch chiếm lại: tiến độ về 0."],
+      "width": 10, "height": 8, "turn_par": 5, "map_deploy_cap": 2,
+      "terrain": ["..........", "...F......", "....W.....", "..........", "..........", "....W.....", "...F......", ".........."],
+      "bonds": [{"a": "swordsman", "b": "knight", "level": 1}],
+      "deployments": [
+        {"template": "swordsman", "id": "swordsman", "x": 1, "y": 3}, {"template": "knight", "id": "knight", "x": 1, "y": 5},
+        {"template": "guard", "id": "contender_1", "x": 8, "y": 2}, {"template": "guard", "id": "contender_2", "x": 8, "y": 6}
+      ]
+    }
+  ]
+}

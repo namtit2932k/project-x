@@ -10,6 +10,7 @@ const SEARCH_FOLDERS := {
 	"bonds": "res://data/bonds",
 	"skills": "res://data/skills",
 	"items": "res://data/items",
+	"weapons": "res://data/weapons",
 	"chapters": "res://data/chapters",
 	"dialogues": "res://data/dialogues",
 }
@@ -22,11 +23,47 @@ var _cache := {}
 
 func _ready() -> void:
 	_rules = load(RULES_PATH)
+	_scan_all()
+
+
+## Loads every base layer folder, then applies the configured balance profile overlay
+## (D-A1/T2.7). Also re-usable by the validator to re-scan with a chosen profile.
+func _scan_all() -> void:
 	for key: String in SEARCH_FOLDERS:
 		_cache[key] = {}
 		_scan_folder(key, SEARCH_FOLDERS[key])
+	var profile := ""
+	if _rules != null and "balance_profile" in _rules:
+		profile = String(_rules.get("balance_profile"))
+	if profile != "":
+		_apply_profile_overlay(profile)
 
 
+## Scans data/balance/<profile>/<kind>/ folders; entries there replace same-id base data.
+func _apply_profile_overlay(profile: String) -> void:
+	var root := "res://data/balance/" + profile
+	if DirAccess.open(root) == null:
+		push_warning("DataRegistry: unknown balance profile '%s'" % profile)
+		return
+	# Optional per-profile rules overlay (terrain numbers, difficulty multipliers...): a full
+	# RulesConfig resource under <profile>/rules/. Script defaults act as the base layer.
+	var profile_rules_path := root + "/rules/rules_config.tres"
+	if ResourceLoader.exists(profile_rules_path):
+		var profile_rules: Resource = load(profile_rules_path)
+		if profile_rules != null:
+			_rules = profile_rules
+			print("DataRegistry: profile '%s' rules overlay loaded" % profile)
+	for key: String in SEARCH_FOLDERS:
+		var override_path := root + "/" + key
+		if DirAccess.open(override_path) == null:
+			continue
+		var before: Dictionary = _cache[key].duplicate()
+		_scan_folder(key, override_path)
+		var overridden := 0
+		for id: String in _cache[key]:
+			if not before.has(id):
+				overridden += 1
+		print("DataRegistry: profile '%s' overrides %d %s entries" % [profile, overridden, key])
 ## Walks a folder (and its subfolders: one folder per map, ch01 layout...) and indexes every
 ## resource by id. Accepts .tres/.res, plus .tres.remap as written by exported builds
 ## (the export pipeline renames text resources, so scanning only .tres loses ALL data
@@ -82,6 +119,17 @@ func all_ids(kind: String) -> Array[String]:
 	for id: String in _cache[kind]:
 		out.append(id)
 	return out
+
+
+func get_weapon(id: String) -> Resource:
+	return get_data("weapons", id)
+
+
+func all_weapons() -> Array[Resource]:
+	var list: Array[Resource] = []
+	for id: String in _cache["weapons"]:
+		list.append(_cache["weapons"][id])
+	return list
 
 
 func get_battle_class(id: String) -> Resource:

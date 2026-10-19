@@ -79,6 +79,41 @@ Track here. Remove an item once the designer confirms it.
 - Final bond pair list and S routes (current list is a placeholder incl. two pairs for Swordsman)
 - Casualty *effects* for non-permadeath difficulties ("wounded" is recorded, no other mechanic yet)
 
+### From the DEMO_PARITY_PLAN (v2) — technical decisions D-A, applied defaults
+
+- **D-A1 (approved default applied):** two numeric sets coexist via `balance_profile`.
+  `rules_config.balance_profile = "demo"` overlays `data/balance/demo/` on the base layers
+  (same ids replace base entries; one rules overlay under `data/balance/demo/rules/` carries
+  the demo Forest +12). Default stays `demo` for the 6 example maps until the designer sends
+  GDD-scale scenario data (D-B10/R1: GDD numbers give 4–26% hit — do NOT switch by yourself).
+- **D-A2 (partial):** unit stat keys — demo layer uses GDD keys
+  (`hp,str,mag,skill,speed,luck,def,res,move,base_vision`); the old ch01 layer keeps legacy
+  keys. Validator accepts either but rejects a single unit mixing both. Migration of
+  `GameState` saves is still pending (W9).
+- **D-A6:** demo scenario NPC use side-player-with-`controllable=false` semantics via
+  `faction_neutral` + `controllable=false`; base-layer `side npc` stays.
+- **D-A5/D-A8:** all demo JSON ported to `.tres` via `tools/import_demo_data.gd` (rerunnable,
+  erases only its output roots). Demo unit templates get the dedicated `unit_demo_` prefix so
+  they never silently replace base-roster ids; item ids are un-prefixed additions (`item_potion`...).
+- **Weapon ids normalized:** every weapon id carries the `weapon_` prefix (`weapon_sword`,
+  `weapon_lance`, `weapon_staff`, `weapon_unarmed`, `weapon_iron_sword`...).
+
+### Pending designer questions D-B (temporary defaults in code/data)
+
+- D-B1 rounding `.5`: truncate (`int`) — affects Magician crit vector; not yet a test
+- D-B2 `base_vision` per class: placeholder table in `rules_config.terrain_vision`; Hill does not block LoS
+- D-B3 Hazard effect: none (like Plain)
+- D-B4 class Move: demo scenario values
+- D-B5 enemies attack allied NPC: yes (like demo)
+- D-B6 carrier Retrieve auto-Acted after moving: not yet implemented (W4)
+- D-B7 `priority_target_id`: optional field honored by AI later (data carries it now)
+- D-B8 Visit with full bag: block only item-reward villages when usable (W4)
+- D-B9 Protect(unit) params: `protect_unit_id` + `survive_enemy_phases` on MapData
+- D-B10 GDD-scale hit chances: waiting on designer (R1) — profile `gdd` not shipped yet
+- D-B11 recruit order: not hardcoded; demo chapters deploy Swordsman + Knight only
+- D-B12 Civilian/unarmed units: kept (class_civilian, move 2/0 are scenario values, validator exempts non-controllable from move 4–7)
+- D-B13 faction states Unengaged/Engaged/Unpersuadable/Persuaded (+ demo Lost): W8
+
 ## 7b. Decisions log (round-2 design document)
 
 ---
@@ -185,6 +220,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-10-19 — Buffy (Codebuff) — done: W2 của DEMO_PARITY_PLAN v2 (demo_parity_plan/): schema dữ liệu theo GDD — WeaponData mới (data/weapons/weapon_data.gd) + 12 vũ khí GDD; UnitData thêm base_vision/ai_profile/priority_target_id/controllable/carried_items; ItemData thêm consumable (heal/buff + price); MapData thêm map_deploy_cap/turn_par/deploy_tiles/objective params/villages/faction/bonds/aftermath_lines; ChapterData.campaign_tag; RulesConfig thêm double_threshold/bond_stack_max/max_item_slots/HP bands/enemy_stat_multiplier & restraint theo độ khó/terrain glyphs h,c,x,v + terrain_vision. Cơ chế balance_profile (T2.7): DataRegistry nạp lớp gốc rồi lớp data/balance/demo/ (id trùng ghi đè, id mới thêm vào) + rules overlay riêng cho profile; demo rules đặt rules_config.tres (Forest +12). tools/import_demo_data.gd (T2.8) sinh .tres từ JSON demo: units lớp demo dùng prefix unit_demo_ để KHÔNG đè roster ch04... (unit_swordsman/id người thật giữ nguyên trong lớp gốc), factions faction_neutral/faction_river_guard, item_demo_document, 6 map demo_01..06 (chuyển glyph F→f, V→v, W→w) + 6 chapter_demo (campaign_tag demo), item consumable + giá shop. Validator (T2.9/T2.10) chạy 2 lượt (base + profile) với checks mới: cả hai bộ khóa chỉ số (cấm trộn), vũ khí (range min>max chặn, Combat cần attack_type, Heal cần might), unit strict layer (hp 15–60, move 4–7 chỉ cho controllable, base_vision 3–6, max_item_slots), AI profiles, map checklist Phụ lục E (deploy cap 1–10, turn_par bắt buộc & ràng buộc với turn_limit/escort/protect/seize, làng đúng một reward, key_unit/faction, bond pair)... escort_turns plugin mới (objective_escort_turns.gd) cho biến thể hộ tống theo lượt. Tests mới tests/test_validate_negative.gd (25 case âm tính checklist Phụ lục E; không rò resource). Kiểm tra cuối: validation 0/0 cả base lẫn profile demo; run_tests 184/184; smoke 21/21; smoke maps 10/10; negative 25/25; boot sạch. — in progress: none. — next: W3 lõi chiến đấu (CombatResolver theo F-CC1..7, forecast full exchange, BondSystem cap 4 nguồn), W4 commands new (heal/use_item/visit/trade), W5 objective rewrite theo MapData mới. — issues: class demo ghi đè class_swordsman/knight/healer của lớp gốc theo D-A1/D-A5 (id người thật vẫn giữ data, chỉ số class đổi theo profile) — cần xác nhận designer khi chơi ch01 trên profile demo.
 
 - 2026-10-18 (2) — Buffy (Codebuff) — done: toàn bộ đợt 2 (tài liệu "đợt 2" D01–D12/N01–N13): N01 forecast khôi phục (Mode.CONFIRM_ATTACK + ForecastPanel lấy số 100% từ CombatResolver.forecast), N02 must_survive/critical_units (Swordsman protagonist, Beastwoman phải sống, prep khóa unit bắt buộc), N03 ch01 target 3 lính + sparing commander `spared_commander`, N04 rewind per_use chỉ PLAYER frame + RNG không khôi phục + Rewind trên banner thua, N05 bond D05 (điểm combat/heal cặp kề, bonus vào bond_bonus_stat, so rank theo index, S độc quyền, thêm 2 cặp + dialogue C/B/A/S), N06 CampaignMerge chỉ khi thắng + Retry/Menu/Rewind + camp ẩn Next, N07 story_flags + portrait/set_flag + counts_for_true_ending + round-trip save, N08 Esc pause dùng chung OptionsPanel, N09 capture qua pha địch + zones[] + contested_rule, N10 HUD reconcile chips + prep/battle warning + feedback dialogue khi đổi thái độ, N11 EXP/level-up cho phía người chơi (exp_gain_hit khi bị né cũng được, stat_bonus vào roster, hậu trận liệt kê), N12: năm map test `test_<type>` + menu "Test maps" debug-only + smoke từng map 10/10; fix engine: `run_next_enemy_plan` không còn ở unit NPC trong pha địch; N13: Decisions log D01–D12 vào §7b (D01/D02 designer chốt; D03–D12 đề xuất chốt tạm), dọn mục 7, README/how_to_run/tech_decisions theo luồng mới. Checks cuối: validation 0/0, run_tests 184/184, smoke ch01 21/21, smoke maps 10/10, boot sạch; từng mục commit riêng. — in progress: none. — next: T14–T16 (đợt 1), backlog P3 (escape, CSV dialogue tool, special actions, ending/bond scenes nội dung thật). — issues: none.
 

@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="MapData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/maps/map_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "map_demo_02"
+display_name = "Ví dụ 2 — Hộ tống"
+terrain_rows = Array[String](["..........", "..f.......", "..f..f....", "..........", "...ww.....", "..........", "..f..f....", ".........."])
+deploy_cells = Array[Vector2i]([Vector2i(2, 2), Vector2i(2, 5)])
+deploy_tiles = Array[Vector2i]([Vector2i(2, 2), Vector2i(2, 5)])
+map_deploy_cap = 2
+turn_par = 6
+turn_limit = 0
+objective_type = "Escort"
+objective_text = "Hộ tống Người đưa tin tới ô đích vàng ở phía đông."
+hint_lines = Array[String](["Vàng: Người đưa tin là NPC, tự đi sau lượt địch.", "Dọn đường và che chắn; tới ô đích mới hoàn thành màn chơi."])
+aftermath_lines = {}
+faction = {}
+key_unit_id = ""
+villages = Array[Dictionary]([])
+bonds = Array[Dictionary]([{
+"a": "unit_demo_swordsman",
+"b": "unit_demo_knight",
+"level": 1
+}])
+enemy_placements = Array[Dictionary]([{
+"unit_id": "unit_demo_messenger_raider",
+"cell": Vector2i(8, 2),
+"instance_id": "raider_1",
+"ai": true
+}, {
+"unit_id": "unit_demo_messenger_raider",
+"cell": Vector2i(8, 6),
+"instance_id": "raider_2",
+"ai": true
+}])
+npc_placements = Array[Dictionary]([{
+"unit_id": "unit_demo_messenger",
+"cell": Vector2i(1, 4),
+"instance_id": "messenger",
+"ai": false
+}])
+item_placements = Array[Dictionary]([])
+objectives = Array[Dictionary]([{
+"type": "escort",
+"params": {
+"npc_unit_id": "unit_demo_messenger",
+"target_cell_x": 8,
+"target_cell_y": 4
+}
+}])
+result_priority = "lose"
