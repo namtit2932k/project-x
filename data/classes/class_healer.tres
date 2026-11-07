@@ -22,3 +22,13 @@ hit_bonus = 0
 damage_type = "physical"
 weapon_id = "weapon_healing_staff"
 skill_ids = ["skill_heal"]
+growths = {
+"hp": 50,
+"str": 5,
+"mag": 60,
+"skill": 35,
+"speed": 30,
+"luck": 35,
+"def": 15,
+"res": 45
+}

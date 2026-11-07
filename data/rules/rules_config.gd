@@ -24,13 +24,21 @@ class_name RulesConfig
 ## CritDamage = floor(Damage * crit_multiplier); GDD fixes this at 2.5 (was 2.0 pre-GDD).
 @export var crit_multiplier: float = 2.5
 
-## EXP (D08): only the player side earns; a full batch per level; level cap. Numbers TBD
-## final, designer-tunable.
-@export var exp_gain_hit: int = 10
-@export var exp_gain_kill: int = 30
-@export var exp_gain_nonlethal_loss: int = 4
+## EXP (F-EXP, GDD core-combat Core Rule 12 / F-CC13): a player unit performing an Attack
+## or a Heal earns this flat amount, hit or miss, kill or not. Nothing else pays EXP.
+@export var exp_per_action: int = 25
+## F-CC14: EXP per level (excess rolls into the next level) and the level cap (EXP at the
+## cap is discarded, never banked).
 @export var exp_per_level: int = 100
 @export var level_cap: int = 20
+## F-CC14 stat ceilings for level-up rolls (GDD Core Rule 1: HP 15–60, other stats 0–30);
+## a successful roll on a stat already at its cap is wasted. GDD stat keys.
+@export var stat_caps: Dictionary = {
+	"hp": 60, "str": 30, "mag": 30, "skill": 30, "speed": 30, "luck": 30, "def": 30, "res": 30,
+}
+## GDD (Dual Restraint Scoring edge cases): action EXP commits regardless of victory or
+## defeat; only the restraint bonus EXP is victory-only. false = old D06 (defeat writes nothing).
+@export var action_exp_commits_on_defeat: bool = true
 
 ## ------------------------------------------------------------ terrain
 ## terrain_costs: địa hình × movement_type -> chi phí (bảng đúng schema交接; movement type từ ClassDef).
@@ -82,11 +90,11 @@ class_name RulesConfig
 }
 
 ## ------------------------------------------------------------ P-13 feature flags (data-only)
-## Trainer công thức chiến đấu mặc định (P-05): "gdd" (F-CC1…F-CC7) | "legacy" (công thức cũ).
-## CombatResolver xử lý cả hai nhánh; dữ liệu cũ chỉ dùng "legacy".
+## Bộ công thức chiến đấu (P-05): "gdd" | "legacy". Hiện CombatResolver chỉ có MỘT công thức (GDD,
+## xem AGENTS.md F-CC) và chưa đọc field này; giữ lại cho validator và dùng sau.
 @export var combat_formula_set: String = "gdd"
-## EXP và level-up chỉ áp dụng cho campaign demo khi bật (P-04); tắt = ẩn dòng EXP hậu trận.
-@export var exp_enabled: bool = false
+## EXP và level-up (F-EXP): bật mặc định — GDD dùng EXP làm cơ chế phát triển nhân vật (P-04 đã bị thay).
+@export var exp_enabled: bool = true
 ## Cửa hàng (P-03): bật cho campaign demo; chương legacy giữ stub.
 @export var shop_enabled: bool = false
 ## Fog of war (W6): tắt tới khi hệ thống fog hoàn tất.

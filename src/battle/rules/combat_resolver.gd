@@ -37,40 +37,12 @@ static func execute(state: BattleState, attacker: UnitState, defender: UnitState
 		})
 		if d.hp == 0:
 			strikes[-1]["slain"] = d.id
-	# EXP per D08/P-04: only while rules_config.exp_enabled is on; the campaign that turns
-	# it off fills progression via mid-battle points instead (W10). Engagement pays even
-	# when the target avoids, the killer takes exp_gain_kill, and a surviving player defender
-	# always pays back to the attacker with exp_gain_nonlethal_loss.
-	if bool(DataRegistry.rule("exp_enabled", false)) and not strikes.is_empty():
-		if attacker.side == "player" and attacker.alive:
-			state.exp_gained_set(attacker.id, int(DataRegistry.rule("exp_gain_hit", 10)))
-			if defender.hp == 0 and defender.side != "player":
-				state.exp_gained_set(attacker.id, int(DataRegistry.rule("exp_gain_kill", 30)))
-		if defender.side == "player" and defender.alive:
-			state.exp_gained_set(defender.id, int(DataRegistry.rule("exp_gain_nonlethal_loss", 4)))
-		_grant_levels(state, attacker)
-		_grant_levels(state, defender)
+	# F-CC13 (F-EXP): performing the Attack pays the acting unit a flat EXP — hit, miss, crit
+	# or kill alike. The defender earns nothing for being attacked; enemies never earn.
+	if not strikes.is_empty():
+		ExpSystem.grant_action_exp(state, attacker)
 	EventBus.combat_resolved.emit(strikes)
 	return strikes
-
-
-## Spends full exp batches level-ups (D08): every stat in the unit growths rolls the
-## configured percent on the battle RNG; gains land in stat_bonus and the live stats.
-static func _grant_levels(state: BattleState, unit: UnitState) -> void:
-	if unit.side != "player":
-		return
-	var per_level := int(DataRegistry.rule("exp_per_level", 100))
-	var level_cap := int(DataRegistry.rule("level_cap", 20))
-	while unit.exp >= per_level and unit.level < level_cap:
-		unit.exp -= per_level
-		unit.level += 1
-		var roll_gains: Dictionary = {}
-		for stat_id in unit.growths:
-			var chance := clampi(int(unit.growths[stat_id]), 0, 100)
-			if state.rng().randi_range(1, 100) <= chance:
-				unit.apply_stat_gain(String(stat_id), 1)
-				roll_gains[String(stat_id)] = int(roll_gains.get(String(stat_id), 0)) + 1
-		state.level_ups.append({"unit_id": unit.id, "level": unit.level, "gains": roll_gains.duplicate()})
 
 
 ## Sequence plan (no rng): sides, hit/crit percentages, deterministic damage for each strike.

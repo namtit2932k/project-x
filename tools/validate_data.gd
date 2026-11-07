@@ -16,6 +16,8 @@ var profile_active: bool = false
 
 const OLD_UNIT_STAT_KEYS := ["hp", "atk", "def", "res", "skl", "spd", "mov", "crit", "hit"]
 const GDD_UNIT_STAT_KEYS := ["hp", "str", "mag", "skill", "speed", "luck", "def", "res", "move", "base_vision"]
+## Stats a level-up can raise (F-EXP): the 8 GDD growth stats plus the legacy aliases.
+const GROWTH_STAT_KEYS := ["hp", "str", "mag", "skill", "speed", "luck", "def", "res", "atk", "skl", "spd"]
 const OBJECTIVE_TYPES := ["eliminate", "escort", "escort_turns", "defend", "retrieve", "capture", "evacuate"]
 const EVENT_TRIGGERS := ["enter_zone", "leave_zone", "pickup", "unit_dead", "turn_start", "turn_end", "talk", "faction_change"]
 const EVENT_ACTIONS := ["spawn", "dialogue", "change_team", "set_flag", "win", "lose"]
@@ -151,6 +153,17 @@ func check_rules() -> void:
 		var mult := float(enemy_mult.get(difficulty, 1.0))
 		if mult < 1.0 or mult > 2.0:
 			_err("rules: enemy_stat_multiplier '%s' out of [1.0, 2.0]" % difficulty)
+	# F-EXP: EXP/level numbers must keep the level-up loop meaningful; caps use GDD stat keys.
+	if int(DataRegistry.rule("exp_per_action", 25)) < 0:
+		_err("rules: exp_per_action < 0")
+	if int(DataRegistry.rule("exp_per_level", 100)) <= 0:
+		_err("rules: exp_per_level must be > 0")
+	if int(DataRegistry.rule("level_cap", 20)) < 1:
+		_err("rules: level_cap must be >= 1")
+	var stat_caps: Dictionary = DataRegistry.rule("stat_caps", {})
+	for stat_key in stat_caps:
+		if str(stat_key) not in GROWTH_STAT_KEYS:
+			_err("rules: stat_caps unknown stat '%s'" % str(stat_key))
 	# Bond bonus constraint from the deck: total adjacent bonus caps at +16.
 	var bonuses: Dictionary = DataRegistry.rule("bond_bonus_by_rank", {})
 	var cap := int(DataRegistry.rule("max_adjacent_bond_bonus", 16))
@@ -179,6 +192,12 @@ func check_classes() -> void:
 		for skill_id in c.skill_ids:
 			if DataRegistry.get_data("skills", String(skill_id)) == null:
 				_err("class %s: unknown skill %s" % [id, skill_id])
+		# F-EXP: class growth table (GDD Authored Growth Rate Table) — known stats, 0–100%.
+		for key in c.growths:
+			if str(key) not in GROWTH_STAT_KEYS:
+				_err("class %s: unknown growths key '%s'" % [id, str(key)])
+			elif int(c.growths[key]) < 0 or int(c.growths[key]) > 100:
+				_err("class %s: growth '%s' = %d is outside 0–100" % [id, str(key), int(c.growths[key])])
 
 
 const SHARED_UNIT_STAT_KEYS := ["hp", "def", "res"]
@@ -203,8 +222,12 @@ func check_units() -> void:
 	_ids("units")
 	for id in DataRegistry.all_ids("units"):
 		var u := DataRegistry.get_unit(id)
-		if DataRegistry.get_battle_class(String(u.class_id)) == null:
+		var unit_class := DataRegistry.get_battle_class(String(u.class_id))
+		if unit_class == null:
 			_err("unit %s: unknown class %s" % [id, u.class_id])
+		elif bool(u.in_roster) and unit_class.growths.is_empty() and u.growths.is_empty():
+			# F-EXP: without a class table (or unit fallback) level-ups raise nothing.
+			_warn("unit %s: no growth rates (class %s has no table)" % [id, u.class_id])
 		var strict := _is_strict_layer(u)
 		if not strict and DataRegistry.get_faction(String(u.faction_id)) == null:
 			# Demo overlay ships its own sideless faction; base units must resolve theirs.

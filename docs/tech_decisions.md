@@ -1,5 +1,22 @@
 # Technical decisions
 
+## GDD pass (08-11-2026) — full rules in AGENTS.md §7b "F-CC" and "F-EXP"
+
+- **Combat formulas (F-CC):** `CombatResolver` follows the GDD core-combat F-CC1…F-CC5:
+  `Hit% = clamp(Accuracy − Avoid, 0, 100)` with Accuracy = Skill×2 + Luck×0.5 + weapon
+  accuracy mod + bond, Avoid = Speed×2 + Luck×0.5 + terrain + bond; Crit% = Skill×0.5 +
+  weapon crit mod − defender Luck×0.5 + bond; Damage = Str/Mag + weapon might − Def/Res +
+  bond; crit ×2.5 (floor); double attack at Speed gap ≥ 4. With the current stat tables
+  hit chances are low (often 5–25%) — a balance question for the designer, not a code bug.
+- **EXP (F-EXP):** new `src/battle/systems/exp_system.gd` (`ExpSystem`). F-CC13: a flat
+  `exp_per_action` (25) for every Attack/Heal by a player unit, hit or miss, kill or not;
+  F-CC14: one level-up loop (100 EXP/level, cap 20, per-class growth table in
+  `BattleClassData.growths`, stat caps, HP growth heals, EXP discarded at the cap).
+  `exp_enabled` is on by default. Action EXP also commits on defeat
+  (`action_exp_commits_on_defeat`); the rest of the result merges only on victory.
+  `UnitState.stat_bonus` now holds only the current battle's gains, and rewind snapshots
+  carry the live combat stats so a level-up can be undone. **Supersedes the D08 bullet below.**
+
 ## Round-2 handoff (tài liệu "đợt 2", D01–D12 / N01–N13)
 
 - **Forecast KHÔI PHỤC lại theo D01** (ghi đè đoạn cũ dưới đây): chọn unit (đã move hay chưa) →

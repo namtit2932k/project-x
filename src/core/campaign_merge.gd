@@ -1,17 +1,22 @@
 extends RefCounted
 class_name CampaignMerge
-## Applies one battle's outcome to the campaign (D06). Merge ONLY after a win: EXP,
-## casualties per difficulty, bond points, chapter completion and reconcile outcomes.
-## A defeat writes nothing, so Retry replays the chapter with the exact pre-battle
-## roster and never counts a defeat. Called from Main and from tests; not an autoload.
+## Applies one battle's outcome to the campaign. Action EXP, levels and level-up stat gains
+## merge on victory AND on defeat (F-EXP, rules_config.action_exp_commits_on_defeat).
+## Everything else merges only after a win (D06): casualties per difficulty, bond points,
+## chapter completion and reconcile outcomes — so Retry replays the chapter with the
+## pre-battle roster apart from EXP, and never counts a defeat. Called from Main and from
+## tests; not an autoload.
 
 
 ## result is the director's ResultStore.last_result ("status": "win" / other).
 static func merge(battle_state: BattleState, chapter: Resource, result: Dictionary) -> void:
 	if battle_state == null or chapter == null:
 		return
-	# D06: only a victory touches the campaign. Defeat keeps the chapter open for retry.
-	if String(result.get("status", "")) != "win":
+	var won := String(result.get("status", "")) == "win"
+	if won or bool(DataRegistry.rule("action_exp_commits_on_defeat", true)):
+		_merge_progression(battle_state)
+	# D06: only a victory touches the rest of the campaign. Defeat keeps the chapter open for retry.
+	if not won:
 		return
 	var policy: String = String(DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "temp_injury"))
 	for unit_id in GameState.roster:
@@ -19,14 +24,6 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 			continue
 		var state_unit: UnitState = battle_state.units[String(unit_id)]
 		var entry: Dictionary = GameState.roster[unit_id]
-		# D08: the battle carries the unit's starting exp (from_data) through level-ups;
-		# the merged value is simply the live remainder plus already-applied levels.
-		entry.exp = int(state_unit.exp)
-		entry["level"] = int(state_unit.level)
-		var carry: Dictionary = entry.get("stat_bonus", {})
-		for stat_id in state_unit.stat_bonus:
-			carry[String(stat_id)] = int(carry.get(String(stat_id), 0)) + int(state_unit.stat_bonus[stat_id])
-		entry["stat_bonus"] = carry
 		if not state_unit.alive:
 			match policy:
 				"permadeath":
@@ -48,3 +45,20 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 			var fo: Dictionary = result["reconcile"][faction_id]
 			outcomes[faction_id] = {"persuaded": bool(fo.get("persuaded", false)), "kills": int(fo.get("kills", 0)), "events": fo.get("events", [])}
 		GameState.reconcile_outcomes[String(chapter.id)] = outcomes
+
+
+## EXP / level / level-up stat gains of every deployed roster unit. The battle unit started
+## from the roster's exp and level (from_data), so those are copied back as they are;
+## stat_bonus on the battle unit holds only this battle's gains and is added to the total.
+static func _merge_progression(battle_state: BattleState) -> void:
+	for unit_id in GameState.roster:
+		if not battle_state.units.has(String(unit_id)):
+			continue
+		var state_unit: UnitState = battle_state.units[String(unit_id)]
+		var entry: Dictionary = GameState.roster[unit_id]
+		entry.exp = int(state_unit.exp)
+		entry["level"] = int(state_unit.level)
+		var carry: Dictionary = entry.get("stat_bonus", {})
+		for stat_id in state_unit.stat_bonus:
+			carry[String(stat_id)] = int(carry.get(String(stat_id), 0)) + int(state_unit.stat_bonus[stat_id])
+		entry["stat_bonus"] = carry

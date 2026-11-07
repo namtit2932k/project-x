@@ -22,3 +22,13 @@ hit_bonus = 0
 damage_type = "physical"
 weapon_id = "weapon_steel_lance"
 skill_ids = []
+growths = {
+"hp": 85,
+"str": 40,
+"mag": 0,
+"skill": 25,
+"speed": 20,
+"luck": 25,
+"def": 55,
+"res": 25
+}

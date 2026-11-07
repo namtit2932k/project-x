@@ -22,3 +22,13 @@ hit_bonus = 0
 damage_type = "physical"
 weapon_id = "weapon_battle_axe"
 skill_ids = []
+growths = {
+"hp": 75,
+"str": 60,
+"mag": 0,
+"skill": 25,
+"speed": 30,
+"luck": 25,
+"def": 35,
+"res": 20
+}

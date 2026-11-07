@@ -22,3 +22,13 @@ hit_bonus = 0
 damage_type = "magic"
 weapon_id = "weapon_fire_tome"
 skill_ids = []
+growths = {
+"hp": 45,
+"str": 5,
+"mag": 65,
+"skill": 40,
+"speed": 35,
+"luck": 30,
+"def": 15,
+"res": 45
+}

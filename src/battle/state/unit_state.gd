@@ -47,10 +47,11 @@ var damage_type: String = "physical"     # physical | magic
 var portrait: String = ""
 var sprite: String = ""
 var skill_ids: Array[String] = []
-## Growth table copy from UnitData (D08 level-ups roll per-stat with the battle RNG).
+## Growth rates in percent (F-EXP): the class table from the GDD, or UnitData.growths as a
+## fallback when the class has none. Level-ups roll each entry once with the battle RNG.
 var growths: Dictionary = {}
-## Campaign stat bonus carried via the roster (D08): {stat_id: gained}. Live stats already
-## include these values; from_data re-applies the roster's share on every battle.
+## Level-up stat gains earned in THIS battle only: {stat_id: gained}. The roster keeps the
+## campaign total (replayed into the live stats by from_data); CampaignMerge adds this delta.
 var stat_bonus: Dictionary = {}
 
 var alive: bool = true
@@ -80,15 +81,17 @@ static func from_data(unit_res: Resource, cell: Vector2i, level_override: int = 
 	for skill_key in unit_res.skill_ids:
 		u.skill_ids.append(String(skill_key))
 
-	# D08: roster-carried stat bonus applies to the base stats of every battle.
+	# The roster-carried stat bonus (campaign total) is replayed onto the base stats below;
+	# it is NOT copied into u.stat_bonus, which only tracks this battle's gains.
 	var roster_entry: Dictionary = GameState.roster.get(String(unit_res.id), {})
 	var bonus: Dictionary = roster_entry.get("stat_bonus", {})
-	u.stat_bonus = bonus.duplicate()
-	# A roster unit carries its half-earned exp into the battle (D08): level-ups always
-	# whole batches, so the merge above writes the remainder back as the new starting exp.
+	# A roster unit carries its half-earned exp into the battle; the merge writes the
+	# remainder back as the next starting exp.
 	u.exp = int(roster_entry.get("exp", 0))
-	for stat_id in unit_res.growths:
-		u.growths[String(stat_id)] = int(unit_res.growths[stat_id])
+	# F-EXP: growth is per class in the GDD; the unit table is a legacy fallback.
+	var growth_source: Dictionary = c.growths if not c.growths.is_empty() else unit_res.growths
+	for stat_id in growth_source:
+		u.growths[String(stat_id)] = int(growth_source[stat_id])
 
 	u.max_hp = unit_res.base_stat("hp", int(c.max_hp))
 	u.hp = u.max_hp
@@ -122,32 +125,60 @@ static func from_data(unit_res: Resource, cell: Vector2i, level_override: int = 
 	return u
 
 
-## Applies the roster-carried bonus replay at battle setup (D08 stat bonus on base stats).
+## Replays the roster-carried campaign bonus onto the live stats at battle setup. Not a
+## level-up: nothing is recorded into stat_bonus (that would count the bonus again on merge).
 func apply_stat_bonus(bonus: Dictionary) -> void:
 	for stat_id in bonus:
-		apply_stat_gain(String(stat_id), int(bonus[stat_id]))
+		_add_to_stat(String(stat_id), int(bonus[stat_id]))
 
 
-## Adds a growth-stat gain to both the live value and the recorded stat_bonus (level-ups).
+## Level-up gain (F-CC14): raises the live stat and records it in this battle's stat_bonus.
+## An HP gain raises current HP by the same amount (GDD Core Rule 12c).
 func apply_stat_gain(stat_id: String, amount: int) -> void:
+	if not _add_to_stat(stat_id, amount):
+		return
+	stat_bonus[stat_id] = int(stat_bonus.get(stat_id, 0)) + amount
+	level_ups_recorded += 1
+
+
+## Live value of a growth stat, for either key set (legacy atk/skl/spd or GDD str/skill/speed).
+## -1 for an unknown key.
+func growth_stat_value(stat_id: String) -> int:
+	match stat_id:
+		"hp": return max_hp
+		"atk", "str": return power
+		"mag": return magic
+		"skl", "skill": return skill
+		"spd", "speed": return speed
+		"luck": return luck
+		"def": return defense
+		"res": return resistance
+	return -1
+
+
+## Adds amount to the live stat behind a growth key (both key sets); false if unknown.
+func _add_to_stat(stat_id: String, amount: int) -> bool:
 	match stat_id:
 		"hp":
 			max_hp += amount
 			hp += amount
-		"atk":
+		"atk", "str":
 			power += amount
+		"mag":
+			magic += amount
+		"skl", "skill":
+			skill += amount
+		"spd", "speed":
+			speed += amount
+		"luck":
+			luck += amount
 		"def":
 			defense += amount
 		"res":
 			resistance += amount
-		"skl":
-			skill += amount
-		"spd":
-			speed += amount
 		_:
-			return
-	stat_bonus[stat_id] = int(stat_bonus.get(stat_id, 0)) + amount
-	level_ups_recorded += 1
+			return false
+	return true
 
 
 func stat(id: String) -> int:
@@ -184,6 +215,9 @@ func to_dict() -> Dictionary:
 		"alive": alive, "acted": acted, "moved": moved, "exp": exp, "carried_item": carried_item,
 		"death_recorded": death_recorded, "must_survive": must_survive, "reconcile_event_key": reconcile_event_key,
 		"level": level, "stat_bonus": stat_bonus.duplicate(),
+		# F-EXP: live combat stats too, so rewinding past a level-up undoes its stat gains.
+		"power": power, "magic": magic, "defense": defense, "resistance": resistance,
+		"skill": skill, "speed": speed, "luck": luck,
 	}
 
 
@@ -196,6 +230,13 @@ func from_dict(d: Dictionary) -> void:
 	pos = Vector2i(d.get("pos", [pos.x, pos.y])[0], d.get("pos", [pos.x, pos.y])[1])
 	level = int(d.get("level", level))
 	stat_bonus = d.get("stat_bonus", {}).duplicate()
+	power = int(d.get("power", power))
+	magic = int(d.get("magic", magic))
+	defense = int(d.get("defense", defense))
+	resistance = int(d.get("resistance", resistance))
+	skill = int(d.get("skill", skill))
+	speed = int(d.get("speed", speed))
+	luck = int(d.get("luck", luck))
 	max_hp = int(d.get("max_hp", max_hp))
 	hp = int(d.get("hp", hp))
 	alive = bool(d.get("alive", alive))

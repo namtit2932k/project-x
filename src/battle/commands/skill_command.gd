@@ -40,6 +40,8 @@ static func apply(state: BattleState, unit: UnitState, skill_id: String, target:
 		"heal":
 			target.heal(int(skill.power))
 			BondSystem.reward_heal(state, unit, target)
+			# F-CC13 (F-EXP): a Heal pays the healer the same flat EXP as an Attack.
+			ExpSystem.grant_action_exp(state, unit)
 			return true
 		_:
 			return false

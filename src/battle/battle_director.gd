@@ -210,10 +210,13 @@ func _on_state_changed() -> void:
 		_check_battle_end()
 	if not state.battle_over.is_empty():
 		var result: Dictionary = state.battle_over
-		if result.get("status", "") == "win":
+		var won: bool = result.get("status", "") == "win"
+		if won:
 			ReconcileSystem.record_spared_units(state)
 			result["reconcile"] = ReconcileSystem.evaluate(state)
-			# T11/D08: the post-battle screen reads earned exp and level-ups from the result.
+		# F-EXP: the post-battle screen lists earned EXP and level-ups whenever they will be
+		# merged — every victory, and defeats too while action_exp_commits_on_defeat is on.
+		if won or bool(DataRegistry.rule("action_exp_commits_on_defeat", true)):
 			result["exp"] = state.exp_gained.duplicate()
 			result["level_ups"] = state.level_ups.duplicate()
 		ResultStore.last_result = result

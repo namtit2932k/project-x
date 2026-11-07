@@ -22,3 +22,13 @@ hit_bonus = 0
 damage_type = "physical"
 weapon_id = "weapon_wyvern_lance"
 skill_ids = []
+growths = {
+"hp": 75,
+"str": 50,
+"mag": 0,
+"skill": 30,
+"speed": 40,
+"luck": 25,
+"def": 40,
+"res": 25
+}

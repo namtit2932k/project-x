@@ -22,3 +22,13 @@ hit_bonus = 0
 damage_type = "physical"
 weapon_id = "weapon_hunting_rifle"
 skill_ids = []
+growths = {
+"hp": 55,
+"str": 30,
+"mag": 0,
+"skill": 60,
+"speed": 45,
+"luck": 35,
+"def": 20,
+"res": 25
+}

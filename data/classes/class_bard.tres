@@ -22,3 +22,13 @@ hit_bonus = 0
 damage_type = "physical"
 weapon_id = "weapon_light_rapier"
 skill_ids = []
+growths = {
+"hp": 55,
+"str": 0,
+"mag": 0,
+"skill": 0,
+"speed": 55,
+"luck": 65,
+"def": 35,
+"res": 60
+}

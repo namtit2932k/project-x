@@ -28,3 +28,8 @@ class_name BattleClassData
 
 ## Placeholder skill ids the class can use (empty = none yet; skills data-only too).
 @export var skill_ids: Array[String] = []
+
+## Level-up growth rates in percent per GDD stat key (hp/str/mag/skill/speed/luck/def/res),
+## from the GDD "Authored Growth Rate Table" (F-EXP / F-CC14). Growth is per class in the GDD;
+## UnitData.growths is only a fallback for classes without a table (e.g. enemy classes).
+@export var growths: Dictionary = {}
