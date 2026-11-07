@@ -120,8 +120,9 @@ func test_bond_rules_d05() -> void:
 	# crit, damage). Damage grows by the rank bonus and accuracy now benefits too — the old
 	# D05 "never feeds accuracy" expectation was superseded by P-02 (AGENTS.md (censored)).
 	var base_dmg := CombatResolver._damage(state, attacker, foe)
-	# Keep the raw hit under the clamp so the bonus stays visible in the percentage.
-	attacker.hit_bonus = -40
+	# F-CC1/F-CC3: Accuracy=skill*2+hit_bonus, Avoid=foe.speed*2=12 (defaults). Push hit_bonus so
+	# raw Accuracy-Avoid sits mid-range (clear of the 0/100 clamp) and the bond bonus stays visible.
+	attacker.hit_bonus = 52
 	var hit_base_no_pair := CombatResolver._hit_pct(state, attacker, foe)
 	var dmg_pair := BondData.new()
 	dmg_pair.id = "test_pair_dmg"
@@ -339,6 +340,7 @@ func test_forecast_matches_execution() -> void:
 	attacker.defense = 2
 	attacker.crit_bonus = -200      # deterministic: never crit
 	attacker.speed = 0
+	attacker.skill = 60             # F-CC1/F-CC3: Accuracy=skill*2, comfortably over any Avoid below
 	var defender := _spawn(state, "def_f", "faction_e", Vector2i(1, 0), false, false, "enemy")
 	defender.speed = 0              # hit clamps at 100, no double for either side
 	var forecast := CombatResolver.forecast(state, attacker, defender)

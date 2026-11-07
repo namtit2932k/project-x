@@ -11,14 +11,18 @@ class_name RulesConfig
 
 @export var damage_flat: int = 0                          # sai số ngẫu nhiên trên damage
 @export var min_damage: int = 0
-@export var hit_base: int = 100
-@export var hit_variance: int = 10
-@export var crit_base: int = 5
-@export var crit_multiplier: float = 2.0
-@export var double_attack_speed_gap: int = 5
-@export var hit_scale_skill: int = 3
-@export var hit_scale_speed_avoid: int = 2
-@export var crit_scale_skill: int = 2
+## F-CC1…F-CC5 (approved GDD core-combat-system.md, 08-11-2026): Accuracy = skill*accuracy_skill_mult
+## + luck*accuracy_luck_mult + hit_bonus + weapon_accuracy_mod + bond; Avoid = speed*avoid_speed_mult
+## + luck*avoid_luck_mult + terrain_avoid + bond; Hit% = clamp(Accuracy - Avoid, 0, 100) (no base-100 term).
+@export var accuracy_skill_mult: float = 2.0
+@export var accuracy_luck_mult: float = 0.5
+@export var avoid_speed_mult: float = 2.0
+@export var avoid_luck_mult: float = 0.5
+## Crit% = clamp(skill*crit_skill_mult + weapon_crit_mod - defender.luck*crit_luck_mult + bond, 0, 100).
+@export var crit_skill_mult: float = 0.5
+@export var crit_luck_mult: float = 0.5
+## CritDamage = floor(Damage * crit_multiplier); GDD fixes this at 2.5 (was 2.0 pre-GDD).
+@export var crit_multiplier: float = 2.5
 
 ## EXP (D08): only the player side earns; a full batch per level; level cap. Numbers TBD
 ## final, designer-tunable.
@@ -112,7 +116,7 @@ class_name RulesConfig
 
 ## ------------------------------------------------------------ T2.6: numbers luật GDD/demo (data-only)
 ## Đánh thêm vì chênh lệnh Speed (GDD-Combat §5, F-CC7): chỉ một bên đủ điều kiện một exchange.
-## Demo/GDD dùng 4; số cũ của lớp ch01 dùng double_attack_speed_gap.
+## Giá trị GDD chốt = 4; CombatResolver đọc trực tiếp field này (field cũ double_attack_speed_gap=5 đã bỏ).
 @export var double_threshold: int = 4
 ## Số nguồn bonus bond kề cùng lúc (GDD-Combat §5, tối đa 4 đối tác; tổng vẫn chặn ở max_adjacent_bond_bonus).
 @export var bond_stack_max: int = 4

@@ -28,7 +28,7 @@ static func execute(state: BattleState, attacker: UnitState, defender: UnitState
 		var crit := state.rng().randi_range(1, 100) <= int(entry["crit_pct"])
 		var damage := int(entry["damage"])
 		if crit:
-			damage = int(round(damage * float(DataRegistry.rule("crit_multiplier", 2.0))))
+			damage = _round_value(int(damage * float(DataRegistry.rule("crit_multiplier", 2.5))))
 		damage += state.rng().randi_range(0, int(DataRegistry.rule("damage_flat", 0)))
 		d.take_damage(damage)
 		strikes.append({
@@ -80,7 +80,7 @@ static func _strike_plan(state: BattleState, attacker: UnitState, defender: Unit
 	var counter_ok := defender.alive and RangeHandler.can_counter(state, defender, attacker.pos)
 	if counter_ok:
 		sequence.append({"side": "counter", "hit_pct": _hit_pct(state, defender, attacker), "crit_pct": _crit_pct(state, defender, attacker), "damage": _damage(state, defender, attacker)})
-	var gap := int(DataRegistry.rule("double_attack_speed_gap", 5))
+	var gap := int(DataRegistry.rule("double_threshold", 4))
 	if attacker.speed - defender.speed >= gap:
 		sequence.append({"side": "attacker", "hit_pct": _hit_pct(state, attacker, defender), "crit_pct": _crit_pct(state, attacker, defender), "damage": _damage(state, attacker, defender)})
 	elif counter_ok and defender.speed - attacker.speed >= gap:
@@ -91,20 +91,17 @@ static func _strike_plan(state: BattleState, attacker: UnitState, defender: Unit
 	}
 
 
-## Damage by formula id (rules_config.damage_formula_id, default "atk_minus_def") with the
-## configured rounding; new formulas are designer-selectable without touching call sites.
+## F-CC5 (approved GDD): Damage = offense_stat + weapon_might - defense_stat + bond bonus,
+## floored at min_damage. Physical uses Str/Def, magic uses Mag/Res. Terrain no longer feeds
+## damage (terrain only feeds Avoid, F-CC2) — terrain_defs.def_bonus is legacy/unused here.
 static func _damage(state: BattleState, attacker: UnitState, defender: UnitState) -> int:
-	var scaling := int(defender.defense) if attacker.damage_type == "physical" else int(defender.resistance)
-	# D05: the bond adjacency bonus lands on the stat chosen by rules_config.bond_bonus_stat
-	# (default "power" = damage); it only enters the formula that owns that stat.
+	var is_magic := attacker.damage_type == "magic"
+	var offense := int(attacker.magic) if is_magic else int(attacker.power)
+	var defense_stat := int(defender.resistance) if is_magic else int(defender.defense)
+	var weapon: Resource = DataRegistry.get_weapon(attacker.weapon_id)
+	var weapon_might := int(weapon.weapon_might) if weapon != null else 0
 	var bonus := BondSystem.stat_bonus(state, attacker, "power")
-	var raw := 0
-	match String(DataRegistry.rule("damage_formula_id", "atk_minus_def")):
-		"atk_minus_def":
-			raw = attacker.power + bonus - (scaling + state.terrain_def_at(defender.pos))
-		_:
-			push_warning("CombatResolver: unknown damage_formula_id, fallback atk_minus_def")
-			raw = attacker.power + bonus - (scaling + state.terrain_def_at(defender.pos))
+	var raw := offense + weapon_might - defense_stat + bonus
 	return maxi(_round_value(raw), int(DataRegistry.rule("min_damage", 0)))
 
 
@@ -122,21 +119,36 @@ static func _round_damage(value: float) -> int:
 	return _round_value(int(value))
 
 
+## F-CC1/F-CC2/F-CC3 (approved GDD): Hit% = clamp(Accuracy - Avoid, 0, 100). No base-100 term,
+## no variance spread — a direct subtraction. P-02: bond bonus feeds both sides (accuracy/avoid).
 static func _hit_pct(state: BattleState, a: UnitState, d: UnitState) -> int:
-	var base := int(DataRegistry.rule("hit_base", 100))
-	var skill_scale := int(DataRegistry.rule("hit_scale_skill", 3))
-	var avoid_scale := int(DataRegistry.rule("hit_scale_speed_avoid", 2))
-	var variance := int(DataRegistry.rule("hit_variance", 10))
-	# D05: bond bonus no longer feeds accuracy (only the bond_bonus_stat damage entry does).
+	var accuracy := _accuracy(state, a)
+	var avoid := _avoid(state, d)
+	return clampi(int(round(accuracy - avoid)), 0, 100)
+
+
+static func _accuracy(state: BattleState, a: UnitState) -> float:
+	var skill_mult := float(DataRegistry.rule("accuracy_skill_mult", 2.0))
+	var luck_mult := float(DataRegistry.rule("accuracy_luck_mult", 0.5))
+	var weapon: Resource = DataRegistry.get_weapon(a.weapon_id)
+	var weapon_accuracy_mod := int(weapon.weapon_accuracy_mod) if weapon != null else 0
 	var support := BondSystem.stat_bonus(state, a, "hit")
-	var raw := base + a.hit_bonus + a.skill * skill_scale + support - (d.speed * avoid_scale + state.terrain_avoid_at(d.pos))
-	# Deterministic display uses the mean variance; rolls add +/- variance in execute? No:
-	# execute rolls dice for hit/crit outcomes only; variance applies to damage rolls.
-	return clampi(raw - variance / 2, 0, 100)
+	return a.skill * skill_mult + a.luck * luck_mult + a.hit_bonus + weapon_accuracy_mod + support
 
 
+static func _avoid(state: BattleState, d: UnitState) -> float:
+	var speed_mult := float(DataRegistry.rule("avoid_speed_mult", 2.0))
+	var luck_mult := float(DataRegistry.rule("avoid_luck_mult", 0.5))
+	var support := BondSystem.stat_bonus(state, d, "avoid")
+	return d.speed * speed_mult + d.luck * luck_mult + state.terrain_avoid_at(d.pos) + support
+
+
+## F-CC4 (approved GDD): Crit% = clamp(skill*0.5 + weapon_crit_mod - defender.luck*0.5 + bond, 0, 100).
 static func _crit_pct(state: BattleState, a: UnitState, d: UnitState) -> int:
-	var base := int(DataRegistry.rule("crit_base", 5))
-	var scale := int(DataRegistry.rule("crit_scale_skill", 2))
-	var raw := base + a.crit_bonus + a.skill * scale - d.speed
-	return clampi(raw, 0, 100)
+	var skill_mult := float(DataRegistry.rule("crit_skill_mult", 0.5))
+	var luck_mult := float(DataRegistry.rule("crit_luck_mult", 0.5))
+	var weapon: Resource = DataRegistry.get_weapon(a.weapon_id)
+	var weapon_crit_mod := int(weapon.weapon_crit_mod) if weapon != null else 0
+	var support := BondSystem.stat_bonus(state, a, "crit")
+	var raw := a.skill * skill_mult + a.crit_bonus + weapon_crit_mod - d.luck * luck_mult + support
+	return clampi(int(round(raw)), 0, 100)
