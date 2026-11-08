@@ -8,7 +8,6 @@ signal quit_to_menu   # N08: pause menu quit — straight to the menu, no campai
 
 enum Mode { IDLE, UNIT_SELECTED, TARGET_SELECT, CONFIRM_ATTACK, BUSY, SKILL_TARGET }
 
-const CELL := BattleMapView.CELL
 
 var director: BattleDirector
 var map_view: BattleMapView
@@ -28,7 +27,18 @@ var _pause_menu: PauseMenu = null
 # UI panels
 var _objective_label: Label
 var _info_label: Label
-var _hint_label: Label
+## F-UI step 4 HUD: objective box (top-left), unit card (bottom-left), terrain box (bottom-right),
+## small controls (top-right), the action menu panel next to the unit.
+var _objective_box: PanelContainer = null
+var _objective_vbox: VBoxContainer = null
+var _turn_label: Label = null
+var _unit_card: PanelContainer = null
+var _terrain_box: PanelContainer = null
+var _action_panel: PanelContainer = null
+var _pause_button: Button = null
+const CARD_SIZE := Vector2(500, 190)
+const TERRAIN_SIZE := Vector2(180, 96)
+const HUD_MARGIN := 16.0
 var _action_menu: VBoxContainer
 var _combat_layer: CanvasLayer
 var _rewind_button: Button
@@ -62,40 +72,64 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	# F-UI frame 1280 x 720 (the document's battle layout comes in its own step).
-	_objective_label = UIBuilder.label(_ui_root(), "", 15)
-	_objective_label.position = Vector2(16, 10)
-	_objective_label.size = Vector2(520, 70)
+	# F-UI step 4 (UI doc battle reference): the map fills the frame, the HUD floats over it.
+	_objective_box = UIBuilder.panel(_ui_root(), HUD_MARGIN, HUD_MARGIN, 280, 0)
+	_objective_box.name = "ObjectiveBox"
+	_objective_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_objective_vbox = UIBuilder.vbox(_objective_box, 4)
+	_turn_label = UIBuilder.title(_objective_vbox, "", 18)
+	_objective_label = UIBuilder.label(_objective_vbox, "", 13)
+	_objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_objective_label.custom_minimum_size = Vector2(250, 0)
 
-	_info_label = UIBuilder.label(_ui_root(), "", 15)
-	_info_label.position = Vector2(16, 654)
-	_info_label.size = Vector2(860, 50)
+	# One short message line top-centre (target prompts, heal preview, warnings).
+	_info_label = UIBuilder.label(_ui_root(), "", 14)
+	_info_label.position = Vector2(340, 70)
+	_info_label.size = Vector2(600, 40)
+	_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	_hint_label = UIBuilder.label(_ui_root(), UIBuilder.t("Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait"), 13)
-	_hint_label.position = Vector2(16, 612)
+	_unit_card = UIBuilder.panel(_ui_root(), HUD_MARGIN, UITheme.FRAME.y - HUD_MARGIN - CARD_SIZE.y, CARD_SIZE.x, CARD_SIZE.y)
+	_unit_card.name = "UnitCard"
+	_unit_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_unit_card.visible = false
+	_terrain_box = UIBuilder.panel(_ui_root(), UITheme.FRAME.x - HUD_MARGIN - TERRAIN_SIZE.x, UITheme.FRAME.y - HUD_MARGIN - TERRAIN_SIZE.y, TERRAIN_SIZE.x, TERRAIN_SIZE.y)
+	_terrain_box.name = "TerrainBox"
+	_terrain_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_terrain_box.visible = false
 
-	_end_turn_button = UIBuilder.button(_ui_root(), UIBuilder.t("End phase"), 18)
-	_end_turn_button.position = Vector2(1110, 664)
-	_end_turn_button.size = Vector2(154, 44)
-	_end_turn_button.pressed.connect(_on_end_phase)
-
-	_rewind_button = UIBuilder.button(_ui_root(), "", 20)
-	_rewind_button.position = Vector2(1110, 612)
-	_rewind_button.size = Vector2(154, 44)
+	# Small controls top-right: Rewind (pips), End phase, Pause.
+	var controls := HBoxContainer.new()
+	controls.add_theme_constant_override("separation", 8)
+	controls.position = Vector2(UITheme.FRAME.x - HUD_MARGIN - 406, HUD_MARGIN)
+	_ui_root().add_child(controls)
+	_rewind_button = UIBuilder.button(controls, "", 14)
+	_rewind_button.custom_minimum_size = Vector2(150, 38)
 	_rewind_button.pressed.connect(open_rewind_picker)
+	_end_turn_button = UIBuilder.button(controls, UIBuilder.t("End phase"), 14)
+	_end_turn_button.custom_minimum_size = Vector2(130, 38)
+	_end_turn_button.pressed.connect(_on_end_phase)
+	_pause_button = UIBuilder.button(controls, UIBuilder.t("Pause"), 14)
+	_pause_button.custom_minimum_size = Vector2(110, 38)
+	_pause_button.pressed.connect(_toggle_pause)
 	# F-BUI Rule 6: charges as pips (or the infinity glyph on Story) inside the button.
 	_rewind_pips = HBoxContainer.new()
 	_rewind_pips.add_theme_constant_override("separation", 3)
-	_rewind_pips.position = Vector2(96, 15)
+	_rewind_pips.position = Vector2(84, 12)
 	_rewind_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_rewind_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rewind_button.add_child(_rewind_pips)
 	_refresh_rewind_button()
 
+	# UI doc action menu: panel >= 280 wide, padding 16, 44 px rows 6 apart, next to the unit.
+	_action_panel = PanelContainer.new()
+	_action_panel.name = "ActionMenu"
+	_action_panel.custom_minimum_size = Vector2(280, 0)
+	_action_panel.visible = false
+	_ui_root().add_child(_action_panel)
 	_action_menu = VBoxContainer.new()
 	_action_menu.add_theme_constant_override("separation", 6)
-	_action_menu.visible = false
-	_ui_root().add_child(_action_menu)
+	_action_panel.add_child(_action_menu)
 
 
 
@@ -252,6 +286,7 @@ func _selected() -> UnitState:
 
 func _select_unit(unit: UnitState) -> void:
 	selected_unit_id = unit.id
+	map_view.focus_cell(unit.pos)   # F-UI step 4 camera (only moves on maps larger than the frame)
 	active_targets.clear()
 	if unit.side == "player" and not unit.acted and director.state.phase == BattleState.PHASE_PLAYER:
 		# Targets tính từ vị trí hiện tại; unit đã move (đang chờ hành động) vào TARGET_SELECT luôn.
@@ -296,12 +331,14 @@ func _show_action_menu(unit: UnitState) -> void:
 	# F-BUI Rule 11 (GDD order, illegal entries omitted): Attack, Heal, Use Item, Visit, Encore,
 	# Trade, Wait. Shortcuts of the D01 flow stay: click a red enemy, re-click the unit = Wait.
 	for entry in action_menu_entries(director.state, unit, _compute_targets_for(director.state, unit)):
-		var btn := UIBuilder.button(_action_menu, String(entry["label"]), 16)
+		var btn := UIBuilder.button(_action_menu, String(entry["label"]), 18)
+		btn.custom_minimum_size = Vector2(248, 44)
 		var kind := String(entry["kind"])
 		var arg := String(entry.get("arg", ""))
 		btn.pressed.connect(func() -> void: _on_menu_entry(kind, arg))
-	_action_menu.visible = true
-	_action_menu.position = map_view.cell_to_global(unit.pos) + Vector2(30, -60)
+	_action_panel.visible = true
+	_action_panel.reset_size()
+	_action_panel.position = action_menu_position(map_view.cell_to_global(unit.pos), map_view.cell_px, _action_panel.get_combined_minimum_size())
 
 
 func _move_only_constraint(unit: UnitState) -> Dictionary:
@@ -561,6 +598,7 @@ func _run_enemy_phase() -> void:
 		var plan := director.run_next_enemy_plan()
 		if plan.is_empty():
 			break
+		map_view.focus_cell(director.state.units[String(plan["unit_id"])].pos)
 		director.commit_ai_plan(plan)
 		await get_tree().create_timer(0.2).timeout
 		map_view.queue_redraw()
@@ -658,23 +696,102 @@ func _rewind_available_on_banner() -> bool:
 
 
 func _update_hover_info() -> void:
-	var u := director.state.unit_at(hover_cell) if director.state != null else null
-	var defs: Dictionary = DataRegistry.rule("terrain_defs", {})
-	var terr: Dictionary = defs.get(director.state.terrain_at(hover_cell), {})
+	if director.state == null:
+		return
+	var u := director.state.unit_at(hover_cell)
 	# F-HEAL preview (GDD Pillar 2): hovering a Heal target shows the raw amount and real gain.
 	if mode == Mode.SKILL_TARGET and u != null and _skill_targets.has(u.id):
 		var heal_text := heal_preview_text(_selected(), u, _pending_skill_id)
 		if heal_text != "":
 			_info_label.text = heal_text
-			return
-	if u != null:
-		_info_label.text = UIBuilder.t("%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid") % [
-			u.display_name, u.hp, u.max_hp, u.power, u.defense, u.resistance, u.speed,
-			int(terr.get("def_bonus", 0)), int(terr.get("avoid_bonus", 0))]
-		if not u.items.is_empty():
-			_info_label.text += "\n" + UIBuilder.t("Items: %s") % item_list_text(u.items)
-	else:
-		_info_label.text = UIBuilder.t("terrain: %s (+%d def, +%d avoid)") % [director.state.terrain_at(hover_cell), int(terr.get("def_bonus", 0)), int(terr.get("avoid_bonus", 0))]
+	_show_unit_card(u if u != null else _selected())
+	_show_terrain_box(hover_cell)
+
+
+## F-UI step 4 unit card (bottom-left; bottom-right when it would cover the unit).
+func _show_unit_card(u: UnitState) -> void:
+	if _unit_card == null:
+		return
+	for c in _unit_card.get_children():
+		c.queue_free()
+	if u == null:
+		_unit_card.visible = false
+		return
+	_unit_card.visible = true
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_unit_card.add_child(row)
+	var portrait := ColorRect.new()   # placeholder until portrait art exists
+	portrait.custom_minimum_size = Vector2(110, 150)
+	portrait.color = Color(0.2, 0.45, 0.75) if u.side == "player" else (Color(0.75, 0.6, 0.2) if u.side == "npc" else Color(0.7, 0.25, 0.22))
+	row.add_child(portrait)
+	var initials := UIBuilder.title(portrait, u.display_name.substr(0, 2), 40)
+	initials.position = Vector2(26, 46)
+	var info := UIBuilder.vbox(row, 3)
+	for line in unit_card_lines(u):
+		UIBuilder.label(info, line, 13)
+	(info.get_child(0) as Label).add_theme_font_size_override("font_size", 20)
+	var bar := ProgressBar.new()
+	bar.max_value = maxi(u.max_hp, 1)
+	bar.value = u.hp
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(320, 12)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = BattleMapView.hp_band_color(float(u.hp) / float(maxi(u.max_hp, 1)))
+	bar.add_theme_stylebox_override("fill", fill)
+	info.add_child(bar)
+	info.move_child(bar, 2)
+	var screen := map_view.cell_to_global(u.pos)
+	var left_rect := Rect2(Vector2(HUD_MARGIN, UITheme.FRAME.y - HUD_MARGIN - CARD_SIZE.y), CARD_SIZE)
+	var on_left := not left_rect.grow(map_view.cell_px / 2.0).has_point(screen)
+	_unit_card.position.x = HUD_MARGIN if on_left else UITheme.FRAME.x - HUD_MARGIN - CARD_SIZE.x
+	_terrain_box.position.x = UITheme.FRAME.x - HUD_MARGIN - TERRAIN_SIZE.x if on_left else HUD_MARGIN
+
+
+## Card text: name, class / level, HP numbers, stats, items, buffs.
+static func unit_card_lines(u: UnitState) -> Array[String]:
+	var lines: Array[String] = []
+	lines.append(u.display_name)
+	lines.append(UIBuilder.t("Lv %d · %s") % [u.level, u.class_id.replace("class_", "").capitalize()])
+	lines.append("HP %d / %d" % [u.hp, u.max_hp])
+	lines.append("Str %d  Mag %d  Skill %d  Spd %d" % [u.eff("power"), u.eff("magic"), u.eff("skill"), u.eff("speed")])
+	lines.append("Luck %d  Def %d  Res %d  Move %d" % [u.eff("luck"), u.eff("defense"), u.eff("resistance"), u.move_range])
+	if not u.items.is_empty():
+		lines.append(UIBuilder.t("Items: %s") % item_list_text(u.items))
+	var buffs: Array[String] = []
+	for field in u.active_buffs:
+		buffs.append("%s +%d (%d)" % [String(field), int(u.active_buffs[field].get("amount", 0)), int(u.active_buffs[field].get("turns_remaining", 0))])
+	if not buffs.is_empty():
+		lines.append(UIBuilder.t("Buffs: %s") % ", ".join(buffs))
+	return lines
+
+
+## F-UI step 4 terrain box (bottom-right): terrain name, Def / Avoid bonus, move cost on foot.
+func _show_terrain_box(target: Vector2i) -> void:
+	if _terrain_box == null:
+		return
+	for c in _terrain_box.get_children():
+		c.queue_free()
+	if not director.state.in_bounds(target):
+		_terrain_box.visible = false
+		return
+	_terrain_box.visible = true
+	var box := UIBuilder.vbox(_terrain_box, 2)
+	for line in terrain_box_lines(director.state.terrain_at(target)):
+		UIBuilder.label(box, line, 13)
+	(box.get_child(0) as Label).add_theme_font_override("font", UITheme.title_font())
+	(box.get_child(0) as Label).add_theme_font_size_override("font_size", 18)
+
+
+static func terrain_box_lines(terrain: String) -> Array[String]:
+	var defs: Dictionary = DataRegistry.rule("terrain_defs", {}).get(terrain, {})
+	var cost: Dictionary = DataRegistry.rule("terrain_costs", {}).get(terrain, {})
+	var lines: Array[String] = [UIBuilder.t(terrain.capitalize())]
+	lines.append(UIBuilder.t("Def +%d · Avoid +%d") % [int(defs.get("def_bonus", 0)), int(defs.get("avoid_bonus", 0))])
+	var foot := float(cost.get("foot", 1.0))
+	lines.append(UIBuilder.t("Blocked") if bool(defs.get("blocked", false)) or foot >= 99.0 else UIBuilder.t("Move cost %s") % str(foot).trim_suffix(".0"))
+	return lines
 
 
 ## "Heal 20 -> +12 HP (36->48)" for a heal skill, "" for other skills (numbers from CombatResolver).
@@ -687,6 +804,9 @@ func heal_preview_text(healer: UnitState, target: UnitState, skill_id: String) -
 
 
 func _update_objective_label() -> void:
+	if _turn_label != null:
+		var phase := UIBuilder.t("Player phase") if director.state.phase == BattleState.PHASE_PLAYER else (UIBuilder.t("Enemy phase") if director.state.phase == BattleState.PHASE_ENEMY else UIBuilder.t("NPC phase"))
+		_turn_label.text = UIBuilder.t("Turn %d · %s") % [director.state.turn, phase]
 	var lines: Array[String] = []
 	for res in director.active_objectives_progress():
 		lines.append("%s: %s (%s)" % [UIBuilder.t(String(res["id"])), str(res["progress"]), UIBuilder.t(str(res["status"]))])
@@ -708,8 +828,19 @@ func _finish_action() -> void:
 		_show_result_banner()
 
 
+## Next to the unit at (24, -12) past its tile, flipped to the left at the right edge, kept in frame.
+static func action_menu_position(unit_center: Vector2, cell_px: float, menu_size: Vector2) -> Vector2:
+	var pos := unit_center + Vector2(cell_px / 2.0 + 24.0, -12.0 - cell_px / 2.0)
+	if pos.x + menu_size.x > UITheme.FRAME.x - HUD_MARGIN:
+		pos.x = unit_center.x - cell_px / 2.0 - 24.0 - menu_size.x
+	pos.x = clampf(pos.x, HUD_MARGIN, UITheme.FRAME.x - HUD_MARGIN - menu_size.x)
+	pos.y = clampf(pos.y, HUD_MARGIN, UITheme.FRAME.y - HUD_MARGIN - menu_size.y)
+	return pos
+
+
 func _hide_action_menu() -> void:
-	_action_menu.visible = false
+	if _action_panel != null:
+		_action_panel.visible = false
 	for c in _action_menu.get_children():
 		c.queue_free()
 
@@ -767,15 +898,14 @@ func _build_reconcile_hud() -> void:
 	var factions: Array = director.state.reconcile_state.keys()
 	if factions.is_empty():
 		return
-	_reconcile_notice = UIBuilder.label(_ui_root(),
-		UIBuilder.t("Limit your kills if you want to persuade the remnants - watch the pressure colour."), 13)
-	_reconcile_notice.position = Vector2(16, 632)
-	_reconcile_notice.size = Vector2(860, 22)
+	# F-UI step 4: the pressure chips and the note live in the objective box.
+	_reconcile_notice = UIBuilder.label(_objective_vbox,
+		UIBuilder.t("Limit your kills if you want to persuade the remnants - watch the pressure colour."), 12)
+	_reconcile_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_reconcile_notice.custom_minimum_size = Vector2(250, 0)
 	_reconcile_chip_box = HBoxContainer.new()
 	_reconcile_chip_box.add_theme_constant_override("separation", 14)
-	_reconcile_chip_box.position = Vector2(880, 560)
-	_reconcile_chip_box.size = Vector2(384, 44)
-	_ui_root().add_child(_reconcile_chip_box)
+	_objective_vbox.add_child(_reconcile_chip_box)
 	_refresh_reconcile_hud()
 
 

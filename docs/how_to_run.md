@@ -37,7 +37,7 @@ godot --headless --path . --quit-after 5   # boot check (no rendering)
 
 ```
 godot --headless --path . res://tools/validate_data.tscn    # data validation (0 errors expected)
-godot --headless --path . res://tests/run_tests.tscn        # 579 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/exp/save)
+godot --headless --path . res://tests/run_tests.tscn        # 589 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/exp/save)
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI, end-to-end through BattleDirector (21 checks)
 godot --headless --path . res://tools/playtest_demo_maps.tscn # bot playtest of the 6 demo maps -> docs/playtest/demo_maps_report.md (not pass/fail)
 godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test maps, one scripted win + one lose scenario each

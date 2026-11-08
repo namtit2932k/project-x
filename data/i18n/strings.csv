@@ -271,3 +271,22 @@ Nightmare is locked for this campaign.,Nightmare is locked for this campaign.,Ni
 Difficulty: %s - applies from the next battle.,Difficulty: %s - applies from the next battle.,Độ khó: %s - áp dụng từ trận tiếp theo.
 Save progress,Save progress,Lưu tiến độ
 Save failed,Save failed,Lưu thất bại
+Pause,Pause,Tạm dừng
+Player phase,Player phase,Lượt quân mình
+Enemy phase,Enemy phase,Lượt địch
+NPC phase,NPC phase,Lượt NPC
+Turn %d · %s,Turn %d · %s,Lượt %d · %s
+Lv %d · %s,Lv %d · %s,Cấp %d · %s
+Def +%d · Avoid +%d,Def +%d · Avoid +%d,Phòng thủ +%d · Né +%d
+Move cost %s,Move cost %s,Chi phí đi %s
+Blocked,Blocked,Không đi được
+Plain,Plain,Đồng bằng
+Road,Road,Đường
+Forest,Forest,Rừng
+Mountain,Mountain,Núi
+Water,Water,Nước
+Wall,Wall,Tường
+Hill,Hill,Đồi
+Cover,Cover,Công sự
+Hazard,Hazard,Địa hình nguy hiểm
+Village,Village,Làng

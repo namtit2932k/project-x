@@ -7,7 +7,6 @@ class_name ForecastPanel
 signal confirmed
 signal cancelled
 
-const CELL := BattleMapView.CELL
 
 
 ## Builds the panel contents under a fixed-size window. Attacker column lists every

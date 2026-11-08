@@ -40,6 +40,7 @@ func _ready() -> void:
 	await test_camp_roster_menu()
 	await test_ui_start_flow()
 	await test_prep_screen_layout()
+	await test_battle_hud_layout()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2876,6 +2877,46 @@ func test_prep_screen_layout() -> void:
 		assert_true(BattleMapView.TERRAIN_COLORS.has(String(terrain)), "prep: terrain %s has a map colour (no magenta)" % terrain)
 	prep.queue_free()
 	GameState.difficulty = "normal"
+	GameState.new_game()
+
+
+## F-UI step 4: battle HUD per the UI document - map fills the frame, objective box, unit card,
+## terrain box, small controls, action menu panel next to the unit, camera on large maps.
+func test_battle_hud_layout() -> void:
+	GameState.new_game()
+	GameState.build_roster()
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_demo_swordsman": map.deploy_cells[0], "unit_demo_knight": map.deploy_cells[1]}, "normal")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	add_child(battle)
+	await get_tree().process_frame
+	var mv := battle.map_view
+	assert_true(mv.cell_px >= 48.0 and mv.cell_px * director.state.width <= 1280.0 and mv.cell_px * director.state.height <= 720.0, "hud: the map scales up to fill the frame (cell %d px)" % int(mv.cell_px))
+	assert_true(battle._turn_label.text.contains("1") and battle._objective_box.visible, "hud: the objective box shows the turn")
+	assert_true(not _has_label_containing(battle, "Click unit: move range"), "hud: no permanent instruction line")
+	var sword: UnitState = director.state.units["unit_demo_swordsman"]
+	battle.hover_cell = sword.pos
+	battle._update_hover_info()   # checked at once: _process re-reads the (headless) mouse each frame
+	assert_true(battle._unit_card.visible and _has_label_containing(battle._unit_card, sword.display_name), "hud: hovering a unit shows its card")
+	assert_true(battle._terrain_box.visible and battle._terrain_box.get_child_count() > 0, "hud: the hovered tile shows the terrain box")
+	assert_true(BattleScene.terrain_box_lines("forest")[1].contains("+"), "hud: the terrain box lists the Def / Avoid bonus")
+	battle._select_unit(sword)
+	await get_tree().process_frame
+	var panel: PanelContainer = battle._action_panel
+	var r := Rect2(panel.position, panel.size)
+	assert_true(panel.visible and panel.size.x >= 280.0 and Rect2(Vector2.ZERO, Vector2(1280, 720)).encloses(r), "hud: the action menu is a >= 280 wide panel inside the frame")
+	var first_btn: Button = battle._action_menu.get_child(0)
+	assert_true(first_btn.custom_minimum_size.y >= 44.0, "hud: 44 px action rows")
+	var flipped := BattleScene.action_menu_position(Vector2(1240, 300), 72.0, Vector2(280, 200))
+	assert_true(flipped.x + 280.0 <= 1264.0 and flipped.x < 1240.0, "hud: the menu flips to the left at the right edge")
+	# Camera: a map larger than the frame follows the focused unit.
+	mv.cell_px = 100.0
+	mv.focus_cell(Vector2i(director.state.width - 1, 0))
+	var right_cell := mv.cell_to_global(Vector2i(director.state.width - 1, 0))
+	assert_true(right_cell.x > 0.0 and right_cell.x < 1280.0, "hud: focusing a far tile scrolls it into view")
+	battle.queue_free()
 	GameState.new_game()
 
 
