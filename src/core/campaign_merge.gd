@@ -1,11 +1,9 @@
 extends RefCounted
 class_name CampaignMerge
-## Applies one battle's outcome to the campaign. Action EXP, levels and level-up stat gains
-## merge on victory AND on defeat (F-EXP, rules_config.action_exp_commits_on_defeat).
-## Everything else merges only after a win (D06): casualties per difficulty, bond points,
-## chapter completion and reconcile outcomes — so Retry replays the chapter with the
-## pre-battle roster apart from EXP, and never counts a defeat. Called from Main and from
-## tests; not an autoload.
+## Applies one battle's outcome to the campaign. Only a win merges (D06; designer: losing is
+## a game over): EXP/levels/level-up gains, casualties per difficulty, bond points, chapter
+## completion and reconcile outcomes. rules_config.action_exp_commits_on_defeat (off by
+## default) would keep the EXP part after a defeat too. Called from Main and from tests.
 
 
 ## result is the director's ResultStore.last_result ("status": "win" / other).
@@ -13,7 +11,7 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 	if battle_state == null or chapter == null:
 		return
 	var won := String(result.get("status", "")) == "win"
-	if won or bool(DataRegistry.rule("action_exp_commits_on_defeat", true)):
+	if won or bool(DataRegistry.rule("action_exp_commits_on_defeat", false)):
 		_merge_progression(battle_state)
 	# D06: only a victory touches the rest of the campaign. Defeat keeps the chapter open for retry.
 	if not won:

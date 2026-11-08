@@ -140,6 +140,13 @@ func _run_ch01_scenario(protect: bool, seed_value: int = -1) -> Dictionary:
 		deploy[ids[i]] = map.deploy_cells[i]
 	var director := BattleDirector.new()
 	director.setup(map, deploy, "normal", seed_value)
+	# Spared branch: the player script never targets the commander, but he still attacks the
+	# heroes and their counters could kill him (random seed). Give him a large HP pool so the
+	# scenario tests "win while sparing him", not luck.
+	if protect:
+		var spared: UnitState = director.state.units["unit_rebel_commander"]
+		spared.max_hp += 500
+		spared.hp = spared.max_hp
 	# The rout branch must actually reach the distant commander before the win fires
 	# (the ch01 objective only needs the three soldiers), so mirror the main-run buff.
 	if not protect:

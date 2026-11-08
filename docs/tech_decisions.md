@@ -12,8 +12,9 @@
   `exp_per_action` (25) for every Attack/Heal by a player unit, hit or miss, kill or not;
   F-CC14: one level-up loop (100 EXP/level, cap 20, per-class growth table in
   `BattleClassData.growths`, stat caps, HP growth heals, EXP discarded at the cap).
-  `exp_enabled` is on by default. Action EXP also commits on defeat
-  (`action_exp_commits_on_defeat`); the rest of the result merges only on victory.
+  `exp_enabled` is on by default. Designer: losing is a game over, so a defeat keeps
+  nothing (`action_exp_commits_on_defeat = false`); a unit that dies earns no EXP; a
+  full-HP ally cannot be healed.
   `UnitState.stat_bonus` now holds only the current battle's gains, and rewind snapshots
   carry the live combat stats so a level-up can be undone. **Supersedes the D08 bullet below.**
 

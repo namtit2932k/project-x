@@ -161,10 +161,11 @@ func test_bond_rules_d05() -> void:
 
 
 
-## N06 (D06, amended by F-EXP): only a victory merges the battle outcome into the campaign,
-## in ONE place (CampaignMerge) — except action EXP/levels, which a defeat keeps too while
-## action_exp_commits_on_defeat is on. Defeat writes no bond, no casualties, no defeats
-## counter, and the camp hides "Next chapter" while the current chapter is still uncleared.
+## N06 (D06): only a victory merges the battle outcome into the campaign, in ONE place
+## (CampaignMerge). Designer (F-EXP): losing is a game over, so a defeat keeps no EXP either
+## (action_exp_commits_on_defeat off by default; the flag-on path is still covered).
+## Defeat writes no bond, no casualties, no defeats counter, and the camp hides "Next
+## chapter" while the current chapter is still uncleared.
 func test_campaign_merge_d06() -> void:
 	await 0.0
 	GameState.new_game()
@@ -177,17 +178,16 @@ func test_campaign_merge_d06() -> void:
 	hero.exp = 12
 	state.bond_points = {"bond_swordsman_knight": 4}
 	hero.alive = false
-	# Old D06 behaviour (flag off): a defeat merges nothing at all, EXP included.
+	# Default (designer: losing = game over): a defeat merges nothing at all, EXP included.
 	var rules: Resource = DataRegistry.rules()
-	var previous_commit: bool = bool(rules.get("action_exp_commits_on_defeat"))
-	rules.set("action_exp_commits_on_defeat", false)
+	assert_true(not bool(rules.get("action_exp_commits_on_defeat")), "campaign merge: defeat-keeps-EXP flag is off by default")
 	CampaignMerge.merge(state, chapter, {"status": "lose"})
-	assert_true(int(GameState.roster["unit_swordsman"]["exp"]) == 0, "campaign merge D06 (flag off): defeat stores no EXP")
-	# F-EXP default: action EXP commits on defeat too; nothing else does (checked below).
+	assert_true(int(GameState.roster["unit_swordsman"]["exp"]) == 0, "campaign merge D06: defeat stores no EXP")
+	# Optional flag-on path (GDD Dual Restraint edge case): only the EXP part would merge.
 	rules.set("action_exp_commits_on_defeat", true)
 	CampaignMerge.merge(state, chapter, {"status": "lose"})
-	assert_true(int(GameState.roster["unit_swordsman"]["exp"]) == 12, "campaign merge F-EXP: defeat still keeps the action EXP")
-	rules.set("action_exp_commits_on_defeat", previous_commit)
+	assert_true(int(GameState.roster["unit_swordsman"]["exp"]) == 12, "campaign merge (flag on): defeat keeps only the action EXP")
+	rules.set("action_exp_commits_on_defeat", false)
 	assert_true(GameState.bond_points.is_empty(), "campaign merge D06: defeat stores no bond points")
 	assert_true(int(GameState.roster["unit_swordsman"]["defeats"]) == 0, "campaign merge D06: defeat never counts a loss")
 	assert_true(not GameState.completed_chapters.has(String(chapter.id)), "campaign merge D06: defeat does not complete the chapter")
@@ -755,6 +755,20 @@ func test_exp_and_levels() -> void:
 	SkillCommand.apply(state, healer, "skill_heal", patient)
 	assert_true(int(healer.exp) == per_action, "exp: a Heal pays the healer %d (got %d)" % [per_action, healer.exp])
 	assert_true(int(patient.exp) == 0, "exp: the healed unit earns nothing")
+	# Designer (08-11-2026): a unit that dies earns nothing, even for its own Attack.
+	var doomed := _spawn(state, "doomed", "faction_p", Vector2i(3, 2), false, false, "player")
+	doomed.hp = 1
+	doomed.hit_bonus = -999
+	var brute := _spawn(state, "brute", "faction_e", Vector2i(4, 2), false, false, "enemy")
+	brute.power = 900
+	brute.skill = 60
+	brute.crit_bonus = -500
+	CombatResolver.execute(state, doomed, brute)
+	assert_true(not doomed.alive and int(doomed.exp) == 0, "exp: an attacker felled by the counter earns nothing")
+	# Designer: a full-HP ally cannot be healed, so there is no Heal EXP from it either.
+	var medic := _spawn(state, "medic", "faction_p", Vector2i(2, 3), false, false, "player")
+	var fresh := _spawn(state, "fresh", "faction_p", Vector2i(1, 3), false, false, "player")
+	assert_true(SkillCommand.check(state, medic, "skill_heal", fresh) == "Target already at full HP.", "heal: a full-HP ally cannot be healed")
 	# The data flag still switches the whole mechanic off.
 	var rules: Resource = DataRegistry.rules()
 	var previous_exp_flag: bool = bool(rules.get("exp_enabled"))

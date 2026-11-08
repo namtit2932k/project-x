@@ -36,9 +36,9 @@ class_name RulesConfig
 @export var stat_caps: Dictionary = {
 	"hp": 60, "str": 30, "mag": 30, "skill": 30, "speed": 30, "luck": 30, "def": 30, "res": 30,
 }
-## GDD (Dual Restraint Scoring edge cases): action EXP commits regardless of victory or
-## defeat; only the restraint bonus EXP is victory-only. false = old D06 (defeat writes nothing).
-@export var action_exp_commits_on_defeat: bool = true
+## Designer (08-11-2026): losing is a game over, so a lost battle keeps nothing, EXP included
+## (false). true = the GDD Dual Restraint edge case (action EXP survives a defeat).
+@export var action_exp_commits_on_defeat: bool = false
 
 ## ------------------------------------------------------------ terrain
 ## terrain_costs: địa hình × movement_type -> chi phí (bảng đúng schema交接; movement type từ ClassDef).

@@ -215,8 +215,8 @@ func _on_state_changed() -> void:
 			ReconcileSystem.record_spared_units(state)
 			result["reconcile"] = ReconcileSystem.evaluate(state)
 		# F-EXP: the post-battle screen lists earned EXP and level-ups whenever they will be
-		# merged — every victory, and defeats too while action_exp_commits_on_defeat is on.
-		if won or bool(DataRegistry.rule("action_exp_commits_on_defeat", true)):
+		# merged — every victory (and a defeat only if action_exp_commits_on_defeat is turned on).
+		if won or bool(DataRegistry.rule("action_exp_commits_on_defeat", false)):
 			result["exp"] = state.exp_gained.duplicate()
 			result["level_ups"] = state.level_ups.duplicate()
 		ResultStore.last_result = result
