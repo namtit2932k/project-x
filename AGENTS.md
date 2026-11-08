@@ -107,6 +107,7 @@ Track here. Remove an item once the designer confirms it.
 
 - D-B1 rounding `.5`: truncate (`int`) — affects Magician crit vector; not yet a test
 - D-B2 `base_vision` per class: placeholder table in `rules_config.terrain_vision`; Hill does not block LoS
+- **Fog of war / vision (W6, "A5"): postponed by the designer (08-11-2026).** `fog_enabled` stays `false`; `base_vision` / `terrain_vision` data is kept but unused. Do not build until the designer reopens it.
 - D-B3 Hazard effect: none (like Plain)
 - D-B4 class Move: demo scenario values
 - D-B5 enemies attack allied NPC: yes (like demo)
@@ -473,6 +474,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (28) — Claude (Opus) — done: recorded the designer's decision to postpone fog of war (A5) in §7. — in progress: none. — next: A6 save migration W9 or C clean-up (test runner timeout). — issues: not pushed (no repo access).
 
 - 2026-11-08 (27) — Claude (Opus) — done: battle UI per the GDD (new §7b **F-BUI**; Battle UI Rules 1-13, F-BUI1/2, Rewind Core Rule 3, P-06/P-10/P-12). Map: HP bands + low-HP pulse, enemy threat tint in the Player Phase (`RangeHandler.threat_cells`, shared with the Protect/Persuade AI), bond rank letters (`BondSystem.active_partners`), buff badges. Rewind: charge pips / ∞, and a rewind point screen (every player-phase boundary, newest first, “Undo last action” on top, 1 charge each; frames now remember the acting unit). Action Menu in GDD order (Attack, Heal, Use Item, Visit, Encore, Trade -> ally list -> “X receives · Y receives” preview, Wait); D01 click shortcuts kept; the old D01 test asserting no Attack/Wait buttons now asserts the GDD order. New `SquadView` from the pause menu (fallen greyed; stats, current HP, bonds, buffs, items, traits placeholder; read-only; Esc closes it first). `UIBuilder.modal_panel()` (opaque) for dialogs. New `test_battle_ui_gdd`; screenshots checked. Verified: validation 0/0, run_tests **501/501**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: A5 fog of war (check the GDD first), A6 save migration W9, C clean-up (test runner timeout, push). — issues: not pushed (no repo access).
 
