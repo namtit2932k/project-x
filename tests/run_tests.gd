@@ -24,6 +24,7 @@ func _ready() -> void:
 	await test_dual_restraint()
 	await test_persistent_faction_kills()
 	await test_bad_ending()
+	await test_demo_starting_bond()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -1942,6 +1943,38 @@ func test_bad_ending() -> void:
 		clean.state.units[soldier_id].alive = false
 	clean.commit("wait", {"unit_id": "unit_swordsman"})
 	assert_true(Array(clean.state.battle_over.get("bad_ending_factions", [])).is_empty(), "bad ending: a bar below red does not trigger it")
+	GameState.new_game()
+
+
+## P-11: the demo campaign starts with Swordsman x Knight at rank C / 2 points; the next
+## scene (B) opens at 5 points; the legacy campaign gets no starting bond.
+func test_demo_starting_bond() -> void:
+	await 0.0
+	var pid := "bond_demo_swordsman_knight"
+	GameState.new_game()
+	GameState.build_roster()   # demo campaign by default
+	assert_true(GameState.bond_rank_for(pid) == "C" and int(GameState.bond_points.get(pid, 0)) == 2, "demo bond: new demo campaign starts at rank C with 2 points")
+	assert_true(Array(GameState.bond_scenes_viewed.get(pid, [])) == ["C"], "demo bond: the C scene counts as seen")
+	var pair := DataRegistry.get_data("bonds", pid)
+	assert_true(BondCampaign.next_rank(pair) == "B" and BondCampaign.points_missing(pair) == 3, "demo bond: next scene is B, 3 points away (B at 5)")
+	GameState.bond_points[pid] = 5
+	assert_true(BondCampaign.scene_state(pair) == "ready", "demo bond: B opens at 5 points")
+	BondCampaign.rank_up(pair, "B")
+	GameState.merge_roster_with_data()   # what Continue runs after loading a save
+	assert_true(GameState.bond_rank_for(pid) == "B" and int(GameState.bond_points[pid]) == 5, "demo bond: Continue keeps the saved rank, the start state only applies to a new campaign")
+	GameState.bond_ranks[pid] = "C"
+	# In battle the C rank gives the adjacency bonus to the two demo units.
+	GameState.bond_points[pid] = 2
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_demo_swordsman": map.deploy_cells[0], "unit_demo_knight": map.deploy_cells[1]}, "normal")
+	var sword: UnitState = director.state.units["unit_demo_swordsman"]
+	director.state.units["unit_demo_knight"].pos = sword.pos + Vector2i(1, 0)
+	assert_true(BondSystem._adjacency_bonus(director.state, sword) == int(DataRegistry.rule("bond_bonus_by_rank", {}).get("C", 3)), "demo bond: adjacent demo units get the rank C bonus in battle")
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	assert_true(GameState.bond_rank_for(pid) == "" and not GameState.bond_points.has(pid), "demo bond: the legacy campaign has no demo starting bond")
 	GameState.new_game()
 
 

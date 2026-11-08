@@ -19,3 +19,7 @@ class_name BondData
 ## The GDD's s_earliest_chapter: S cannot be locked before the campaign reaches this chapter
 ## ("" = no gate). Field name kept from D05 (ids/fields are not renamed casually).
 @export var s_milestone_chapter_id: String = ""
+## P-11: rank and points the pair already has when a campaign starts ("" / 0 = none).
+## Ranks up to start_rank count as seen. Never "S" (S needs the in-game lock).
+@export var start_rank: String = ""
+@export var start_points: int = 0

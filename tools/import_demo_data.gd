@@ -314,6 +314,8 @@ func _generate_demo_profile(demo: Dictionary, goods: Dictionary) -> void:
 		# Swordsman (dying ends the battle).
 		props["is_protagonist"] = key == "swordsman"
 		props["in_roster"] = key == "swordsman" or key == "knight"
+		# F4.2: tag the roster units so they never join the legacy campaign roster.
+		props["campaign_tag"] = "demo"
 		_write_tres("res://data/units/unit_data.gd", "UnitData", props,
 				"%s/units/unit_demo_%s.tres" % [OUT_BALANCE, key])
 

@@ -614,6 +614,13 @@ func check_bonds() -> void:
 	_ids("bonds")
 	for id in DataRegistry.all_ids("bonds"):
 		var b := DataRegistry.get_data("bonds", id)
+		# P-11 starting state: a normal rank only, with at least that rank's points.
+		var start_rank := String(b.start_rank)
+		if start_rank != "":
+			if start_rank not in ["C", "B", "A"]:
+				_err("bond %s: start_rank must be C, B or A (S needs the in-game lock)" % id)
+			elif int(b.start_points) < int(b.scene_thresholds.get(start_rank, 0)):
+				_err("bond %s: start_points %d below the %s threshold" % [id, int(b.start_points), start_rank])
 		if DataRegistry.get_unit(String(b.unit_a)) == null or DataRegistry.get_unit(String(b.unit_b)) == null:
 			_err("bond %s: unknown unit(s)" % id)
 		for rank in b.scene_dialogue_ids:

@@ -84,6 +84,7 @@ func build_roster() -> void:
 		if ud == null or not _unit_in_campaign(ud):
 			continue
 		roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0}
+	_apply_starting_bonds()
 
 
 func _unit_in_campaign(ud: Resource) -> bool:
@@ -173,6 +174,25 @@ func merge_roster_with_data() -> void:
 		var ud := DataRegistry.get_unit(unit_id)
 		if ud != null and bool(ud.in_roster) and _unit_in_campaign(ud) and not roster.has(unit_id):
 			roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0}
+
+
+## P-11: pairs that start a campaign already bonded (BondData.start_rank / start_points),
+## only when both members are in this campaign's roster.
+func _apply_starting_bonds() -> void:
+	for pair_id in DataRegistry.all_ids("bonds"):
+		var pair := DataRegistry.get_data("bonds", pair_id)
+		if pair == null or String(pair.start_rank) == "" or String(pair.start_rank) == "S":
+			continue
+		if not roster.has(String(pair.unit_a)) or not roster.has(String(pair.unit_b)):
+			continue
+		bond_ranks[pair_id] = String(pair.start_rank)
+		bond_points[pair_id] = maxi(int(bond_points.get(pair_id, 0)), int(pair.start_points))
+		var seen: Array = []
+		for rank in BOND_RANKS:
+			seen.append(rank)
+			if rank == String(pair.start_rank):
+				break
+		bond_scenes_viewed[pair_id] = seen
 
 
 func bond_rank_for(pair_id: String) -> String:

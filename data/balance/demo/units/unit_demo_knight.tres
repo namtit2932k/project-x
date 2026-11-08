@@ -25,3 +25,4 @@ ai_profile = ""
 priority_target_id = ""
 is_protagonist = false
 in_roster = true
+campaign_tag = "demo"
