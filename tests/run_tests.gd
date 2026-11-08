@@ -44,6 +44,7 @@ func _ready() -> void:
 	await test_dialogue_vn_layout()
 	await test_results_screens_layout()
 	await test_lobby_pages()
+	await test_placeholder_tileset()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -3075,6 +3076,31 @@ func test_lobby_pages() -> void:
 	assert_true(camp._selected_unit == "unit_demo_knight" and _has_label_containing(camp._detail_panel, String(DataRegistry.get_unit("unit_demo_knight").display_name)), "lobby: picking a companion fills the profile")
 	camp.queue_free()
 	GameState.new_game()
+
+
+## Placeholder tileset: every map terrain has tiles; when the (git-ignored) pack is installed,
+## every base tile lies inside the texture and is opaque; the painter is deterministic per cell.
+func test_placeholder_tileset() -> void:
+	await 0.0
+	var data := TilesetPainter.data()
+	assert_true(data != null and data.tile_size == 16, "tileset: the placeholder tileset data loads")
+	var missing: Array = []
+	for terrain in BattleMapView.TERRAIN_COLORS:
+		if (data.terrain_tiles.get(terrain, {}) as Dictionary).get("base", []).is_empty():
+			missing.append(terrain)
+	assert_true(missing.is_empty(), "tileset: every terrain has base tiles (missing %s)" % str(missing))
+	assert_true(TilesetPainter.variant(Vector2i(3, 4), 4) == TilesetPainter.variant(Vector2i(3, 4), 4) and TilesetPainter.variant(Vector2i(3, 4), 1) == 0, "tileset: the variant per cell is fixed")
+	if not TilesetPainter.available():
+		assert_true(true, "tileset: pack not installed - the views use flat colours")
+		return
+	var img := (load(data.texture_path) as Texture2D).get_image()
+	var bad: Array = []
+	for terrain in data.terrain_tiles:
+		for tile in (data.terrain_tiles[terrain] as Dictionary).get("base", []):
+			var r := Rect2i(Vector2i(tile) * data.tile_size, Vector2i(data.tile_size, data.tile_size))
+			if not Rect2i(Vector2i.ZERO, img.get_size()).encloses(r) or img.get_pixelv(r.get_center()).a < 0.9:
+				bad.append("%s %s" % [terrain, str(tile)])
+	assert_true(bad.is_empty(), "tileset: base tiles are inside the texture and opaque (%s)" % str(bad))
 
 
 func _sides(plan: Dictionary) -> Array:

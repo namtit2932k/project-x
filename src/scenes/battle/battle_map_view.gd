@@ -138,6 +138,10 @@ func cell_to_global(cell: Vector2i) -> Vector2:
 	return origin + Vector2(cell) * cell_px + Vector2(cell_px, cell_px) / 2.0
 
 
+func _init() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # pixel-art tiles stay crisp
+
+
 func _draw() -> void:
 	if state == null:
 		return
@@ -146,8 +150,12 @@ func _draw() -> void:
 		for x in state.width:
 			var cell := Vector2i(x, y)
 			var rect := Rect2(cell_to_global(cell) - Vector2(cell_px, cell_px) / 2.0, Vector2(cell_px, cell_px))
-			draw_rect(rect, TERRAIN_COLORS.get(state.terrain_at(cell), Color.MAGENTA))
-			draw_rect(rect.grow(-1), TERRAIN_COLORS.get(state.terrain_at(cell), Color.MAGENTA).darkened(0.15))
+			# Placeholder tileset when installed (AGENTS.md "Placeholder tileset"), else flat colours.
+			if TilesetPainter.draw_cell(self, rect, state.terrain_at(cell), cell):
+				draw_rect(rect, Color(0, 0, 0, 0.18), false, 1.0)   # faint grid line
+			else:
+				draw_rect(rect, TERRAIN_COLORS.get(state.terrain_at(cell), Color.MAGENTA))
+				draw_rect(rect.grow(-1), TERRAIN_COLORS.get(state.terrain_at(cell), Color.MAGENTA).darkened(0.15))
 			if threat_cells.has(cell):
 				draw_rect(rect, THREAT_COLOR, true)
 			if move_cells.has(cell):

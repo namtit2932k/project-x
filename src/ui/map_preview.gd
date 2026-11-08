@@ -29,6 +29,10 @@ func set_picked(n: int) -> void:
 	queue_redraw()
 
 
+func _init() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST   # pixel-art tiles stay crisp
+
+
 func _draw() -> void:
 	if _state == null:
 		return
@@ -37,7 +41,9 @@ func _draw() -> void:
 	for y in _state.height:
 		for x in _state.width:
 			var r := Rect2(origin + Vector2(x, y) * cell, Vector2(cell, cell))
-			draw_rect(r, BattleMapView.TERRAIN_COLORS.get(_state.terrain_at(Vector2i(x, y)), Color.MAGENTA).darkened(0.25))
+			# Placeholder tileset when installed, else the flat terrain colour.
+			if not TilesetPainter.draw_cell(self, r, _state.terrain_at(Vector2i(x, y)), Vector2i(x, y)):
+				draw_rect(r, BattleMapView.TERRAIN_COLORS.get(_state.terrain_at(Vector2i(x, y)), Color.MAGENTA).darkened(0.25))
 			draw_rect(r, Color(0, 0, 0, 0.35), false, 1.0)
 	for m in _markers:
 		var kind := String(m.get("kind", ""))

@@ -20,3 +20,8 @@ docs/reference/
 
 # Godot editor metadata (.uid files) — regenerated per workspace
 *.uid
+
+# Third-party art packs whose licence forbids redistributing the assets on their own
+# (e.g. Fantasy Battle Pack): kept locally only, the game falls back to flat colours.
+assets/third_party/*
+!assets/third_party/README.md
