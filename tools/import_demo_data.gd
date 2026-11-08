@@ -298,7 +298,8 @@ func _generate_demo_profile(demo: Dictionary, goods: Dictionary) -> void:
 		"id": "faction_river_guard",
 		"display_name": "Đội gác sông",
 		"remnant_id": "river_guard",
-		"reconcile": {"kill_threshold": 2, "required_events": ["spared_commander"]},
+		# F-PCOND: GDD condition - the commander must survive (was required_events spared_commander).
+		"reconcile": {"kill_threshold": 2, "persuasion_condition": {"type": "named_unit_alive", "unit_id": "unit_demo_commander"}, "required_events": []},
 	}
 	_write_tres("res://data/factions/faction_data.gd", "FactionData", river,
 			"%s/factions/faction_river_guard.tres" % OUT_BALANCE)

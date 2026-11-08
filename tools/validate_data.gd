@@ -401,6 +401,8 @@ func check_reconcile_keys() -> void:
 			_warn("faction %s: kill_threshold 0 - any victory on its maps triggers the bad ending" % faction_id)
 		if String(f.bad_ending_dialogue_id) != "" and DataRegistry.get_dialogue(String(f.bad_ending_dialogue_id)) == null:
 			_err("faction %s: unknown bad_ending_dialogue_id %s" % [faction_id, f.bad_ending_dialogue_id])
+		# F-PCOND (AC-PS9b): a valid condition record, naming a real unit of this faction.
+		_check_persuasion_condition("faction %s" % faction_id, faction_id, f.reconcile.get("persuasion_condition", {}))
 		var known: Array = keys_by_faction.get(faction_id, [])
 		for ev in f.reconcile.get("required_events", []):
 			if str(ev) not in known:
@@ -578,6 +580,8 @@ func _check_map_strict(id: String, m: Resource) -> void:
 		_err("map %s: key_unit_id unknown" % id)
 	if String(m.faction.get("faction_id", "")) != "" and DataRegistry.get_faction(String(m.faction.get("faction_id"))) == null:
 		_err("map %s: faction_id unknown" % id)
+	elif String(m.faction.get("faction_id", "")) != "":
+		_check_persuasion_condition("map %s" % id, String(m.faction.get("faction_id")), m.faction.get("persuasion_condition", {}))
 
 
 func _cell_in_map(cell: Vector2i, rows: Array) -> bool:
@@ -671,3 +675,22 @@ func check_bonds() -> void:
 		# F-BOND S: a whitelisted S pair needs its S scene.
 		if bool(b.s_eligible) and String(b.scene_dialogue_ids.get("S", "")) == "":
 			_err("bond %s: s_eligible but no S scene dialogue" % id)
+
+
+## F-PCOND: {} (none), named_unit_alive {unit_id of this faction} or units_spared_pct {threshold 0-1}.
+func _check_persuasion_condition(where: String, faction_id: String, cond: Variant) -> void:
+	if not (cond is Dictionary) or (cond as Dictionary).is_empty():
+		return
+	match String(cond.get("type", "")):
+		"named_unit_alive":
+			var ud := DataRegistry.get_unit(String(cond.get("unit_id", "")))
+			if ud == null:
+				_err("%s: named_unit_alive names unknown unit '%s'" % [where, cond.get("unit_id", "")])
+			elif String(ud.faction_id) != faction_id:
+				_err("%s: named_unit_alive unit '%s' is not in faction %s" % [where, cond.get("unit_id", ""), faction_id])
+		"units_spared_pct":
+			var t := float(cond.get("threshold", -1.0))
+			if t < 0.0 or t > 1.0:
+				_err("%s: units_spared_pct threshold must be 0-1" % where)
+		_:
+			_err("%s: unknown persuasion_condition type '%s'" % [where, cond.get("type", "")])

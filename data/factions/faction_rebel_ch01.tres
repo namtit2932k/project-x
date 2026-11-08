@@ -9,7 +9,11 @@ display_name = "Ch01 Rebel Remnant"
 remnant_id = "faction_rebel_ch01"
 reconcile = {
 "kill_threshold": 4,
-"required_events": Array[String](["spared_commander"]),
+"persuasion_condition": {
+"type": "named_unit_alive",
+"unit_id": "unit_rebel_commander"
+},
+"required_events": Array[String]([]),
 "spared_event_keys": {
 "unit_rebel_commander": "spared_commander",
 },

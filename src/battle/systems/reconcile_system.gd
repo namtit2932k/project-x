@@ -38,9 +38,49 @@ static func effective_kills(state: BattleState, faction_id: String) -> int:
 	return int(rs.get("prior_kills", 0)) + int(rs.get("kills", 0))
 
 
-## Final evaluation after map victory: threshold + required events. Recomputed from the
-## same data every call (idempotent), always returning the same result schema:
-## {faction_id: {persuaded: bool, kills: int, missing_events: Array[String]}}.
+## F-PCOND: the faction's persuasion condition for this map - the map's override
+## (MapData.faction.persuasion_condition for its faction) or the faction's own; {} = none.
+static func condition_for(state: BattleState, faction_id: String) -> Dictionary:
+	if state.map != null and "faction" in state.map:
+		var mf: Dictionary = state.map.faction
+		if String(mf.get("faction_id", "")) == faction_id and mf.get("persuasion_condition", {}) is Dictionary and not (mf.get("persuasion_condition", {}) as Dictionary).is_empty():
+			return mf["persuasion_condition"]
+	var f := DataRegistry.get_faction(faction_id)
+	if f == null:
+		return {}
+	var cond: Variant = f.reconcile.get("persuasion_condition", {})
+	return cond if cond is Dictionary else {}
+
+
+## F-PS2 condition_eval, read live: named_unit_alive (every placed copy alive) or
+## units_spared_pct (living / deployed at battle start >= threshold). No condition = true.
+static func condition_met(state: BattleState, faction_id: String) -> bool:
+	var cond := condition_for(state, faction_id)
+	match String(cond.get("type", "")):
+		"named_unit_alive":
+			var unit_id := String(cond.get("unit_id", ""))
+			var found := false
+			for u in state.units.values():
+				if u.id == unit_id or u.template_id == unit_id:
+					found = true
+					if not u.alive:
+						return false
+			return found
+		"units_spared_pct":
+			var deployed := int(state.reconcile_state.get(faction_id, {}).get("deployed", 0))
+			if deployed <= 0:
+				return false
+			var living := 0
+			for u in state.units.values():
+				if u.faction_id == faction_id and u.alive:
+					living += 1
+			return float(living) / float(deployed) >= float(cond.get("threshold", 1.0))
+	return true
+
+
+## Final evaluation after map victory (F-PS2): kill gate + persuasion condition (+ any legacy
+## required events). Recomputed from the same data every call (idempotent), always returning
+## the same schema: {faction_id: {persuaded, kills, condition_met, missing_events}}.
 static func evaluate(state: BattleState) -> Dictionary:
 	var outcomes := {}
 	for faction_id in state.reconcile_state:
@@ -48,17 +88,18 @@ static func evaluate(state: BattleState) -> Dictionary:
 		var kills := int(rs.get("kills", 0))
 		var f := DataRegistry.get_faction(String(faction_id))
 		if f == null or f.reconcile.is_empty():
-			outcomes[faction_id] = {"persuaded": false, "kills": kills, "missing_events": []}
+			outcomes[faction_id] = {"persuaded": false, "kills": kills, "condition_met": false, "missing_events": []}
 			continue
 		var cond: Dictionary = f.reconcile
 		var threshold := int(cond.get("kill_threshold", 0))
-		var ok := effective_kills(state, String(faction_id)) < threshold
+		var met := condition_met(state, String(faction_id))
+		var ok := effective_kills(state, String(faction_id)) < threshold and met
 		var missing: Array[String] = []
 		for ev in cond.get("required_events", []):
 			if String(ev) not in rs.get("events", []):
 				ok = false
 				missing.append(String(ev))
-		outcomes[faction_id] = {"persuaded": ok, "kills": kills, "missing_events": missing}
+		outcomes[faction_id] = {"persuaded": ok, "kills": kills, "condition_met": met, "missing_events": missing}
 		rs["persuaded"] = ok
 		rs["evaluated"] = true
 		rs["missing_events"] = missing
@@ -96,7 +137,8 @@ static func attitude(state: BattleState, faction_id: String) -> String:
 		return "neutral"
 	var kills := effective_kills(state, String(faction_id))
 	var threshold := int(f.reconcile.get("kill_threshold", 0))
-	var missing: int = 0
+	# F-PCOND: the live persuasion condition counts as one "missing" item while it fails.
+	var missing: int = 0 if condition_met(state, String(faction_id)) else 1
 	for ev in f.reconcile.get("required_events", []):
 		if String(ev) not in rs.get("events", []):
 			missing += 1

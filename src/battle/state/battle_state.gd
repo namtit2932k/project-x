@@ -121,7 +121,11 @@ func setup(p_map: Resource, deploy: Dictionary, seed_value: int = -1) -> void:
 		seen[u.faction_id] = true
 		var f := DataRegistry.get_faction(String(u.faction_id))
 		if f != null and String(f.remnant_id) != "":
-			reconcile_state[String(u.faction_id)] = {"kills": 0, "events": [], "evaluated": false, "persuaded": false}
+			reconcile_state[String(u.faction_id)] = {"kills": 0, "events": [], "evaluated": false, "persuaded": false, "deployed": 0}
+	# F-PCOND units_spared_pct: faction units deployed at battle start (reinforcements excluded).
+	for u in units.values():
+		if reconcile_state.has(String(u.faction_id)):
+			reconcile_state[String(u.faction_id)]["deployed"] = int(reconcile_state[String(u.faction_id)]["deployed"]) + 1
 	_resolve_priority_targets()
 
 

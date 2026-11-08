@@ -30,6 +30,7 @@ func _ready() -> void:
 	await test_ai_pathing_regressions()
 	await test_items_gold_and_shop()
 	await test_enemy_ai_profiles()
+	await test_persuasion_conditions()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2391,6 +2392,62 @@ func test_enemy_ai_profiles() -> void:
 	# Unpersuadable (red bar) -> back to StandardAggressive.
 	s3.reconcile_state[cmd.faction_id]["kills"] = 99
 	assert_true(not ProtectPersuadeAI.is_governed(s3, cmd) and not ProtectPersuadeAI.restrained(s3, cmd), "ai: an Unpersuadable faction's units fall back to StandardAggressive, unrestrained")
+	GameState.new_game()
+
+
+## F-PCOND: GDD persuasion conditions (F-PS2) on top of the kill gate.
+func test_persuasion_conditions() -> void:
+	await 0.0
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var fid := "faction_rebel_ch01"
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var d := BattleDirector.new()
+	d.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "normal")
+	var st := d.state
+	assert_true(String(ReconcileSystem.condition_for(st, fid).get("type", "")) == "named_unit_alive", "persuasion: ch01 uses named_unit_alive (migrated from required_events)")
+	assert_true(int(st.reconcile_state[fid]["deployed"]) == 4, "persuasion: 4 rebels deployed at battle start")
+	# named_unit_alive: commander alive + 3 kills < 4 -> persuaded; commander dead -> not.
+	st.reconcile_state[fid]["kills"] = 3
+	assert_true(bool(ReconcileSystem.evaluate(st)[fid]["persuaded"]), "persuasion: commander alive and under the kill gate -> persuaded")
+	st.units["unit_rebel_commander"].alive = false
+	st.reconcile_state[fid]["kills"] = 1
+	var r: Dictionary = ReconcileSystem.evaluate(st)[fid]
+	assert_true(not bool(r["persuaded"]) and not bool(r["condition_met"]), "persuasion: the named unit died -> not persuaded")
+	st.units["unit_rebel_commander"].alive = true
+	# The kill gate still applies on its own.
+	st.reconcile_state[fid]["kills"] = 4
+	assert_true(not bool(ReconcileSystem.evaluate(st)[fid]["persuaded"]), "persuasion: kill gate reached -> not persuaded even with the commander alive")
+	# units_spared_pct via a map override: 4 deployed, threshold 0.5.
+	var saved_faction: Dictionary = map.faction.duplicate(true)
+	map.faction = {"faction_id": fid, "persuasion_condition": {"type": "units_spared_pct", "threshold": 0.5}}
+	st.reconcile_state[fid]["kills"] = 2
+	st.units["unit_rebel_soldier_1"].alive = false
+	st.units["unit_rebel_soldier_2"].alive = false
+	assert_true(String(ReconcileSystem.condition_for(st, fid)["type"]) == "units_spared_pct" and bool(ReconcileSystem.evaluate(st)[fid]["persuaded"]), "persuasion: 2 of 4 alive = 0.5 >= 0.5 -> persuaded (map override)")
+	st.units["unit_rebel_soldier_3"].alive = false
+	st.reconcile_state[fid]["kills"] = 3
+	assert_true(not bool(ReconcileSystem.evaluate(st)[fid]["persuaded"]), "persuasion: 1 of 4 alive = 0.25 < 0.5 -> not persuaded")
+	map.faction = saved_faction
+	# Feedback attitude follows the live condition: safe at the start, neutral after one kill.
+	var d2 := BattleDirector.new()
+	d2.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "normal")
+	assert_true(ReconcileSystem.attitude(d2.state, fid) == "safe", "persuasion: no kills and the commander alive -> safe")
+	d2.state.reconcile_state[fid]["kills"] = 1
+	assert_true(ReconcileSystem.attitude(d2.state, fid) == "neutral", "persuasion: one kill, condition still holding -> neutral (not lost)")
+	# Validator (AC-PS9b): a bad condition record is a data error, never a silent runtime false.
+	var validator: Node = load("res://tools/validate_data.gd").new()   # not added to the tree: no _ready run
+	validator._check_persuasion_condition("test", fid, {"type": "named_unit_alive", "unit_id": "unit_does_not_exist"})
+	validator._check_persuasion_condition("test", fid, {"type": "named_unit_alive", "unit_id": "unit_swordsman"})
+	validator._check_persuasion_condition("test", fid, {"type": "units_spared_pct", "threshold": 1.5})
+	validator._check_persuasion_condition("test", fid, {"type": "talk_to_boss"})
+	assert_true(validator.errors == 4, "persuasion: validator rejects unknown unit, wrong faction, threshold > 1 and unknown type (%d errors)" % validator.errors)
+	validator.errors = 0
+	validator._check_persuasion_condition("test", fid, {"type": "named_unit_alive", "unit_id": "unit_rebel_commander"})
+	validator._check_persuasion_condition("test", fid, {"type": "units_spared_pct", "threshold": 0.5})
+	assert_true(validator.errors == 0, "persuasion: validator accepts valid conditions")
+	validator.free()
 	GameState.new_game()
 
 

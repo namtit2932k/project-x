@@ -9,5 +9,9 @@ display_name = "Đội gác sông"
 remnant_id = "river_guard"
 reconcile = {
 "kill_threshold": 2,
-"required_events": Array[String](["spared_commander"])
+"persuasion_condition": {
+"type": "named_unit_alive",
+"unit_id": "unit_demo_commander"
+},
+"required_events": Array[String]([])
 }
