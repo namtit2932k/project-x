@@ -37,15 +37,5 @@ enemy_placements = Array[Dictionary]([{
 }])
 npc_placements = Array[Dictionary]([])
 item_placements = Array[Dictionary]([])
-objectives = Array[Dictionary]([{
-"type": "defend",
-"params": {
-"zone_x": 1,
-"zone_y": 3,
-"zone_w": 2,
-"zone_h": 2,
-"turns_required": 3,
-"policy": "block"
-}
-}])
+objectives = Array[Dictionary]([{"type": "protect", "params": {"zone_x": 1, "zone_y": 3, "zone_w": 2, "zone_h": 2, "survive_enemy_phases": 3}}])
 result_priority = "lose"

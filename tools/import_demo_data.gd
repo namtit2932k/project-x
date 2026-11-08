@@ -407,7 +407,7 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 	var obj_type := str(m.get("objective_type", "Elimination"))
 	match obj_type:
 		"Elimination":
-			objectives.append({"type": "eliminate", "params": {"target_unit_ids": enemy_target_ids}})
+			objectives.append({"type": "elimination", "params": {"target_unit_ids": enemy_target_ids}})
 		"Escort":
 			# F2.2: the escort target must resolve to the placed instance, which carries the
 			# same name as the demo deployment id (e.g. messenger).
@@ -424,7 +424,7 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 				})
 			if int(m.get("escort_turns_required", 0)) > 0:
 				objectives.append({
-					"type": "escort_turns",
+					"type": "escort",
 					"params": {
 						"npc_unit_id": escort_instance,
 						"turns_required": int(m.get("escort_turns_required", 1)),
@@ -433,14 +433,13 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 		"Protect":
 			var zone: Dictionary = m.get("protect_zone", {})
 			objectives.append({
-				"type": "defend",
+				"type": "protect",
 				"params": {
 					"zone_x": int(zone.get("x", 0)),
 					"zone_y": int(zone.get("y", 0)),
 					"zone_w": int(zone.get("width", 1)),
 					"zone_h": int(zone.get("height", 1)),
-					"turns_required": int(m.get("survive_enemy_phases", 1)),
-					"policy": "block",
+					"survive_enemy_phases": int(m.get("survive_enemy_phases", 1)),
 				},
 			})
 		"Retrieve":
@@ -463,10 +462,11 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 		"Seize":
 			var cp: Dictionary = m.get("control_point", {})
 			objectives.append({
-				"type": "capture",
+				"type": "seize",
 				"params": {
-					"zones": [{"x": int(cp.get("x", 0)), "y": int(cp.get("y", 0)), "w": 1, "h": 1}],
-					"turns_required": int(m.get("hold_enemy_phases", 1)),
+					"control_x": int(cp.get("x", 0)),
+					"control_y": int(cp.get("y", 0)),
+					"hold_enemy_phases": int(m.get("hold_enemy_phases", 1)),
 				},
 			})
 

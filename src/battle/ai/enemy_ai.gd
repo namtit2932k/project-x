@@ -48,6 +48,9 @@ static func plan_unit(state: BattleState, unit: UnitState, target_sides: Array) 
 			score += target.max_hp - target.hp
 			if target.is_protagonist:
 				score += 30
+			# F-OBJ Retrieve: enemies go for the item carrier once the item is taken.
+			if state.is_move_only_carrier(target):
+				score += 100
 			if not forecast_ok and target.attack_range_max >= 1:
 				pass
 			if score > best_score:

@@ -13,10 +13,8 @@ static func check(state: BattleState, unit: UnitState, skill_id: String, target:
 	if target == null or not target.alive:
 		return "No valid target."
 	# Retrieve objective: while carrying, the unit may only move (no attack/skill).
-	if unit.carried_item != "":
-		for cfg in state.objectives_config:
-			if String(cfg.get("type", "")) == "retrieve" and String(cfg.get("params", {}).get("item_id", "")) == unit.carried_item:
-				return "Carrier may only move."
+	if state.is_move_only_carrier(unit):
+		return "Carrier may only move."
 	var dist := RangeHandler.manhattan(unit.pos, target.pos)
 	match String(skill.effect_type):
 		"heal":

@@ -206,6 +206,17 @@ func exp_gained_set(unit_id: String, amount: int) -> void:
 		exp_gained[unit_id] = int(exp_gained.get(unit_id, 0)) + amount
 
 
+## F-OBJ Retrieve: the unit carries the map's retrieve item, so it may only move (no attack,
+## heal or counterattack).
+func is_move_only_carrier(unit: UnitState) -> bool:
+	if unit == null or unit.carried_item == "":
+		return false
+	for cfg in objectives_config:
+		if String(cfg.get("type", "")) == "retrieve" and String(cfg.get("params", {}).get("item_id", "")) == unit.carried_item:
+			return true
+	return false
+
+
 func alive_units() -> Array:
 	return units.values().filter(func(u: UnitState) -> bool: return u.alive)
 

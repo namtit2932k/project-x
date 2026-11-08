@@ -5,6 +5,9 @@ class_name ObjectiveBase
 
 ## evaluate returns {status: "win"|"lose"|"ongoing", progress: String}
 
+## F-OBJ: the GDD objective enum — the only `type` values a map may declare.
+const TYPES: Array[String] = ["elimination", "protect", "escort", "retrieve", "seize"]
+
 
 ## Optional hooks with sane defaults so the director can call them on any objective.
 func evaluate(_state: BattleState) -> Dictionary:
@@ -32,20 +35,16 @@ static func create(config: Dictionary) -> ObjectiveBase:
 	var type := String(config.get("type", ""))
 	var params: Dictionary = config.get("params", {})
 	match type:
-		"eliminate":
-			return ObjectiveEliminate.new(params)
+		"elimination":
+			return ObjectiveElimination.new(params)
+		"protect":
+			return ObjectiveProtect.new(params)
 		"escort":
 			return ObjectiveEscort.new(params)
-		"escort_turns":
-			return ObjectiveEscortTurns.new(params)
-		"defend":
-			return ObjectiveDefend.new(params)
 		"retrieve":
 			return ObjectiveRetrieve.new(params)
-		"capture":
-			return ObjectiveCapture.new(params)
-		"evacuate":
-			return ObjectiveEvacuate.new(params)
+		"seize":
+			return ObjectiveSeize.new(params)
 		_:
 			push_error("ObjectiveFactory: unknown objective type '%s'" % type)
 			return null

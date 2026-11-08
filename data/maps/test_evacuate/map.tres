@@ -28,13 +28,7 @@ npc_placements = Array[Dictionary]([{
 "unit_id": "unit_npc_guide",
 "cell": Vector2i(0, 1),
 }])
-objectives = Array[Dictionary]([{
-"type": "evacuate",
-"params": {
-"mode": "clear_all",
-"npc_ids": ["unit_npc_guide"],
-},
-}])
+objectives = Array[Dictionary]([{"type": "escort", "params": {"npc_unit_id": "unit_npc_guide", "turns_required": 3}}])
 item_placements = Array[Dictionary]([])
 turn_limit = 0
 result_priority = "lose"

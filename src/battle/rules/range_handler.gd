@@ -52,8 +52,8 @@ static func compute_targets_from_position(state: BattleState, unit: UnitState) -
 
 ## Counter condition: defender can attack at all (F-PAS) and reaches the attacker's tile.
 static func can_counter(state: BattleState, defender: UnitState, attacker_cell: Vector2i) -> bool:
-	if not defender.can_attack:
-		return false
+	if not defender.can_attack or state.is_move_only_carrier(defender):
+		return false   # F-PAS Bard / F-OBJ Retrieve carrier: never counterattacks
 	var dist := manhattan(defender.pos, attacker_cell)
 	return dist <= defender.attack_max() and dist >= defender.attack_range_min
 

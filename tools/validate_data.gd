@@ -22,7 +22,8 @@ const PASSIVE_EFFECT_TYPES := ["debuff_target_stat", "burst_damage", "thorns_dam
 		"ignore_defender_terrain", "survive_once", "flat_self_heal", "grant_target_exp", "adjacency_aura_avoid",
 		"extended_range", "suppress_retaliation"]
 const GROWTH_STAT_KEYS := ["hp", "str", "mag", "skill", "speed", "luck", "def", "res", "atk", "skl", "spd"]
-const OBJECTIVE_TYPES := ["eliminate", "escort", "escort_turns", "defend", "retrieve", "capture", "evacuate"]
+## F-OBJ: the GDD objective enum (same list as ObjectiveBase.TYPES).
+const OBJECTIVE_TYPES := ["elimination", "protect", "escort", "retrieve", "seize"]
 const EVENT_TRIGGERS := ["enter_zone", "leave_zone", "pickup", "unit_dead", "turn_start", "turn_end", "talk", "faction_change"]
 const EVENT_ACTIONS := ["spawn", "dialogue", "change_team", "set_flag", "win", "lose"]
 const DIFFICULTIES := ["story", "normal", "hard", "nightmare"]
@@ -206,6 +207,28 @@ func check_translations() -> void:
 		var skill := DataRegistry.get_data("skills", skill_id)
 		if String(skill.display_name) != "" and not table.has(String(skill.display_name)):
 			_err("i18n: skill '%s' display name '%s' has no translation row" % [skill_id, skill.display_name])
+
+
+## F-OBJ: each objective type's required params (GDD Core Rules 10-14).
+func _check_objective_params(map_id: String, cfg: Dictionary) -> void:
+	var p: Dictionary = cfg.get("params", {})
+	match String(cfg.get("type", "")):
+		"protect":
+			if int(p.get("survive_enemy_phases", 0)) <= 0:
+				_err("map %s: protect needs survive_enemy_phases > 0" % map_id)
+			if String(p.get("unit_id", "")) == "" and not p.has("zone_x"):
+				_err("map %s: protect needs a unit_id or a zone" % map_id)
+		"escort":
+			if String(p.get("npc_unit_id", "")) == "":
+				_err("map %s: escort needs npc_unit_id" % map_id)
+			if p.has("target_cell_x") == (int(p.get("turns_required", 0)) > 0):
+				_err("map %s: escort needs exactly one of a destination tile or turns_required" % map_id)
+		"retrieve":
+			if String(p.get("item_id", "")) == "":
+				_err("map %s: retrieve needs item_id" % map_id)
+		"seize":
+			if int(p.get("hold_enemy_phases", 0)) <= 0 or not p.has("control_x"):
+				_err("map %s: seize needs control_x/y and hold_enemy_phases > 0" % map_id)
 
 
 func check_classes() -> void:
@@ -440,6 +463,8 @@ func check_maps() -> void:
 				_err("map %s: unknown objective type '%s'" % [id, cfg.get("type", "?")])
 			elif ObjectiveBase.create(cfg) == null:
 				_err("map %s: objective plugin failed (type %s)" % [id, cfg.get("type", "?")])
+			else:
+				_check_objective_params(id, cfg)
 		for cfg in m.fail_conditions:
 			if String(cfg.get("type", "")) not in OBJECTIVE_TYPES:
 				_err("map %s: unknown fail condition type '%s'" % [id, cfg.get("type", "?")])

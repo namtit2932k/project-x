@@ -37,7 +37,7 @@ godot --headless --path . --quit-after 5   # boot check (no rendering)
 
 ```
 godot --headless --path . res://tools/validate_data.tscn    # data validation (0 errors expected)
-godot --headless --path . res://tests/run_tests.tscn        # 314 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/exp/save)
+godot --headless --path . res://tests/run_tests.tscn        # 329 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/exp/save)
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI, end-to-end through BattleDirector (21 checks)
 godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test maps, one scripted win + one lose scenario each
 godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example maps: sides/stat/objective parity vs battle_demo.json (F6)
@@ -48,13 +48,13 @@ godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example 
 The main menu shows a **Test maps** button in debug builds: every `data/maps/test_*` map
 starts a battle instantly with the default roster (no chapter, no story scene, results
 never merge into the campaign). Together with `map_ch01` they cover all six mechanics:
-eliminate / escort / defend / retrieve / capture / evacuate.
+elimination / protect / escort / retrieve / seize (F-OBJ).
 
 ## Adding content (data-only)
 
 - New class: copy any `data/classes/*.tres`, change id/stats.
 - New unit: `data/units/*.tres`.
-- New map/objective type combo: `data/maps/*.tres` and declare objectives as `{type, params}` (plugin types: eliminate / escort / defend / retrieve / capture / evacuate). See `data/maps/valley_escort/map.tres` for an escort sample where NpcAI walks the escortee, and `data/maps/test_*` for one minimal sample per objective type.
+- New map/objective type combo: `data/maps/*.tres` and declare objectives as `{type, params}` (GDD types: elimination / protect / escort / retrieve / seize — params in AGENTS.md F-OBJ). See `data/maps/valley_escort/map.tres` for an escort sample where NpcAI walks the escortee, and `data/maps/test_*` for one minimal sample per objective type.
 - New bond pair: `data/bonds/*.tres` (never inferred — designer list only).
 - New dialogue: `data/dialogues/*.tres` played by `DialoguePlayer`.
 - Balance/TBD numbers: `data/rules/rules_config.tres`.

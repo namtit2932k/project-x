@@ -15,7 +15,7 @@ story scene → squad preparation → tactical battle → post-battle results �
 - Turn phases (player → enemy → NPC), Dijkstra movement over terrain costs
 - Move range / attack range overlays (attack range drawn from the edge of the move range)
 - Forecast → confirm → placeholder combat screen (skippable; state ends identical)
-- 5 objective plugins fully data-driven: `eliminate`, `escort`, `defend`, `retrieve`, `capture` + `evacuate`
+- The 5 GDD objective types, fully data-driven: `elimination`, `protect` (unit or zone), `escort` (destination or timed), `retrieve`, `seize`
 - Bond system (designer pair list, C/B/A scenes, adjacency bonus capped +16, exclusive S lock)
 - Reconciliation system (hidden kill threshold + required in-battle events, per-faction outcome stored)
 - Rewind snapshots per confirmed action; budget by difficulty (Story ∞ / Normal 5 / Hard 3 / Nightmare 0)
@@ -61,12 +61,12 @@ godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test map
 godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example maps: units, stats, objectives (F6)
 ```
 
-Current: rule tests **314/314**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
+Current: rule tests **329/329**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
 
 Debug builds also get a **Test maps** entry on the main menu: every `data/maps/test_*` map
 starts a battle straight away with the default roster (no chapter loop; results never merge
-into the campaign), covering escort / defend / retrieve / capture / evacuate beside ch01's
-eliminate.
+into the campaign), covering escort / protect / retrieve / seize (and a timed escort) beside ch01's
+elimination.
 
 ## Architecture
 

@@ -181,7 +181,7 @@ func run_next_npc_plan() -> Dictionary:
 func _npc_goals() -> Dictionary:
 	var out := {}
 	for obj in objectives:
-		if obj.identify() == "escort":
+		if obj.identify() == "escort" and obj.is_destination():
 			var npc_id: String = String(obj._params.get("npc_unit_id", ""))
 			if npc_id != "":
 				out[npc_id] = obj.target_cell()
@@ -310,10 +310,16 @@ func advance_after_enemy_phase() -> void:
 	dispatch_objective_event("enemy_phase_ended")
 	state.phase = BattleState.PHASE_NPC
 	EventBus.phase_changed.emit(state.phase, state.turn)
+	# F-OBJ: enemy-phase counters (protect / timed escort / seize) can finish the battle here,
+	# before the next player phase.
+	if state.battle_over.is_empty():
+		_on_state_changed()
 
 
 ## Called by the scene when the NPC phase finishes: back to player, new turn.
 func advance_to_player_phase() -> void:
+	if not state.battle_over.is_empty():
+		return   # the battle already ended at the close of the enemy phase
 	state.turn += 1
 	state.phase = BattleState.PHASE_PLAYER
 	clear_acted_flags()

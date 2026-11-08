@@ -63,7 +63,7 @@ Put new code in the matching folder. If a new top-level folder seems needed, ask
 - Selecting any unit (player, enemy, NPC) shows its move range; attack range is shown from the edge of the move range. Move range and attack range use different colors and update after moves or deaths.
 - Combat flow: choose valid target → show forecast (hit, crit, damage, counter) → confirm → combat screen (attacker first, then counter if able) → return to map.
 - Defeat: any critical unit (protagonist or must-survive) dies = game over. Map-specific fail conditions come from map data. Casualty policy per difficulty lives in `rules_config.casualty_by_difficulty` (see D06).
-- Objective types: eliminate, escort, defend, retrieve (carrier may only move), capture and hold, evacuate. Primary objective and fail conditions must show in prep and in battle.
+- Objective types (F-OBJ): elimination, protect (unit or zone), escort (destination or timed), retrieve (carrier may only move), seize. Primary objective and fail conditions must show in prep and in battle.
 - Bond (F-BOND): a pair earns +1 (max 2 per map) when one member performs an Attack/Heal next to the other; 2/5/9 points (plus a chapter gate) unlock the C/B/A scenes; rank rises after the scene is viewed or skipped; only unlocked ranks give adjacency bonus (C +3, B +5, A +8, S +10; max total adjacent bonus +16). S unlocks after A plus a story milestone, both alive; one S pair per character. Eligible pairs come from a designer-provided list, never inferred from gender.
 - Reconciliation: separate from map victory. Each faction has its own conditions; low damage alone is not enough. Player gets feedback by dialogue or attitude color; the threshold is hidden. Store which conditions happened and the outcome so post-battle story can read them.
 - Rewind: snapshot includes positions, HP, turn, AI, items, objectives, bond points, reconcile state, and EXP/level/live combat stats (F-EXP). Per battle: Story unlimited, Normal 5, Hard 3, Nightmare 0. Permadeath: off for Story/Normal, on for Hard (verify with designer).
@@ -152,18 +152,9 @@ superseded provisionally by P-02/P-03/P-04/P-05 (19.10.2026).**
 | P-14 | Frame is 1280×720 only (no dual resolution); every scene rebuilt on containers when W1/W12/W13 run. | Approved D-A3. |
 | P-15 | D-B1…D-B13 defaults stay as recorded; `[PENDING-GDD]` items follow the demo. | Designer answers. |
 
-### Known mismatches until W5 (F7 — do NOT trust demo maps as rules-correct yet)
+### Known mismatches until W5 — resolved by F-OBJ (08-11-2026)
 
-The importer maps demo objectives onto EXISTING legacy plugins, so these behaviours are
-known-wrong against GDD/demo until the W5 rewrite:
-
-- **Protect (zone)** exports as `defend` and counts **player** phase ends; GDD counts
-  **enemy** phases.
-- **Escort turn variant** (`escort_turns`) also counts player phases; must switch to enemy phases.
-- **Seize** exports as the legacy `capture` plugin (contested/held rules differ from GDD hold-through-enemy-phases).
-- **Retrieve**: legacy plugin does NOT lose the battle when the carrier dies (item drops);
-  GDD/demo = immediate loss. Also "pickup ends the move step at `item_tile`" is not implemented.
-- Priority-target AI and restraint are data fields only — not wired yet (W7). (Enemy stat multipliers: wired, see F-DIFF.)
+The demo maps now run on the GDD objective plugins (F-OBJ below). Still data-only, not wired: priority-target AI and the restraint rule (W7).
 
 - **D01 — Forecast restored (confirmed).** Attack flow: select unit (may move) → click an
   enemy on a red tile (measured from the current position) → ForecastPanel → Confirm/Cancel
@@ -289,6 +280,24 @@ Replaces the flat `crit_bonus`/`hit_bonus` idea of a passive (GDD retired it). E
 - Designer rule kept: a full-HP ally cannot be healed (overrides GDD's "0 effective healing is legal").
 - **Preview (GDD Pillar 2):** while choosing a Heal target, hovering a highlighted ally shows the raw HealAmount and the real HP gain (e.g. "Heal 20 → +12 HP (36→48)").
 
+### F-OBJ — The five GDD objective types (08-11-2026, `battle-map-system.md` Core Rules 4, 6, 10–14)
+
+Replaces the legacy plugins `eliminate` / `defend` / `escort_turns` / `capture` / `evacuate`. Maps declare `{type, params}` with exactly the GDD enum (`ObjectiveBase.TYPES`); all map data and the demo importer were converted. `evacuate` is retired (the GDD has no such type — `test_evacuate` became a timed Escort).
+
+| type | params | Win | Lose |
+|---|---|---|---|
+| `elimination` | `target_unit_ids` (empty = every enemy) | targets / all enemies down | — |
+| `protect` (unit) | `unit_id`, `survive_enemy_phases` | N enemy phases end with the unit alive | the unit dies |
+| `protect` (zone) | `zone_x/y/w/h`, `survive_enemy_phases` | N enemy phases end with no breach (killing all enemies does not end it early) | any enemy steps into the zone, at once |
+| `escort` (destination) | `npc_unit_id`, `target_cell_x/y` | the NPC reaches the tile (it walks in the NPC phase, after the enemies) | the NPC dies; killing all enemies does not win |
+| `escort` (timed) | `npc_unit_id`, `turns_required` | N enemy phases end with the NPC alive **or** all enemies are defeated, whichever first | the NPC dies |
+| `retrieve` | `item_id`, `exit_zone_x/y/w/h` (return tile/area) | the living carrier enters the return area | the carrier dies (the item no longer drops) |
+| `seize` | `control_x/y`, `hold_enemy_phases` | a player unit stands on the point at the end of N consecutive enemy phases (resets to 0 when unheld; the same unit need not hold every phase) | — (enemy occupation only blocks) |
+
+- Every counter counts **enemy phases** (`enemy_phase_ended`); the director re-evaluates the objectives right after the enemy phase ends, so a timed win lands before the next player phase.
+- **Retrieve carrier (GDD Core Rule 13):** ending a move on the item's tile picks it up and ends the unit's action (move command, no separate pickup step needed); the carrier can only move — no attack, heal or counterattack (`BattleState.is_move_only_carrier()` shared by the commands and `RangeHandler.can_counter`); enemy AI prefers the carrier as a target.
+- Shared rules stay where they were: protagonist / must-survive death, turn limit, `result_priority`.
+
 ### F-BOND — Support points, scene gates and exclusive S from the GDD (08-11-2026, `bond-adjacency-system.md` Core Rules 4a/4b, F-BA3, `bond-support-revision-2026-10-07.md`, `narrative-bond-scene-system.md`)
 
 Supersedes the D05 point rules (and the old 20/45/70 thresholds); the adjacency bonus (C+3/B+5/A+8/S+10, cap +16, P-02 targets) is unchanged.
@@ -363,6 +372,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (13) — Claude (Opus) — done: objectives rewritten to the five GDD types (new §7b **F-OBJ**; "Known mismatches until W5" resolved; D-B6 done). New plugins `elimination`, `protect` (unit/zone), `escort` (destination/timed, timed also wins on full elimination), `retrieve`, `seize`; removed `eliminate/defend/escort_turns/capture/evacuate` (`ObjectiveBase.TYPES`). All counters count enemy phases and the director re-evaluates right after the enemy phase (`advance_after_enemy_phase`), `advance_to_player_phase` stops once the battle is over. Retrieve: pickup on move ends the action (MoveCommand), carrier move-only incl. no counter (`BattleState.is_move_only_carrier`), carrier death loses (no drop), AI prefers the carrier. All 13 maps + demo importer converted (`test_evacuate` → timed escort, `test_capture` → seize on its deploy tile). Validator: GDD enum + per-type params. Tests: objectives / timed escort / seize rewritten, new `test_retrieve_rules`. Verified: validation 0/0, run_tests **329/329**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: Dual Restraint + bonus EXP, persuasion pressure color, demo enemy stats / demo bond data, objective markers on the map view (zones/points are not drawn yet). — issues: not pushed.
 
 - 2026-11-08 (12) — Claude (Opus) — done: bond Support/S per the GDD (new §7b **F-BOND**, D05 point rules superseded). In battle: `BondSystem.reward_action()` gives +1 per pairing when a player unit performs an Attack/Heal with its partner adjacent to it (defenders earn nothing), max 2 per pairing per map (rules 1 / 2). Between battles: new `src/core/bond_campaign.gd` (`BondCampaign`: next rank only, 2/5/9 thresholds, `scene_earliest_chapter` gate, both alive, surplus carries; S only for `s_eligible` pairs, exclusive, atomic `lock_s`). Camp shows needs-points / waiting-on-story / S locked / S closed, asks for confirmation before locking S, then plays the S scene. Data: 4 new Swordsman S pairs (Gunner, Wyvern Knight, Magician, Healer) + 16 placeholder dialogues; existing pairs moved to 2/5/9, Knight/Beastwoman marked `s_eligible`, Lancer x Gunner not. Validator: rising thresholds, gate chapter ids, S scene for S pairs. Tests: `test_bond_rules_d05` rewritten for F-BA3, new `test_bond_campaign`. Verified: validation 0/0, run_tests **314/314**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: GDD backlog (objectives W5, Dual Restraint + bonus EXP, persuasion pressure color, demo enemy stats / demo bond data). — issues: not pushed; demo campaign units have no bond pairs yet.
 

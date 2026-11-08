@@ -55,11 +55,5 @@ npc_placements = Array[Dictionary]([{
 "ai": false
 }])
 item_placements = Array[Dictionary]([])
-objectives = Array[Dictionary]([{
-"type": "escort_turns",
-"params": {
-"npc_unit_id": "evacuee",
-"turns_required": 3
-}
-}])
+objectives = Array[Dictionary]([{"type": "escort", "params": {"npc_unit_id": "evacuee", "turns_required": 3}}])
 result_priority = "lose"

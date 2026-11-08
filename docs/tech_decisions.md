@@ -23,6 +23,8 @@
   staff's `heal_range`, capped at max HP; `CombatResolver.heal_amount/heal_range/heal_preview`.
 - **I18N:** UI in English + Vietnamese. `data/i18n/strings.csv` (key = English text) → `DataRegistry` →
   `TranslationServer`; code uses `UIBuilder.t()`; language in `GameState.options.language`.
+- **Objectives (F-OBJ):** exactly the GDD enum elimination / protect / escort / retrieve / seize; counters
+  count enemy phases; Retrieve picks up on move, carrier move-only and its death loses; evacuate retired.
 - **Game Over (designer):** a lost battle opens `GameOverScene` (Retry chapter / Main menu)
   instead of post-battle + camp. No weapon triangle; `hit_base` stays 70 for every weapon.
   `UnitState.stat_bonus` now holds only the current battle's gains, and rewind snapshots
@@ -75,7 +77,7 @@
 - **Logic/presentation split:** all rules live as `RefCounted` classes in `src/battle/`; scenes (`src/scenes/`) only render `BattleState` and forward mouse input through commands.
 - **Single source of truth:** `BattleState` + `CombatResolver` are shared by forecast, combat screen, AI, objectives, post-battle and rewind. `CombatResolver.forecast()` is a dry-run of the same math `execute()` uses; the combat screen replays the recorded strikes (skippable, state ends identical).
 - **Commands:** `move`, `attack`, `wait`, `skill`, `pickup`, `end_phase` — each confirmed action goes through `BattleDirector.commit()`, which pushes a snapshot (rewind: restore to last frame or selected frame, later frames dropped, counts against the difficulty budget).
-- **Objectives are plugins:** `ObjectiveBase.create({type, params})` produces eliminate/escort/defend/retrieve/capture instances. Maps declare data only; `_check_battle_end()` aggregates and applies `result_priority` from map data when both win+lose fire.
+- **Objectives are plugins:** `ObjectiveBase.create({type, params})` produces the five GDD types elimination/protect/escort/retrieve/seize (F-OBJ, 08-11-2026). Maps declare data only; `_check_battle_end()` aggregates and applies `result_priority` from map data when both win+lose fire.
 - **Autoloads:** exactly 4 — `EventBus`, `DataRegistry`, `GameState`, `SaveService`. Communicating via signals (unit_moved, combat_resolved, objectives_changed, battle_ended, ...).
 - **Data-driven:** `DataRegistry` scans `data/*/` for `.tres`; adding class/unit/map/faction/bond/skill/chapter/dialogue never touches core code. `rules_config.tres` holds all TBD numeric rules (terrain costs, hit/crit/damage, rewind budget, casualty policy, bond bonus).
 - **Bond & reconcile:** pair list designer-only (never inferred); ranks rise only after `DialoguePlayer` scene watched/skipped; adjacency bonus sums unlocked ranks capped at +16 (rules_config). Reconcile: per-faction hidden `kill_threshold` + required event keys (`spared_<unit_id>` auto-recorded after a won battle;直接的 `record_event` cho designer-defined dialogue events); outcome stored in `GameState.reconcile_outcomes` for post-battle story.

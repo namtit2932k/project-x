@@ -19,6 +19,7 @@ func _ready() -> void:
 	await test_i18n()
 	await test_enemy_difficulty_scaling()
 	await test_objectives()
+	await test_retrieve_rules()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -590,28 +591,30 @@ func test_critical_units_down() -> void:
 
 ## Sơ tán (slide có, PDF chưa có): giữ NPC sống đủ lượt hoặc hạ hết địch; NPC chết là thua.
 func test_evacuate() -> void:
+	## F-OBJ timed Escort (GDD Core Rule 10, replaces the retired evacuate type): the NPC must
+	## live through N enemy phases — or every enemy falls first; its death loses at once.
 	await 0.0
 	var state: BattleState = _plain_map_enemy_state()
 	_spawn(state, "evacuee", "faction_npc", Vector2i(3, 3))
 	_spawn(state, "hunter", "faction_e", Vector2i(5, 5))
-	var evac := ObjectiveBase.create({"type": "evacuate", "params": {"npc_ids": ["evacuee"], "mode": "survive_turns", "turns_required": 2}})
-	evac.on_event(state, "player_phase_ended", {})
-	var mid: Dictionary = evac.evaluate(state)
-	assert_true(String(mid["status"]) == "ongoing", "evacuate: still on after 1/2 turns")
-	evac.on_event(state, "player_phase_ended", {})
-	assert_true(String(evac.evaluate(state)["status"]) == "win", "evacuate: wins after required turns")
+	var esc := ObjectiveBase.create({"type": "escort", "params": {"npc_unit_id": "evacuee", "turns_required": 2}})
+	esc.on_event(state, "player_phase_ended", {})
+	assert_true(String(esc.evaluate(state)["status"]) == "ongoing" and int(state.objective_counters.get("escort_turns", 0)) == 0, "escort timed: player phases do not count")
+	esc.on_event(state, "enemy_phase_ended", {})
+	assert_true(String(esc.evaluate(state)["status"]) == "ongoing", "escort timed: 1/2 enemy phases")
+	esc.on_event(state, "enemy_phase_ended", {})
+	assert_true(String(esc.evaluate(state)["status"]) == "win", "escort timed: wins after 2 enemy phases")
 	state.units["evacuee"].alive = false
-	assert_true(String(evac.evaluate(state)["status"]) == "lose", "evacuate: evacuee death loses")
-
+	assert_true(String(esc.evaluate(state)["status"]) == "lose", "escort timed: the NPC's death loses")
 	var state2: BattleState = _plain_map_enemy_state()
-	_spawn(state2, "prot", "faction_p", Vector2i(0, 0), true)
 	_spawn(state2, "evacuee2", "faction_npc", Vector2i(3, 3))
 	_spawn(state2, "hunter2", "faction_e", Vector2i(5, 5))
-	var evac2 := ObjectiveBase.create({"type": "evacuate", "params": {"npc_ids": ["evacuee2"], "mode": "clear_all"}})
-	var mid2: Dictionary = evac2.evaluate(state2)
-	assert_true(String(mid2["status"]) == "ongoing" and mid2["progress"].contains("1"), "evacuate: clear_all counts remaining foes")
+	var esc2 := ObjectiveBase.create({"type": "escort", "params": {"npc_unit_id": "evacuee2", "turns_required": 5}})
+	assert_true(String(esc2.evaluate(state2)["status"]) == "ongoing", "escort timed: enemies left, ongoing")
 	state2.units["hunter2"].alive = false
-	assert_true(String(evac2.evaluate(state2)["status"]) == "win", "evacuate: clear_all wins when foes routed")
+	assert_true(String(esc2.evaluate(state2)["status"]) == "win", "escort timed: defeating every enemy first also wins")
+	var dest := ObjectiveBase.create({"type": "escort", "params": {"npc_unit_id": "evacuee2", "target_cell_x": 0, "target_cell_y": 0}})
+	assert_true(String(dest.evaluate(state2)["status"]) == "ongoing", "escort destination: no enemies left still does not win")
 
 
 ## Bảng terrain_costs x movement_type: bay qua nước giá 1, bộ binh bị chặn.
@@ -1031,64 +1034,39 @@ func test_story_flags_and_ending() -> void:
 
 
 func test_capture_zones_contested() -> void:
-	## N09: hold over the ENEMY phase too (enemy_phase_ended), multiple zones, and the
-	## contested rule: an enemy standing inside a zone resets the streak.
+	## F-OBJ Seize (GDD Core Rule 14): only the end of each ENEMY phase counts; a player unit on
+	## the point adds 1, an empty or enemy-held point resets to 0; N in a row wins before the
+	## next player phase; killing every enemy does not win.
 	var map := MapData.new()
-	map.id = "capture_map"
+	map.id = "seize_map"
 	var rows_cap: Array[String] = ["......", "......", "......", "......"]
 	map.terrain_rows = rows_cap
 	map.deploy_cells = [Vector2i(0, 0)]
-	map.objectives = [{"type": "capture", "params": {
-		"zones": [{"x": 0, "y": 0, "w": 2, "h": 2}], "turns_required": 2,
-	}}]
+	map.objectives = [{"type": "seize", "params": {"control_x": 0, "control_y": 0, "hold_enemy_phases": 2}}]
 	var director := BattleDirector.new()
 	director.setup(map, {}, "normal")
 	var holder := _spawn(director.state, "cap_p", "faction_p", Vector2i(0, 0), false, false, "player")
 	var foe := _spawn(director.state, "cap_e", "faction_cap", Vector2i(5, 3), false, false, "enemy")
-	# Turn 1: player ends the phase inside the zone → streak 1; the enemy phase leaves it
-	# held (enemy outside), so enemy_phase_ended must NOT clear the streak.
 	director.end_player_phase()
-	var streak1: int = int(director.state.objective_counters.get("capture_streak", -1))
-	assert_true(streak1 == 1, "capture: player end of phase sets streak 1 (streak=%d)" % streak1)
+	assert_true(int(director.state.objective_counters.get("seize_hold", 0)) == 0, "seize: the player phase end does not count")
 	director.advance_after_enemy_phase()
-	streak1 = int(director.state.objective_counters.get("capture_streak", -1))
-	assert_true(streak1 == 1, "capture: enemy_phase_ended keeps a held streak (streak=%d)" % streak1)
-	# Turn 2 prep: the enemy walks INTO the zone during its phase → enemy_phase_ended
-	# (contested_rule default) resets the streak to 0 instead of advancing.
-	foe.pos = Vector2i(0, 1)
-	director.state.phase = BattleState.PHASE_ENEMY   # simulate entering the enemy end again
-	director.advance_after_enemy_phase()
-	var streak2: int = int(director.state.objective_counters.get("capture_streak", -1))
-	assert_true(streak2 == 0, "capture: enemy inside the zone resets the streak (streak=%d)" % streak2)
-	# No player in the zone at the enemy end also resets (holder evacuates then returns).
+	assert_true(int(director.state.objective_counters.get("seize_hold", 0)) == 1, "seize: held at the enemy phase end = 1")
+	# The enemy takes the point: progress resets (and occupation alone is no defeat).
 	holder.pos = Vector2i(5, 0)
-	director.state.phase = BattleState.PHASE_ENEMY
+	foe.pos = Vector2i(0, 0)
 	director.advance_after_enemy_phase()
-	streak2 = int(director.state.objective_counters.get("capture_streak", -1))
-	assert_true(streak2 == 0, "capture: empty zone at enemy end keeps streak 0 (streak=%d)" % streak2)
-	holder.pos = Vector2i(0, 0)                       # back in the zone
-	foe.pos = Vector2i(5, 3)                          # enemy leaves; the zone is uncontestested
-	# Turn 2 win: player end 1 → enemy end holds → player end 2 → win.
-	director.state.phase = BattleState.PHASE_PLAYER
-	director.end_player_phase()
+	assert_true(int(director.state.objective_counters.get("seize_hold", 0)) == 0 and director.state.battle_over.is_empty(), "seize: enemy on the point resets to 0, no defeat")
+	foe.pos = Vector2i(5, 3)
 	director.advance_after_enemy_phase()
-	director.advance_to_player_phase()
-	assert_true(int(director.state.objective_counters.get("capture_streak", 0)) == 1, "capture: held turn count recovered to 1")
-	director.end_player_phase()
-	assert_true(director.state.battle_over.get("status", "") == "win", "capture: two full held turns win the map")
-	# Legacy single-zone params keep working alongside zones[].
-	var map_legacy := MapData.new()
-	map_legacy.id = "capture_legacy"
-	map_legacy.terrain_rows = rows_cap
-	map_legacy.deploy_cells = [Vector2i(0, 0)]
-	map_legacy.objectives = [{"type": "capture", "params": {
-		"zone_x": 0, "zone_y": 0, "zone_w": 1, "zone_h": 1, "turns_required": 1,
-	}}]
-	var director_legacy := BattleDirector.new()
-	director_legacy.setup(map_legacy, {}, "normal")
-	_spawn(director_legacy.state, "leg_p", "faction_p", Vector2i(0, 0), false, false, "player")
-	director_legacy.end_player_phase()
-	assert_true(director_legacy.state.battle_over.get("status", "") == "win", "capture: legacy zone params still work")
+	assert_true(int(director.state.objective_counters.get("seize_hold", 0)) == 0, "seize: an empty point keeps 0")
+	# Another player unit can take over the hold.
+	_spawn(director.state, "cap_p2", "faction_p", Vector2i(0, 0), false, false, "player")
+	foe.alive = false
+	assert_true(String(director.objectives[0].evaluate(director.state)["status"]) == "ongoing", "seize: killing every enemy does not win")
+	director.advance_after_enemy_phase()
+	director.advance_after_enemy_phase()
+	assert_true(director.state.battle_over.get("status", "") == "win", "seize: two held enemy phases in a row win right away")
+
 
 
 func _spawn(state: BattleState, id: String, faction: String, pos: Vector2i, prot: bool = false, make_walls: bool = false, side: String = "") -> UnitState:
@@ -1136,7 +1114,7 @@ func test_mixed_side_squad() -> void:
 	var cmd_err := AttackCommand.check(state, state.units["emp"], "foe")
 	assert_true(cmd_err == "", "mixed squad: enemy of other side is attackable")
 	# Eliminate counts only enemy-side units.
-	var obj := ObjectiveBase.create({"type": "eliminate", "params": {}})
+	var obj := ObjectiveBase.create({"type": "elimination", "params": {}})
 	assert_true(String(obj.evaluate(state)["status"]) == "ongoing", "mixed squad: eliminate ongoing while enemy alive")
 	foe.alive = false
 	assert_true(String(obj.evaluate(state)["status"]) == "win", "mixed squad: eliminate wins without touching player-side units")
@@ -1669,7 +1647,7 @@ func test_i18n() -> void:
 	assert_true(GameState.language() == "en" and UIBuilder.t("Retry chapter") == "Retry chapter", "i18n: English by default")
 	GameState.set_language("vi")
 	assert_true(UIBuilder.t("Retry chapter") == "Chơi lại chương", "i18n: Vietnamese text after switching")
-	assert_true(UIBuilder.t("eliminate") == "Tiêu diệt" and ObjectiveBase.create({"type": "eliminate", "params": {}}).describe().begins_with("Tiêu diệt"), "i18n: objective names and descriptions translated")
+	assert_true(UIBuilder.t("elimination") == "Tiêu diệt" and ObjectiveBase.create({"type": "elimination", "params": {}}).describe().begins_with("Tiêu diệt"), "i18n: objective names and descriptions translated")
 	var note := {"owner": "attacker", "name": "Battle Bloodlust", "effect_type": "lifesteal", "value": 5}
 	assert_true(ForecastPanel.note_text(note) == "[Hút Máu Chiến Trận] khi trúng: hồi 5 HP mỗi đòn (nhiều hơn khi chí mạng)", "i18n: forecast note in Vietnamese (%s)" % ForecastPanel.note_text(note))
 	var over := GameOverScene.build(null)
@@ -1785,30 +1763,68 @@ func test_combat_and_forecast() -> void:
 
 func test_objectives() -> void:
 	await 0.0
+	assert_true(ObjectiveBase.TYPES == ["elimination", "protect", "escort", "retrieve", "seize"], "objectives: exactly the five GDD types")
+	assert_true(ObjectiveBase.create({"type": "evacuate", "params": {}}) == null, "objectives: retired evacuate type is gone")
 	var state: BattleState = _plain_map_enemy_state()
 	var enemy1 := _spawn(state, "e1", "faction_e", Vector2i(4, 4), false)
 	var enemy2 := _spawn(state, "e2", "faction_e", Vector2i(5, 5), false)
-	var obj := ObjectiveBase.create({"type": "eliminate", "params": {}})
-	var first: Dictionary = obj.evaluate(state)
-	assert_true(first.get("status", "") == "ongoing" and first.get("status") != "win", "objective eliminate: ongoing while enemies alive")
+	var obj := ObjectiveBase.create({"type": "elimination", "params": {}})
+	assert_true(obj.evaluate(state).get("status", "") == "ongoing", "elimination: ongoing while enemies alive")
 	enemy1.alive = false
 	enemy2.alive = false
-	var second: Dictionary = obj.evaluate(state)
-	assert_true(second.get("status", "") == "win", "objective eliminate: win when all down")
-
-	# Defend objective in a zone.
+	assert_true(obj.evaluate(state).get("status", "") == "win", "elimination: win when all down")
+	# Protect (zone): an enemy inside loses at once; N enemy phases without a breach win.
 	var state2: BattleState = _plain_map_enemy_state()
 	_spawn(state2, "intruder", "faction_e", Vector2i(4, 4), false)
-	var defend := ObjectiveBase.create({"type": "defend", "params": {"zone_x": 3, "zone_y": 3, "zone_w": 2, "zone_h": 2, "turns_required": 2, "policy": "block"}})
-	var res0: Dictionary = defend.evaluate(state2)
-	assert_true(res0.get("status", "") == "lose", "objective defend: breach loses under block policy")
-
+	var zone_cfg := {"type": "protect", "params": {"zone_x": 3, "zone_y": 3, "zone_w": 2, "zone_h": 2, "survive_enemy_phases": 2}}
+	assert_true(ObjectiveBase.create(zone_cfg).evaluate(state2).get("status", "") == "lose", "protect zone: an enemy inside loses")
 	var state3: BattleState = _plain_map_enemy_state()
-	var safe := ObjectiveBase.create({"type": "defend", "params": {"zone_x": 3, "zone_y": 3, "zone_w": 2, "zone_h": 2, "turns_required": 2, "policy": "block"}})
+	_spawn(state3, "far_foe", "faction_e", Vector2i(0, 5), false)
+	var safe := ObjectiveBase.create(zone_cfg)
 	safe.on_event(state3, "player_phase_ended", {})
-	safe.on_event(state3, "player_phase_ended", {})
-	var res3: Dictionary = safe.evaluate(state3)
-	assert_true(res3.get("status", "") == "win", "objective defend: survives two turns")
+	assert_true(safe.evaluate(state3).get("status", "") == "ongoing", "protect zone: player phases do not count")
+	safe.on_event(state3, "enemy_phase_ended", {})
+	safe.on_event(state3, "enemy_phase_ended", {})
+	assert_true(safe.evaluate(state3).get("status", "") == "win", "protect zone: two enemy phases without a breach win")
+	# Protect (unit): its death loses; living through N enemy phases wins.
+	var state4: BattleState = _plain_map_enemy_state()
+	var vip := _spawn(state4, "vip", "faction_p", Vector2i(1, 1), false, false, "player")
+	var guard := ObjectiveBase.create({"type": "protect", "params": {"unit_id": "vip", "survive_enemy_phases": 1}})
+	assert_true(guard.evaluate(state4).get("status", "") == "ongoing", "protect unit: ongoing at start")
+	guard.on_event(state4, "enemy_phase_ended", {})
+	assert_true(guard.evaluate(state4).get("status", "") == "win", "protect unit: survives the enemy phase -> win")
+	vip.alive = false
+	assert_true(guard.evaluate(state4).get("status", "") == "lose", "protect unit: its death loses")
+
+
+## F-OBJ Retrieve (GDD Core Rule 13): ending a move on the item picks it up and ends the action;
+## the carrier only moves (no attack, no counter); its death loses; reaching the exit wins.
+func test_retrieve_rules() -> void:
+	await 0.0
+	var map := MapData.new()
+	map.id = "retrieve_map"
+	var rows: Array[String] = ["......", "......", "......", "......", "......", "......"]
+	map.terrain_rows = rows
+	map.deploy_cells = [Vector2i(0, 0)]
+	map.objectives = [{"type": "retrieve", "params": {"item_id": "item_border_relic", "exit_zone_x": 0, "exit_zone_y": 5}}]
+	var director := BattleDirector.new()
+	director.setup(map, {}, "normal")
+	var state := director.state
+	state.item_ground["2,0"] = "item_border_relic"
+	var runner := _spawn(state, "runner", "faction_p", Vector2i(1, 0), false, false, "player")
+	assert_true(director.commit("move", {"unit_id": "runner", "cell": Vector2i(2, 0)}), "retrieve: move onto the item")
+	assert_true(runner.carried_item == "item_border_relic" and runner.acted and not state.item_ground.has("2,0"), "retrieve: ending the move on the item picks it up and ends the action")
+	var foe := _spawn(state, "chaser", "faction_e", Vector2i(3, 0), false, false, "enemy")
+	assert_true(not RangeHandler.can_counter(state, runner, foe.pos), "retrieve: the carrier never counterattacks")
+	assert_true(AttackCommand.check(state, runner, "chaser") != "", "retrieve: the carrier cannot attack")
+	var plan := EnemyAI.plan_unit(state, foe, ["player"])
+	assert_true(String(plan.get("target_id", "")) == "runner", "retrieve: enemies go for the carrier")
+	assert_true(String(director.objectives[0].evaluate(state)["status"]) == "ongoing", "retrieve: ongoing while the item is out")
+	runner.pos = Vector2i(0, 5)
+	assert_true(String(director.objectives[0].evaluate(state)["status"]) == "win", "retrieve: the carrier at the exit wins")
+	runner.pos = Vector2i(2, 2)
+	runner.take_damage(999)
+	assert_true(String(director.objectives[0].evaluate(state)["status"]) == "lose" and runner.carried_item == "item_border_relic", "retrieve: the carrier's death loses (the item does not drop)")
 
 
 
