@@ -420,6 +420,14 @@ Designer: "the action menu only appears after the player moves, not when clickin
 - Kept: clicking a red enemy right after selecting (from the start tile) opens the forecast without moving; Cancel returns to the selection.
 - Locked in, cannot be cancelled: a move that already finished the action by itself (Retrieve pick-up), and a move followed by a Trade (the trade is a committed command after it; Trade does not end the action, like before).
 
+### F-AUTOEND — Automatic end of the player phase (designer 09-11-2026)
+
+Designer: "when no character can act any more, switch to the opponent's turn automatically."
+
+- After an action is confirmed (the combat screen has closed), if the battle is still running and **every living player-side unit on the map has acted**, the player phase ends by itself after a short beat (0.5 s, so the last action can be read) — the same path as the End phase button (enemy phase, NPC phase, back to the player).
+- Not triggered while a unit is merely moved but unconfirmed (F-MOVE), by Encore (it refreshes an ally), while paused, or when the battle has just ended (the result banner comes first). The End phase button still works at any time.
+- Escort / NPC units are not counted (the player does not control them).
+
 ### Placeholder tileset (user 09-11-2026: use "Fantasy Battle Pack" as the tileset placeholder)
 
 - The battle map and the prep map preview draw 16 px tiles from the pack's `FullTileset.png` (nearest filtering, scaled to the live cell size) instead of flat colours. Which tile each terrain uses is data: `data/tilesets/placeholder_tileset.tres` (`TilesetData`: texture path, tile size, per terrain a list of base tiles + optional overlay tiles, one picked per cell by a fixed hash so maps do not flicker, optional tint). Mapping: plain = grass, road = dirt, forest = grass + tree, hill = grass + small rocks, mountain = bare ground + large rocks, water = water, wall = stone brick, cover = grass + stone post, village = dirt + house front, hazard = bare ground with a red tint.
@@ -556,6 +564,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-09 (45) — Claude (Opus) — done: F-AUTOEND (new §7b, designer): `BattleScene._finish_action` -> `_maybe_auto_end_phase()` ends the player phase by itself 0.5 s after the last player unit acts (`all_player_units_done`: living player-side units only, unconfirmed moves still count as able to act; re-checked after the beat for pause / rewind / input); `auto_end_phase` flag for tests that read the state right after an action. New `test_auto_end_phase`. Verified: validation 0/0, run_tests **640/640**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: designer content. — issues: not pushed (no repo access).
 
 - 2026-11-09 (44) — Claude (Opus) — done: F-MOVE (new §7b, designer): action menu only after a move; second click on the unit = stay (0-tile move, `MoveCommand.apply` accepts the own tile); an unconfirmed move is provisional — right click, selecting another unit, End phase or opening Rewind take it back via new `BattleDirector.cancel_move` (restores the pre-move snapshot and drops that frame: no rewind use, no rewind point); right click while choosing an Attack target returns to the menu; the old after-move shortcuts (click elsewhere / re-click / right click = Wait) are gone. Tests updated (forecast flow, HUD menu) + new `test_move_then_act`. Verified: validation 0/0, run_tests **636/636**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: designer content; unit sprites from the pack if wanted. — issues: not pushed (no repo access); Esc still opens the pause menu (it does not take a move back — right click does).
 

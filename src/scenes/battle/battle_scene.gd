@@ -857,6 +857,36 @@ func _finish_action() -> void:
 	_refresh_rewind_button()
 	if not director.state.battle_over.is_empty():
 		_show_result_banner()
+		return
+	_maybe_auto_end_phase()
+
+
+## F-AUTOEND (designer 09-11-2026): once every player unit has acted, the phase ends by itself
+## after a short beat - the same path as the End phase button.
+var auto_end_phase := true
+const AUTO_END_DELAY := 0.5
+
+
+func _maybe_auto_end_phase() -> void:
+	if not auto_end_phase or director.state.phase != BattleState.PHASE_PLAYER or not all_player_units_done(director.state):
+		return
+	await get_tree().create_timer(AUTO_END_DELAY).timeout
+	# Re-check: a rewind, pause or another input may have changed things during the beat.
+	if is_inside_tree() and not paused and mode == Mode.IDLE and director.state.battle_over.is_empty() \
+			and director.state.phase == BattleState.PHASE_PLAYER and all_player_units_done(director.state):
+		_on_end_phase()
+
+
+## True when no living player-side unit can still act this phase (NPC / escort units excluded).
+static func all_player_units_done(state: BattleState) -> bool:
+	var any := false
+	for u in state.alive_units():
+		if u.side != "player":
+			continue
+		any = true
+		if not u.acted:
+			return false
+	return any
 
 
 ## Next to the unit at (24, -12) past its tile, flipped to the left at the right edge, kept in frame.

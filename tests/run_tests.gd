@@ -46,6 +46,7 @@ func _ready() -> void:
 	await test_lobby_pages()
 	await test_placeholder_tileset()
 	await test_move_then_act()
+	await test_auto_end_phase()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -434,6 +435,7 @@ func test_forecast_confirm_attack() -> void:
 	var combat_calls := [0]
 	EventBus.combat_resolved.connect(func(_s: Array) -> void: combat_calls[0] += 1)
 	var hero: UnitState = director.state.units["unit_swordsman"]
+	battle.auto_end_phase = false                   # this test reads the state right after the action
 	battle._on_left_click(hero.pos)                 # select: F-MOVE - no menu yet
 	assert_true(not battle._action_panel.visible, "F-MOVE: selecting a unit does not open the action menu")
 	battle._on_left_click(hero.pos)                 # second click = stay: the GDD Action Menu (Rule 11) opens
@@ -3165,6 +3167,41 @@ func test_move_then_act() -> void:
 	battle._on_left_click(dest)
 	battle._revert_pending(battle._selected())
 	assert_true(director.state.units["unit_swordsman"].pos == start, "move: End phase / rewind take a provisional move back first")
+	battle.queue_free()
+	GameState.new_game()
+
+
+## F-AUTOEND (designer 09-11-2026): when every player unit has acted, the phase ends by itself
+## (enemy and NPC phases run, then the player's next turn); not while one can still act.
+func test_auto_end_phase() -> void:
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	add_child(battle)
+	await get_tree().process_frame
+	var sword: UnitState = director.state.units["unit_swordsman"]
+	battle._on_left_click(sword.pos)
+	battle._on_left_click(sword.pos)
+	battle._on_menu_entry("wait", "")
+	await get_tree().create_timer(BattleScene.AUTO_END_DELAY + 0.3).timeout
+	assert_true(director.state.phase == BattleState.PHASE_PLAYER and director.state.turn == 1, "auto end: one unit still to act - the phase goes on")
+	var knight: UnitState = director.state.units["unit_knight"]
+	battle._on_left_click(knight.pos)
+	battle._on_left_click(knight.pos)
+	assert_true(not BattleScene.all_player_units_done(director.state), "auto end: a moved but unconfirmed unit still counts as able to act")
+	battle._on_menu_entry("wait", "")
+	assert_true(BattleScene.all_player_units_done(director.state), "auto end: everyone has acted")
+	var waited := 0.0
+	while director.state.turn == 1 and waited < 30.0:
+		await get_tree().create_timer(0.25).timeout
+		waited += 0.25
+	assert_true(director.state.turn == 2 and director.state.phase == BattleState.PHASE_PLAYER, "auto end: the enemy phase ran by itself and turn 2 began (%.1fs)" % waited)
 	battle.queue_free()
 	GameState.new_game()
 
