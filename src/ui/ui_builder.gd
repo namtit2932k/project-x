@@ -58,3 +58,15 @@ static func modal(parent: Control) -> Control:
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(dim)
 	return root
+
+
+## An opaque panel for modal dialogs (the default panel style is see-through).
+static func modal_panel(parent: Control, x: float, y: float, w: float, h: float) -> PanelContainer:
+	var p := panel(parent, x, y, w, h)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.11, 0.12, 0.15, 1.0)
+	style.set_border_width_all(2)
+	style.border_color = Color(0.35, 0.38, 0.45)
+	style.set_content_margin_all(14)
+	p.add_theme_stylebox_override("panel", style)
+	return p

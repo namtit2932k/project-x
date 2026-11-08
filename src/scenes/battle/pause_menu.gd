@@ -7,6 +7,10 @@ class_name PauseMenu
 signal resumed
 signal quit_to_menu
 
+## F-BUI Rule 13: the battle state the Squad View reads (null = no Squad button).
+var battle_state: BattleState = null
+var _squad_view: SquadView = null
+
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -20,9 +24,21 @@ func _ready() -> void:
 	UIBuilder.label(box, UIBuilder.t("Paused"), 32)
 	var resume := UIBuilder.button(box, UIBuilder.t("Resume"), 24)
 	resume.pressed.connect(_on_resume)
+	if battle_state != null:
+		var squad := UIBuilder.button(box, UIBuilder.t("Squad"), 24)
+		squad.pressed.connect(open_squad_view)
 	box.add_child(OptionsPanel.new())
 	var quit := UIBuilder.button(box, UIBuilder.t("Quit to menu"), 24)
 	quit.pressed.connect(_confirm_quit)
+
+
+## Read-only Squad View; closing it returns here (the pause menu stays open).
+func open_squad_view() -> void:
+	if _squad_view != null and is_instance_valid(_squad_view):
+		return
+	_squad_view = SquadView.build(battle_state)
+	_squad_view.closed.connect(func() -> void: _squad_view = null)
+	add_child(_squad_view)
 
 
 func _on_resume() -> void:
@@ -45,4 +61,8 @@ func _confirm_quit() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if is_visible_in_tree() and event.is_action_pressed("ui_cancel"):
 		accept_event()
+		if _squad_view != null and is_instance_valid(_squad_view):
+			_squad_view.queue_free()   # Esc closes the Squad View first
+			_squad_view = null
+			return
 		_on_resume()   # Esc again = Resume

@@ -47,6 +47,16 @@ static func stat_bonus(state: BattleState, unit: UnitState, stat_name: String) -
 static func _adjacency_bonus(state: BattleState, unit: UnitState) -> int:
 	var total := 0
 	var bonuses: Dictionary = DataRegistry.rule("bond_bonus_by_rank", {})
+	for link in active_partners(state, unit):
+		total += int(bonuses[String(link["rank"])])
+	return mini(total, int(DataRegistry.rule("max_adjacent_bond_bonus", 16)))
+
+
+## GDD Battle UI Rule 5 / active_bond_partners: adjacent same-side partners whose pairing has an
+## unlocked rank that gives a bonus -> [{partner_id, rank}].
+static func active_partners(state: BattleState, unit: UnitState) -> Array:
+	var out: Array = []
+	var bonuses: Dictionary = DataRegistry.rule("bond_bonus_by_rank", {})
 	for u in state.alive_units():
 		if u.id == unit.id or u.side != unit.side:
 			continue
@@ -58,8 +68,8 @@ static func _adjacency_bonus(state: BattleState, unit: UnitState) -> int:
 		var rank: String = GameState.bond_rank_for(String(pair.id))
 		if rank == "" or rank not in bonuses:
 			continue
-		total += int(bonuses[rank])
-	return mini(total, int(DataRegistry.rule("max_adjacent_bond_bonus", 16)))
+		out.append({"partner_id": u.id, "rank": rank})
+	return out
 
 
 ## F-BOND (GDD F-BA3): the actor just performed an Attack or a Heal. Every pairing it belongs

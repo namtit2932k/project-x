@@ -32,6 +32,8 @@ var _hint_label: Label
 var _action_menu: VBoxContainer
 var _combat_layer: CanvasLayer
 var _rewind_button: Button
+var _rewind_pips: HBoxContainer = null
+var _rewind_picker: Control = null
 var _end_turn_button: Button
 var _skip_btn_: Button = null
 var _combat_skip: bool = false
@@ -56,6 +58,7 @@ func _ready() -> void:
 	director.emit_objectives()
 	map_view.queue_redraw()
 	_build_reconcile_hud()
+	map_view.set_threat(enemy_threat())   # F-BUI Rule 2 from the first Player Phase
 
 
 func _build_ui() -> void:
@@ -78,7 +81,14 @@ func _build_ui() -> void:
 	_rewind_button = UIBuilder.button(_ui_root(), "", 20)
 	_rewind_button.position = Vector2(1740, 920)
 	_rewind_button.size = Vector2(150, 52)
-	_rewind_button.pressed.connect(_on_rewind)
+	_rewind_button.pressed.connect(open_rewind_picker)
+	# F-BUI Rule 6: charges as pips (or the infinity glyph on Story) inside the button.
+	_rewind_pips = HBoxContainer.new()
+	_rewind_pips.add_theme_constant_override("separation", 3)
+	_rewind_pips.position = Vector2(96, 19)
+	_rewind_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_rewind_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rewind_button.add_child(_rewind_pips)
 	_refresh_rewind_button()
 
 	_action_menu = VBoxContainer.new()
@@ -282,18 +292,13 @@ func _show_action_menu(unit: UnitState) -> void:
 	_hide_action_menu()
 	if unit.side != "player" or unit.acted or director.state.phase != BattleState.PHASE_PLAYER:
 		return
-	# Không còn nút Attack/Wait: click địch trong ô đỏ để đánh, click lại (hoặc ô khác/
-	# right click) sau khi move để hoàn tác hành động bằng Wait. Menu chỉ còn skill.
-	for skill_id in unit.skill_ids:
-		var skill := DataRegistry.get_data("skills", skill_id)
-		if skill == null or _skill_targets_for(unit, skill_id).is_empty():
-			continue
-		var label := String(skill.display_name) if String(skill.display_name) != "" else skill_id
-		var sk := UIBuilder.button(_action_menu, UIBuilder.t("Skill: %s") % UIBuilder.t(label), 16)
-		sk.pressed.connect(func() -> void: _use_skill(skill_id))
-	_add_item_actions(unit)
-	if _action_menu.get_child_count() == 0:
-		return
+	# F-BUI Rule 11 (GDD order, illegal entries omitted): Attack, Heal, Use Item, Visit, Encore,
+	# Trade, Wait. Shortcuts of the D01 flow stay: click a red enemy, re-click the unit = Wait.
+	for entry in action_menu_entries(director.state, unit, _compute_targets_for(director.state, unit)):
+		var btn := UIBuilder.button(_action_menu, String(entry["label"]), 16)
+		var kind := String(entry["kind"])
+		var arg := String(entry.get("arg", ""))
+		btn.pressed.connect(func() -> void: _on_menu_entry(kind, arg))
 	_action_menu.visible = true
 	_action_menu.position = map_view.cell_to_global(unit.pos) + Vector2(30, -60)
 
@@ -579,8 +584,20 @@ func _run_npc_phase() -> void:
 func _refresh_rewind_button() -> void:
 	var budget := director.rewind_budget
 	var left := director.rewind_uses_left
-	_rewind_button.text = UIBuilder.t("Rewind") if budget == -1 else UIBuilder.t("Rewind %d") % left
-	_rewind_button.disabled = budget == 0 or (budget > 0 and left <= 0)
+	_rewind_button.text = UIBuilder.t("Rewind")
+	_rewind_button.disabled = budget == 0 or (budget > 0 and left <= 0) or director.rewind.player_frames().is_empty()
+	for c in _rewind_pips.get_children():
+		c.queue_free()
+	if budget == -1:
+		var inf := UIBuilder.label(_rewind_pips, "∞", 18)
+		inf.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return
+	for i in budget:
+		var pip := ColorRect.new()
+		pip.custom_minimum_size = Vector2(8, 14)
+		pip.color = Color(0.4, 0.8, 1.0) if i < left else Color(0.25, 0.25, 0.3)
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_rewind_pips.add_child(pip)
 
 
 func _on_rewind() -> void:
@@ -697,6 +714,7 @@ func _hide_action_menu() -> void:
 
 
 func _refresh_overlays() -> void:
+	map_view.set_threat(enemy_threat())
 	var sel := _selected()
 	if sel == null or not sel.alive:
 		map_view.set_overlays({}, {}, {} if active_targets.is_empty() else active_targets)
@@ -727,6 +745,7 @@ func _toggle_pause() -> void:
 		return
 	paused = true
 	_pause_menu = PauseMenu.new()
+	_pause_menu.battle_state = director.state
 	_pause_menu.resumed.connect(_on_resume)
 	_pause_menu.quit_to_menu.connect(func() -> void:
 		paused = false
@@ -818,22 +837,79 @@ func _play_feedback_dialogue(dialogue_id: String) -> void:
 var _trade_panel: Control = null
 
 
-## Use Item (one button per carried item - picking the button is the GDD's item choice),
-## Visit on an open village, and Trade with each adjacent squad ally (free, once per phase).
-func _add_item_actions(unit: UnitState) -> void:
-	var state := director.state
+## F-BUI Rule 11: the Action Menu entries for `unit` right now, in GDD order -
+## [{kind, label, arg}]. Entries with no legal target or condition are left out.
+static func action_menu_entries(state: BattleState, unit: UnitState, targets: Dictionary) -> Array:
+	var out: Array = []
+	if not targets.is_empty():
+		out.append({"kind": "attack", "label": UIBuilder.t("Attack")})
+	var heals: Array = []
+	var encores: Array = []
+	for skill_id in unit.skill_ids:
+		var skill := DataRegistry.get_data("skills", skill_id)
+		if skill == null:
+			continue
+		var has_target := false
+		for other in state.alive_units():
+			if SkillCommand.check(state, unit, skill_id, other) == "":
+				has_target = true
+				break
+		if not has_target:
+			continue
+		var label := String(skill.display_name) if String(skill.display_name) != "" else skill_id
+		var e := {"kind": "skill", "arg": skill_id, "label": UIBuilder.t("Skill: %s") % UIBuilder.t(label)}
+		if String(skill.effect_type) == "encore":
+			encores.append(e)
+		else:
+			heals.append(e)
+	out.append_array(heals)
 	for item_id in unit.items:
 		if UseItemCommand.check(state, unit, String(item_id)) == "":
-			var use_btn := UIBuilder.button(_action_menu, UIBuilder.t("Use: %s") % item_name(String(item_id)), 16)
-			var chosen := String(item_id)
-			use_btn.pressed.connect(func() -> void: _use_item(chosen))
+			out.append({"kind": "use_item", "arg": String(item_id), "label": UIBuilder.t("Use: %s") % item_name(String(item_id))})
 	if VisitCommand.check(state, unit) == "":
-		var visit_btn := UIBuilder.button(_action_menu, UIBuilder.t("Visit village"), 16)
-		visit_btn.pressed.connect(_do_visit)
-	for partner_id in trade_partners(state, unit):
-		var partner: UnitState = state.units[partner_id]
-		var trade_btn := UIBuilder.button(_action_menu, UIBuilder.t("Trade with %s") % partner.display_name, 16)
-		trade_btn.pressed.connect(func() -> void: _open_trade(partner_id))
+		out.append({"kind": "visit", "label": UIBuilder.t("Visit village")})
+	out.append_array(encores)
+	if not trade_partners(state, unit).is_empty():
+		out.append({"kind": "trade", "label": UIBuilder.t("Trade")})
+	if WaitCommand.check(state, unit) == "":
+		out.append({"kind": "wait", "label": UIBuilder.t("Wait")})
+	return out
+
+
+func _on_menu_entry(kind: String, arg: String) -> void:
+	match kind:
+		"attack":
+			_hide_action_menu()
+			_enter_target_select()
+			_info_label.text = UIBuilder.t("Choose a target (red tiles), right click to wait.")
+			_refresh_overlays()
+		"skill":
+			_use_skill(arg)
+		"use_item":
+			_use_item(arg)
+		"visit":
+			_do_visit()
+		"trade":
+			_open_trade_partners()
+		"wait":
+			_do_wait()
+
+
+## Trade sub-list: the adjacent allies a legal exchange exists with.
+func _open_trade_partners() -> void:
+	var sel := _selected()
+	if sel == null:
+		return
+	_close_trade()
+	_trade_panel = UIBuilder.modal(_ui_root())
+	var box := UIBuilder.vbox(UIBuilder.modal_panel(_trade_panel, 700, 340, 520, 380), 8)
+	UIBuilder.label(box, UIBuilder.t("Trade with whom?"), 18)
+	for partner_id in trade_partners(director.state, sel):
+		var btn := UIBuilder.button(box, director.state.units[partner_id].display_name, 16)
+		var chosen := String(partner_id)
+		btn.pressed.connect(func() -> void: _open_trade(chosen))
+	var cancel := UIBuilder.button(box, UIBuilder.t("Cancel"), 16)
+	cancel.pressed.connect(_close_trade)
 
 
 ## Adjacent squad allies with at least one legal, non-empty trade.
@@ -856,13 +932,10 @@ static func trade_options(state: BattleState, unit: UnitState, partner: UnitStat
 				continue
 			if TradeCommand.check(state, unit, partner, String(give), String(take)) != "":
 				continue
-			var label := ""
-			if String(take) == "":
-				label = UIBuilder.t("Give %s") % item_name(String(give))
-			elif String(give) == "":
-				label = UIBuilder.t("Take %s") % item_name(String(take))
-			else:
-				label = UIBuilder.t("Swap %s for %s") % [item_name(String(give)), item_name(String(take))]
+			# GDD Battle UI Rule 1: a plain before/after readout of what each side receives.
+			var label := UIBuilder.t("%s receives: %s · %s receives: %s") % [
+				partner.display_name, item_name(String(give)) if String(give) != "" else UIBuilder.t("nothing"),
+				unit.display_name, item_name(String(take)) if String(take) != "" else UIBuilder.t("nothing")]
 			out.append({"give": String(give), "take": String(take), "label": label})
 	return out
 
@@ -904,7 +977,7 @@ func _open_trade(partner_id: String) -> void:
 	_close_trade()
 	var partner: UnitState = director.state.units[partner_id]
 	_trade_panel = UIBuilder.modal(_ui_root())
-	var box := UIBuilder.vbox(UIBuilder.panel(_trade_panel, 700, 340, 520, 380), 8)
+	var box := UIBuilder.vbox(UIBuilder.modal_panel(_trade_panel, 700, 340, 520, 380), 8)
 	UIBuilder.label(box, UIBuilder.t("Trade with %s - choose:") % partner.display_name, 18)
 	for opt in trade_options(director.state, sel, partner):
 		var btn := UIBuilder.button(box, String(opt["label"]), 16)
@@ -931,3 +1004,74 @@ func _close_trade() -> void:
 	if _trade_panel != null and is_instance_valid(_trade_panel):
 		_trade_panel.queue_free()
 	_trade_panel = null
+
+
+# ------------------------------------------------------------ F-BUI rewind point screen
+
+## Rewind Core Rule 3: every rewindable boundary since battle start, newest first, with
+## "Undo last action" on top. Any entry costs exactly one charge.
+func open_rewind_picker() -> void:
+	if mode == Mode.BUSY or paused or director.state.phase != BattleState.PHASE_PLAYER:
+		return
+	var frames := director.rewind.player_frames()
+	var budget := director.rewind_budget
+	if frames.is_empty() or budget == 0 or (budget > 0 and director.rewind_uses_left <= 0):
+		return
+	_close_rewind_picker()
+	_rewind_picker = UIBuilder.modal(_ui_root())
+	var box := UIBuilder.vbox(UIBuilder.modal_panel(_rewind_picker, 660, 140, 600, 760), 6)
+	UIBuilder.label(box, UIBuilder.t("Rewind to which point? (costs 1 use)"), 22)
+	var quick := UIBuilder.button(box, UIBuilder.t("Undo last action"), 18)
+	quick.pressed.connect(func() -> void: _rewind_to(frames[0]))
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(580, 560)
+	box.add_child(scroll)
+	var list := UIBuilder.vbox(scroll, 4)
+	for index in frames:
+		var btn := UIBuilder.button(list, rewind_point_label(index), 16)
+		var chosen: int = index
+		btn.pressed.connect(func() -> void: _rewind_to(chosen))
+	var cancel := UIBuilder.button(box, UIBuilder.t("Cancel"), 18)
+	cancel.pressed.connect(_close_rewind_picker)
+
+
+## "Turn 2 - before: Swordsman move" / "Turn 3 - start of turn".
+func rewind_point_label(index: int) -> String:
+	var frame: Dictionary = director.rewind.frames[index]
+	var turn := int(frame["snapshot"].get("turn", 1))
+	var label := String(frame.get("label", ""))
+	if label == "turn_start":
+		return UIBuilder.t("Turn %d - start of turn") % turn
+	var who := ""
+	var unit_id := String(frame.get("unit_id", ""))
+	if director.state.units.has(unit_id):
+		who = director.state.units[unit_id].display_name + " "
+	return UIBuilder.t("Turn %d - before: %s%s") % [turn, who, UIBuilder.t(label)]
+
+
+func _rewind_to(frame_index: int) -> void:
+	_close_rewind_picker()
+	if director.use_rewind(frame_index):
+		selected_unit_id = ""
+		mode = Mode.IDLE
+		_hide_action_menu()
+		_refresh_overlays()
+		_refresh_rewind_button()
+		_check_battle_over()
+
+
+func _close_rewind_picker() -> void:
+	if _rewind_picker != null and is_instance_valid(_rewind_picker):
+		_rewind_picker.queue_free()
+	_rewind_picker = null
+
+
+## F-BUI Rule 2: every enemy's threat range during the Player Phase.
+func enemy_threat() -> Dictionary:
+	var out := {}
+	if director.state.phase != BattleState.PHASE_PLAYER:
+		return out
+	for u in director.state.alive_units():
+		if u.side == "enemy":
+			out.merge(RangeHandler.threat_cells(director.state, u))
+	return out

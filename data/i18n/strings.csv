@@ -173,3 +173,31 @@ No unit has a free item slot.,No unit has a free item slot.,Không còn quân n�
 Bought %s for %s.,Bought %s for %s.,Đã mua %s cho %s.
 restores %d HP,restores %d HP,hồi %d HP
 +%d %s for %d turns,+%d %s for %d turns,+%d %s trong %d lượt
+Rewind to which point? (costs 1 use),Rewind to which point? (costs 1 use),Quay lại mốc nào? (tốn 1 lượt)
+Undo last action,Undo last action,Hoàn tác hành động vừa rồi
+Turn %d - start of turn,Turn %d - start of turn,Lượt %d - đầu lượt
+Turn %d - before: %s%s,Turn %d - before: %s%s,Lượt %d - trước: %s%s
+move,move,di chuyển
+attack,attack,tấn công
+wait,wait,chờ
+skill,skill,kỹ năng
+use_item,use item,dùng vật phẩm
+trade,trade,trao đổi
+visit,visit,ghé làng
+pickup,pick up,nhặt đồ
+end_phase,end phase,kết thúc lượt
+Attack,Attack,Tấn công
+Wait,Wait,Chờ
+Trade,Trade,Trao đổi
+Trade with whom?,Trade with whom?,Trao đổi với ai?
+"Choose a target (red tiles), right click to wait.","Choose a target (red tiles), right click to wait.","Chọn mục tiêu (ô đỏ), chuột phải để chờ."
+%s receives: %s · %s receives: %s,%s receives: %s · %s receives: %s,%s nhận: %s · %s nhận: %s
+nothing,nothing,không có gì
+Squad,Squad,Đội hình
+Fallen,Fallen,Đã ngã
+Back,Back,Quay lại
+HP %d/%d,HP %d/%d,HP %d/%d
+Active bonds: %s,Active bonds: %s,Gắn kết đang có: %s
+%s +%d (%d turns),%s +%d (%d turns),%s +%d (%d lượt)
+Buffs: %s,Buffs: %s,Hiệu ứng tăng: %s
+Traits: updating,Traits: updating,Đặc điểm nhân vật: đang cập nhật

@@ -229,7 +229,7 @@ var _shop_panel: Control = null
 func open_shop() -> void:
 	close_shop()
 	_shop_panel = UIBuilder.modal(self)
-	var box := UIBuilder.vbox(UIBuilder.panel(_shop_panel, 560, 160, 800, 620), 8)
+	var box := UIBuilder.vbox(UIBuilder.modal_panel(_shop_panel, 560, 160, 800, 620), 8)
 	UIBuilder.label(box, UIBuilder.t("Shop - gold: %d") % GameState.gold, 26)
 	for entry in Shop.catalog():
 		var item_id := String(entry["item_id"])
@@ -244,7 +244,7 @@ func open_shop() -> void:
 func _choose_buyer(item_id: String) -> void:
 	close_shop()
 	_shop_panel = UIBuilder.modal(self)
-	var box := UIBuilder.vbox(UIBuilder.panel(_shop_panel, 560, 160, 800, 620), 8)
+	var box := UIBuilder.vbox(UIBuilder.modal_panel(_shop_panel, 560, 160, 800, 620), 8)
 	UIBuilder.label(box, UIBuilder.t("Buy %s for whom?") % BattleScene.item_name(item_id), 24)
 	var units := Shop.eligible_units()
 	if units.is_empty():

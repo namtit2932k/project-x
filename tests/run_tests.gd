@@ -31,6 +31,7 @@ func _ready() -> void:
 	await test_items_gold_and_shop()
 	await test_enemy_ai_profiles()
 	await test_persuasion_conditions()
+	await test_battle_ui_gdd()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -415,8 +416,12 @@ func test_forecast_confirm_attack() -> void:
 	var combat_calls := [0]
 	EventBus.combat_resolved.connect(func(_s: Array) -> void: combat_calls[0] += 1)
 	var hero: UnitState = director.state.units["unit_swordsman"]
-	battle._on_left_click(hero.pos)                 # select — không có menu Attack/Wait
-	assert_true(battle._action_menu.get_child_count() == 0, "forecast: no attack/wait buttons in menu")
+	battle._on_left_click(hero.pos)                 # select: the GDD Action Menu (Rule 11) opens
+	var menu_texts: Array = []
+	for b in battle._action_menu.get_children():
+		if b is Button and not b.is_queued_for_deletion():
+			menu_texts.append((b as Button).text)
+	assert_true(menu_texts.size() >= 2 and menu_texts[0] == "Attack" and menu_texts[-1] == "Wait", "forecast: the Action Menu lists Attack first and Wait last (GDD Rule 11, superseding D01's no-button flow) %s" % str(menu_texts))
 	var hp_before: int = defender.hp
 	battle._on_left_click(defender.pos)             # click địch trong ô đỏ → forecast, chưa commit
 	assert_true(battle.mode == BattleScene.Mode.CONFIRM_ATTACK, "forecast: red-cell click opens the confirm state")
@@ -2448,6 +2453,80 @@ func test_persuasion_conditions() -> void:
 	validator._check_persuasion_condition("test", fid, {"type": "units_spared_pct", "threshold": 0.5})
 	assert_true(validator.errors == 0, "persuasion: validator accepts valid conditions")
 	validator.free()
+	GameState.new_game()
+
+
+## F-BUI: HP bands / pulse, enemy threat tint, bond and buff indicators, rewind pips and the
+## rewind point screen, the GDD Action Menu order, and the read-only Squad View.
+func test_battle_ui_gdd() -> void:
+	GameState.new_game()
+	GameState.build_roster()   # demo: Swordsman x Knight start at rank C
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_demo_swordsman": map.deploy_cells[0], "unit_demo_knight": map.deploy_cells[1]}, "normal")
+	var st := director.state
+	var sword: UnitState = st.units["unit_demo_swordsman"]
+	var knight: UnitState = st.units["unit_demo_knight"]
+	# F-BUI1 / F-BUI2.
+	assert_true(BattleMapView.hp_band_color(0.9) == BattleMapView.hp_band_color(0.67) and BattleMapView.hp_band_color(0.66) == BattleMapView.hp_band_color(0.33) and BattleMapView.hp_band_color(0.32) != BattleMapView.hp_band_color(0.33), "ui: three HP bands split at 66% / 33% (33-66 inclusive yellow)")
+	assert_true(BattleMapView.hp_pulses(0.25) and not BattleMapView.hp_pulses(0.26), "ui: the HP bar pulses at 25% or less")
+	# Rule 5: adjacent rank-C partners show one link each.
+	knight.pos = sword.pos + Vector2i(1, 0)
+	var links := BondSystem.active_partners(st, sword)
+	assert_true(links.size() == 1 and String(links[0]["rank"]) == "C", "ui: the Swordsman shows one rank-C bond link next to the Knight")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	add_child(battle)
+	await get_tree().process_frame
+	# Rule 2: the enemy threat range is tinted during the Player Phase.
+	assert_true(not battle.map_view.threat_cells.is_empty(), "ui: enemy threat ranges are shown in the Player Phase")
+	var foe: UnitState = st.units["guard_2"]
+	assert_true(RangeHandler.threat_cells(st, foe).has(foe.pos + Vector2i(-2, 0)), "ui: the threat range covers move + weapon reach")
+	# Rule 6: pips = charges.
+	battle._refresh_rewind_button()
+	await get_tree().process_frame
+	assert_true(battle._rewind_pips.get_child_count() == director.rewind_budget, "ui: one rewind pip per charge (%d)" % director.rewind_budget)
+	# Rule 11: menu order after selecting the Swordsman (tonics carried, Knight adjacent).
+	var entries := BattleScene.action_menu_entries(st, sword, {})
+	var kinds: Array = []
+	for e in entries:
+		kinds.append(String(e["kind"]))
+	assert_true(kinds == ["use_item", "use_item", "trade", "wait"], "ui: menu without targets = Use Item x2, Trade, Wait in GDD order %s" % str(kinds))
+	var with_target := BattleScene.action_menu_entries(st, sword, {"guard_2": foe.pos})
+	assert_true(String(with_target[0]["kind"]) == "attack", "ui: Attack comes first when a target is in range")
+	var trade_labels := BattleScene.trade_options(st, sword, knight)
+	assert_true(String(trade_labels[0]["label"]).contains("receives:"), "ui: trade options read as a before/after preview (Rule 1)")
+	# Rewind point screen: after two actions there are rewind points; picking one costs one use.
+	director.commit("use_item", {"unit_id": sword.id, "item_id": "item_vigor_tonic"})
+	director.commit("wait", {"unit_id": knight.id})
+	var points := director.rewind.player_frames()
+	assert_true(points.size() >= 2 and battle.rewind_point_label(points[0]).contains("Turn"), "ui: the rewind screen lists the points with turn and action")
+	var uses := director.rewind_uses_left
+	battle.open_rewind_picker()
+	await get_tree().process_frame
+	assert_true(battle._rewind_picker != null, "ui: the Rewind button opens the point screen")
+	battle._rewind_to(points[-1])
+	assert_true(director.rewind_uses_left == uses - 1 and sword.items.size() == 2 and not sword.acted, "ui: rewinding to the oldest point costs exactly one use and restores it")
+	battle.queue_free()
+	await get_tree().process_frame
+	# Rule 13: Squad View from the pause menu, read-only, fallen units greyed.
+	knight.alive = false
+	sword.active_buffs["power"] = {"amount": 5, "turns_remaining": 2}
+	var pause := PauseMenu.new()
+	pause.battle_state = st
+	add_child(pause)
+	await get_tree().process_frame
+	pause.open_squad_view()
+	await get_tree().process_frame
+	assert_true(_has_label_containing(pause, "Fallen") or _find_button_containing(pause, "Fallen"), "ui: the squad list marks the fallen Knight")
+	var lines := SquadView.detail_lines(st, sword)
+	var joined := "\n".join(lines)
+	assert_true(joined.contains("HP ") and joined.contains("Str ") and joined.contains("power +5 (2 turns)") and joined.contains("Items:") and joined.contains("Traits: updating"), "ui: the unit detail shows stats, current HP, buffs, items and the traits placeholder")
+	var hp_before := sword.hp
+	pause._squad_view.show_detail(sword.id)
+	await get_tree().process_frame
+	assert_true(sword.hp == hp_before and sword.alive, "ui: the Squad View changes nothing")
+	pause.queue_free()
 	GameState.new_game()
 
 

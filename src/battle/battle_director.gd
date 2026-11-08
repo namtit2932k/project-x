@@ -75,7 +75,7 @@ func commit(kind: String, payload: Dictionary) -> bool:
 	var err := _check(kind, payload)
 	if err != "":
 		return false
-	push_snapshot(kind)
+	push_snapshot(kind, String(payload.get("unit_id", "")))
 	var actor: UnitState = state.units.get(String(payload.get("unit_id", "")), null)
 	var was_acted: bool = actor != null and actor.acted
 	var ok := _apply(kind, payload)
@@ -241,8 +241,8 @@ func clear_acted_flags() -> void:
 		u.has_traded = false   # F-ITEM: one Trade per phase
 
 
-func push_snapshot(label: String) -> void:
-	rewind.push(state, label)
+func push_snapshot(label: String, unit_id: String = "") -> void:
+	rewind.push(state, label, unit_id)
 
 
 ## Rewinds to the frame chosen by the player; consumes one use if the budget is finite.

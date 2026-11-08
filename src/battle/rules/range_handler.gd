@@ -30,6 +30,21 @@ static func compute_attack_cells(state: BattleState, unit: UnitState, reach: Dic
 	return out
 
 
+## F-CC8 threat range: every tile `unit` could hit this turn - its move cells, its own tile and
+## everything in weapon range of them. A unit that cannot attack threatens nothing.
+static func threat_cells(state: BattleState, unit: UnitState) -> Dictionary:
+	var out := {}
+	if not unit.alive or not unit.can_attack:
+		return out
+	var reach := MovementHandler.compute_move_cells(state, unit)
+	reach[unit.pos] = 0.0
+	for c in reach:
+		out[c] = true
+	for c in compute_attack_cells(state, unit, reach):
+		out[c] = true
+	return out
+
+
 ## Valid attack targets of a unit at its current position (same side = ally, excluded).
 ## This is the decided interaction flow: "red cells measured from the standing position".
 static func compute_targets(state: BattleState, unit: UnitState, reach: Dictionary) -> Array:

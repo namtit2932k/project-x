@@ -7,8 +7,17 @@ class_name SnapshotStack
 var frames: Array = []        # newest last: {snapshot: Dictionary, label: String}
 
 
-func push(state: BattleState, label: String) -> void:
-	frames.append({"snapshot": state.to_dict(), "label": label})
+func push(state: BattleState, label: String, unit_id: String = "") -> void:
+	frames.append({"snapshot": state.to_dict(), "label": label, "unit_id": unit_id})
+
+
+## F-BUI rewind point screen: every frame the player may rewind to (PLAYER phase), newest first.
+func player_frames() -> Array[int]:
+	var out: Array[int] = []
+	for i in range(frames.size() - 1, -1, -1):
+		if int(frames[i]["snapshot"].get("phase", -1)) == BattleState.PHASE_PLAYER:
+			out.append(i)
+	return out
 
 
 func has_frames() -> bool:

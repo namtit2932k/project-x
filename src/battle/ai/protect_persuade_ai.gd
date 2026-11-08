@@ -89,16 +89,8 @@ static func key_unit(state: BattleState, unit: UnitState) -> UnitState:
 static func player_threats(state: BattleState) -> Dictionary:
 	var out := {}
 	for p in state.alive_units():
-		if p.side != "player" or not p.can_attack:
-			continue
-		var reach := MovementHandler.compute_move_cells(state, p)
-		reach[p.pos] = 0.0
-		var cells := {}
-		for c in reach:
-			cells[c] = true
-		for c in RangeHandler.compute_attack_cells(state, p, reach):
-			cells[c] = true
-		out[p.id] = cells
+		if p.side == "player" and p.can_attack:
+			out[p.id] = RangeHandler.threat_cells(state, p)
 	return out
 
 

@@ -32,6 +32,9 @@ var player_sides: Array = []
 var move_cells: Dictionary = {}
 var attack_cells: Dictionary = {}
 var target_cells: Dictionary = {}
+## F-BUI Rule 2: union of every enemy's threat range, tinted during the Player Phase.
+var threat_cells: Dictionary = {}
+const THREAT_COLOR := Color(1.0, 0.45, 0.1, 0.14)
 var cursor_cell := Vector2i(-1, -1)
 var origin := Vector2.ZERO
 ## Objective plugins whose markers(state) are drawn every frame (live progress / carrier).
@@ -49,6 +52,35 @@ func set_overlays(p_move: Dictionary, p_attack: Dictionary, p_targets: Dictionar
 	attack_cells = p_attack
 	target_cells = p_targets
 	queue_redraw()
+
+
+func set_threat(p_cells: Dictionary) -> void:
+	threat_cells = p_cells
+	queue_redraw()
+
+
+## F-BUI1: green above hp_high_band, yellow from hp_mid_band to hp_high_band, red below.
+static func hp_band_color(ratio: float) -> Color:
+	if ratio > float(DataRegistry.rule("hp_high_band", 0.66)):
+		return Color(0.2, 0.85, 0.3)
+	if ratio >= float(DataRegistry.rule("hp_mid_band", 0.33)):
+		return Color(0.95, 0.8, 0.2)
+	return Color(0.9, 0.2, 0.2)
+
+
+## F-BUI2: at or below hp_blink_band the bar pulses.
+static func hp_pulses(ratio: float) -> bool:
+	return ratio <= float(DataRegistry.rule("hp_blink_band", 0.25))
+
+
+func _process(_delta: float) -> void:
+	# Only the low-HP pulse animates: redraw while any unit needs it.
+	if state == null:
+		return
+	for u in state.alive_units():
+		if hp_pulses(float(u.hp) / float(maxi(u.max_hp, 1))):
+			queue_redraw()
+			return
 
 
 func set_objectives(p_objectives: Array) -> void:
@@ -90,6 +122,8 @@ func _draw() -> void:
 			var rect := Rect2(cell_to_global(cell) - Vector2(CELL, CELL) / 2.0, Vector2(CELL, CELL))
 			draw_rect(rect, TERRAIN_COLORS.get(state.terrain_at(cell), Color.MAGENTA))
 			draw_rect(rect.grow(-1), TERRAIN_COLORS.get(state.terrain_at(cell), Color.MAGENTA).darkened(0.15))
+			if threat_cells.has(cell):
+				draw_rect(rect, THREAT_COLOR, true)
 			if move_cells.has(cell):
 				draw_rect(rect, MOVE_COLOR, true)
 			if attack_cells.has(cell):
@@ -120,10 +154,27 @@ func _draw() -> void:
 		draw_rect(r, color)
 		draw_rect(r, Color(0, 0, 0), false, 2)
 		draw_string(font, center + Vector2(-6, 5), u.display_name.substr(0, 2), HORIZONTAL_ALIGNMENT_CENTER, 12, 14, Color.WHITE)
-		# HP pips: green over red
-		var hp_ratio := float(u.hp) / float(u.max_hp)
-		draw_rect(Rect2(center - Vector2(16, 24), Vector2(32 * clampf(hp_ratio, 0.0, 1.0), 4)), Color(0.2, 0.85, 0.3))
-		draw_rect(Rect2(center - Vector2(16, 24), Vector2(32, 4)), Color(0.6, 0.2, 0.2), false, 1)
+		# F-BUI Rules 3/4: HP bar in its colour band, pulsing at low HP.
+		var hp_ratio := float(u.hp) / float(maxi(u.max_hp, 1))
+		var bar_color := hp_band_color(hp_ratio)
+		if hp_pulses(hp_ratio):
+			bar_color.a = 0.45 + 0.55 * absf(sin(Time.get_ticks_msec() / 180.0))
+		draw_rect(Rect2(center - Vector2(16, 24), Vector2(32, 4)), Color(0.1, 0.1, 0.1, 0.8))
+		draw_rect(Rect2(center - Vector2(16, 24), Vector2(32 * clampf(hp_ratio, 0.0, 1.0), 4)), bar_color)
+		draw_rect(Rect2(center - Vector2(16, 24), Vector2(32, 4)), Color(0, 0, 0), false, 1)
+		# F-BUI Rule 5: one rank letter per active bond link, under the unit.
+		var links := BondSystem.active_partners(state, u)
+		for i in links.size():
+			var bpos := center + Vector2(-16 + i * 12, 18)
+			draw_rect(Rect2(bpos, Vector2(11, 11)), Color(0.85, 0.45, 0.9))
+			draw_string(font, bpos + Vector2(2, 9), String(links[i]["rank"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color.WHITE)
+		# F-BUI Rule 12: one badge per active item buff (stat, amount, turns left), above the bar.
+		var row := 0
+		for field in u.active_buffs:
+			var buff: Dictionary = u.active_buffs[field]
+			var text := "%s+%d (%d)" % [String(field).substr(0, 3), int(buff.get("amount", 0)), int(buff.get("turns_remaining", 0))]
+			draw_string(font, center + Vector2(-20, -28 - row * 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.6, 1.0, 0.6))
+			row += 1
 		if u.acted and u.side == "player":
 			draw_circle(center, 18.0, Color(0, 0, 0, 0.25))
 	_draw_unit_markers(markers)
