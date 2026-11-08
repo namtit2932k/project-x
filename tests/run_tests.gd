@@ -812,7 +812,7 @@ func test_reconcile_hud() -> void:
 
 
 func test_pause_menu() -> void:
-	## N08: Esc opens the pause menu, blocks map clicks and the enemy phase loop until
+	## N08: the Pause button opens the pause menu, blocks map clicks and the enemy phase loop until
 	## Resume; Quit-to-menu fires the dedicated signal (no merge path).
 	GameState.new_game()
 	# F4: tests exercise the legacy ch01 data, not the demo campaign.
@@ -1677,6 +1677,14 @@ func _note_of(forecast: Dictionary, effect_type: String) -> Dictionary:
 		if String(note.get("effect_type", "")) == effect_type:
 			return note
 	return {}
+
+
+## An Esc press as the engine delivers it (the ui_cancel action).
+func _esc_event() -> InputEventAction:
+	var ev := InputEventAction.new()
+	ev.action = "ui_cancel"
+	ev.pressed = true
+	return ev
 
 
 ## The open (not closing) ConfirmDialog directly under a screen, or null.
@@ -3238,8 +3246,8 @@ func test_unit_sprites() -> void:
 	assert_true(missing.is_empty(), "sprites: every mapped sheet is installed in Blue / Red / Green (missing %s)" % str(missing))
 
 
-## "Group 1" clean-up (09-11-2026): the test watchdog, the themed ConfirmDialog (S lock, pause
-## quit) and Esc backing out one step in battle before it opens the pause menu.
+## "Group 1" clean-up (09-11-2026): the test watchdog and the themed ConfirmDialog (S lock, pause
+## quit); F-NOESC: the Esc key does nothing anywhere (battle, pause, confirmations, dialogue).
 func test_group1_cleanup() -> void:
 	# Watchdog: this scene carries one, and it tells a missing / broken root script apart.
 	var dog := find_child("Watchdog", false, false) as TestWatchdog
@@ -3259,11 +3267,10 @@ func test_group1_cleanup() -> void:
 	var style := win.get_theme_stylebox("panel") as StyleBoxFlat
 	assert_true(Rect2(Vector2.ZERO, UITheme.FRAME).encloses(Rect2(win.position, win.size)) and style.border_color == UITheme.ACCENT, "confirm: a themed window inside the frame")
 	assert_true(_has_label_containing(dialog, "Message text") and _find_button(dialog, "Yes") != null and _find_button(dialog, "No") != null, "confirm: title, message, Confirm and Cancel")
-	var esc := InputEventAction.new()
-	esc.action = "ui_cancel"
-	esc.pressed = true
-	dialog._unhandled_input(esc)
-	assert_true(results == ["cancel"] and dialog.is_queued_for_deletion(), "confirm: Esc cancels and closes")
+	get_viewport().push_input(_esc_event())
+	assert_true(results.is_empty() and not dialog.is_queued_for_deletion(), "no esc: Esc leaves a confirmation open")
+	(dialog.find_child("CancelButton", true, false) as Button).pressed.emit()
+	assert_true(results == ["cancel"] and dialog.is_queued_for_deletion(), "confirm: the Cancel button cancels and closes")
 	# Pause menu Quit uses it too.
 	var pause := PauseMenu.new()
 	var quit_seen := [false]
@@ -3277,7 +3284,7 @@ func test_group1_cleanup() -> void:
 	(quit_dialog.find_child("ConfirmButton", true, false) as Button).pressed.emit()
 	assert_true(quit_seen[0], "pause: confirming quits to the menu")
 	pause.queue_free()
-	# Esc in battle: unconfirmed move back -> deselect -> pause menu.
+	# Battle: Esc neither takes a move back nor pauses / resumes; the mouse does.
 	GameState.new_game()
 	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
@@ -3295,13 +3302,30 @@ func test_group1_cleanup() -> void:
 		dest = c
 		break
 	battle._on_left_click(dest)
-	battle._on_escape()
-	assert_true(director.state.units["unit_swordsman"].pos == start and not director.state.units["unit_swordsman"].moved and battle.selected_unit_id == "unit_swordsman" and not battle.paused, "esc: takes the unconfirmed move back, unit still selected")
-	battle._on_escape()
-	assert_true(battle.selected_unit_id == "" and not battle.paused, "esc: then deselects")
-	battle._on_escape()
-	assert_true(battle.paused and battle._pause_menu != null, "esc: with nothing selected it opens the pause menu")
+	get_viewport().push_input(_esc_event())
+	assert_true(director.state.units["unit_swordsman"].pos == dest and director.state.units["unit_swordsman"].moved and not battle.paused, "no esc: Esc neither takes the move back nor pauses")
+	battle._on_right_click(dest)
+	assert_true(director.state.units["unit_swordsman"].pos == start and battle.selected_unit_id == "unit_swordsman", "no esc: right click still takes the move back")
+	battle._on_right_click(start)
+	get_viewport().push_input(_esc_event())
+	assert_true(not battle.paused and battle._pause_menu == null, "no esc: Esc does not open the pause menu")
+	battle._pause_button.pressed.emit()   # the HUD Pause button
+	assert_true(battle.paused and battle._pause_menu != null, "pause: the HUD Pause button opens the menu")
+	get_viewport().push_input(_esc_event())
+	assert_true(battle.paused and not battle._pause_menu.is_queued_for_deletion(), "no esc: Esc does not resume either")
 	battle._pause_menu._on_resume()
+	# Dialogue: Esc does not skip a scene (the Skip button does).
+	var dlg := DialogueData.new()
+	dlg.id = "dlg_test_no_esc"
+	dlg.lines = [{"speaker": "A", "text": "One."}, {"speaker": "B", "text": "Two."}]
+	var player := DialoguePlayer.build(dlg)
+	var finished := [false]
+	player.finished.connect(func(_s: bool) -> void: finished[0] = true)
+	add_child(player)
+	await get_tree().process_frame
+	get_viewport().push_input(_esc_event())
+	assert_true(not finished[0] and player._index == 0, "no esc: Esc does not skip a dialogue scene")
+	player.queue_free()
 	battle.queue_free()
 	GameState.new_game()
 

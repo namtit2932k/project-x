@@ -1,7 +1,7 @@
 extends Control
 class_name PauseMenu
-## In-battle pause (N08): Esc opens it, blocking map input and the phase loops until
-## Resume. Options reuse the shared OptionsPanel, never a copy. Quit warns that the
+## In-battle pause (N08): the HUD Pause button opens it, blocking map input and the phase
+## loops until Resume (mouse only, no Esc key - F-NOESC). Options reuse the shared OptionsPanel, never a copy. Quit warns that the
 ## in-battle progress is lost and only the last manual save remains.
 
 signal resumed
@@ -47,18 +47,8 @@ func _on_resume() -> void:
 
 
 ## Confirmation spells out D11: no mid-battle save, only the last manual save survives.
-## F-UI: the themed ConfirmDialog (Esc = Back to battle).
+## F-UI: the themed ConfirmDialog.
 func _confirm_quit() -> void:
 	var dialog := ConfirmDialog.build(UIBuilder.t("Quit to menu"), UIBuilder.t("Current battle progress will be lost. Only your latest manual save is kept. Quit anyway?"), UIBuilder.t("Quit"), UIBuilder.t("Back to battle"))
 	add_child(dialog)
 	dialog.confirmed.connect(func() -> void: quit_to_menu.emit())
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if is_visible_in_tree() and event.is_action_pressed("ui_cancel"):
-		accept_event()
-		if _squad_view != null and is_instance_valid(_squad_view):
-			_squad_view.queue_free()   # Esc closes the Squad View first
-			_squad_view = null
-			return
-		_on_resume()   # Esc again = Resume

@@ -23,17 +23,17 @@ godot --headless --path . --quit-after 5   # boot check (no rendering)
 - Left click a unit: select it (any side shows its ranges). A ready player unit shows its blue move range and attack edge — **no action menu yet** (F-MOVE).
 - Left click a blue tile: the unit moves there and the **action menu** opens next to it (GDD order: Attack, Heal, Use Item, Visit, Encore, Trade, Wait). Left click the unit **again** instead = stay on its tile, the menu opens there.
 - Attack: menu Attack (or click an enemy on a red tile) -> forecast -> Confirm / Cancel. Right after selecting, a red enemy can be clicked directly (attack from where the unit stands).
-- Until an action is confirmed the move is provisional: **right click** (or Esc) puts the unit back on its start tile for free; right click again deselects. Picking another unit, End phase or Rewind also take the move back first.
+- Until an action is confirmed the move is provisional: **right click** puts the unit back on its start tile for free; right click again deselects. Picking another unit, End phase or Rewind also take the move back first.
 - While choosing an Attack / Heal / Encore target: right click returns to the menu.
 - When every player unit has acted the turn passes to the enemy by itself after half a second (F-AUTOEND); the **End phase** button works at any time.
-- **Esc**: backs out one step like a right click while something is selected or open; with nothing selected it opens the pause menu (Resume / Squad / Options / Quit to menu, with a themed "progress will be lost" confirmation).
+- **Pause** button (top right): pause menu (Resume / Squad / Options / Quit to menu, with a "progress will be lost" confirmation). The game is mouse-only: Esc does nothing (F-NOESC).
 - **Rewind** button: opens the rewind point list (newest first, "Undo last action" on top); each use costs one charge (story ∞, normal 5, hard 3, nightmare 0). RNG is intentionally NOT restored (D04).
 
 ## Validation & tests (headless)
 
 ```
 godot --headless --path . res://tools/validate_data.tscn    # data validation (0 errors expected)
-godot --headless --path . res://tests/run_tests.tscn        # 654 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/exp/save)
+godot --headless --path . res://tests/run_tests.tscn        # 658 rule checks (movement/combat/range/side/objectives/rewind/reconcile/bond/exp/save)
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI, end-to-end through BattleDirector (21 checks)
 godot --headless --path . res://tools/playtest_demo_maps.tscn # bot playtest of the 6 demo maps -> docs/playtest/demo_maps_report.md (not pass/fail)
 godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test maps, one scripted win + one lose scenario each

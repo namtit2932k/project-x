@@ -121,9 +121,7 @@ static func note_text(note: Dictionary) -> String:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if is_visible_in_tree():
+		# Right click = Cancel (no Esc key, F-NOESC).
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-			cancelled.emit()
-			accept_event()
-		elif event.is_action_pressed("ui_cancel"):
 			cancelled.emit()
 			accept_event()

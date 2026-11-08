@@ -40,15 +40,16 @@ godot --path .
 | Action | Input |
 | --- | --- |
 | Select unit (any faction shows its ranges) | Left click |
-| Move | Left click a highlighted move tile |
-| Attack / Wait / skill | Action menu after moving |
-| Forecast & confirm | Click an enemy on a red tile → ForecastPanel → Confirm |
-| Cancel (also decline Confirm) | Right click |
-| End phase | "End phase" button (bottom right) |
-| Pause menu | Esc |
+| Move | Left click a highlighted move tile — the action menu opens |
+| Stay in place | Left click the selected unit again — the action menu opens |
+| Attack / Heal / Item / Visit / Trade / Wait | Action menu after moving (or staying) |
+| Forecast & confirm | Attack → click an enemy on a red tile → ForecastPanel → Confirm |
+| Cancel / take an unconfirmed move back | Right click |
+| End phase | "End phase" button (top right); automatic once every unit has acted |
+| Pause menu | "Pause" button (top right) — there is no Esc key |
 | Rewind (costs one use) | "Rewind" button |
 
-A unit moves **once per phase**; after moving it may attack, wait or use a skill — changing position again requires Rewind.
+A unit moves **once per phase**. Until its action is confirmed the move is provisional (right click puts it back for free); after that, changing position requires Rewind.
 
 ## Verification (headless)
 
@@ -62,7 +63,7 @@ godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test map
 godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example maps: units, stats, objectives (F6)
 ```
 
-Current: rule tests **654/654**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
+Current: rule tests **658/658**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
 
 Debug builds also get a **Test maps** entry on the main menu: every `data/maps/test_*` map
 starts a battle straight away with the default roster (no chapter loop; results never merge
@@ -92,7 +93,7 @@ tests/       headless rule tests + full-battle smoke
 docs/        how to run, technical decisions
 ```
 
-Round-2 design decisions (forecast restored, must-survive heroes, rewind `per_use` + RNG not restored, win-only merge, EXP/level-ups, story flags, Esc pause, test maps) are logged in [AGENTS.md](AGENTS.md) §7b. Still open (placeholders in data): final damage/hit/crit numbers, the final terrain table, story content, the final bond pair list & S routes, and wounded-casualty effects for non-permadeath difficulties.
+Round-2 design decisions (forecast restored, must-survive heroes, rewind `per_use` + RNG not restored, win-only merge, EXP/level-ups, story flags, pause menu, test maps) are logged in [AGENTS.md](AGENTS.md) §7b. Still open (placeholders in data): final damage/hit/crit numbers, the final terrain table, story content, the final bond pair list & S routes, and wounded-casualty effects for non-permadeath difficulties.
 
 ## Roadmap
 

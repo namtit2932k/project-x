@@ -1,7 +1,8 @@
 extends Control
 class_name DialoguePlayer
 ## Reusable module: takes DialogueData and renders it. New dialogue is data, not new logic.
-## Click / Space advances, Esc or "Skip" finishes the scene (Skipped counts as watched for bonds).
+## Click / Space advances, the "Skip" button finishes the scene (Skipped counts as watched for
+## bonds). No Esc key (F-NOESC).
 ## F-UI step 5 (UI doc visual-novel screens): placeholder scene backdrop, a small kind tag and a
 ## serif title, and the bottom box (x 7 %-93 %, bottom -216 to -28) with the speaker in gold
 ## capitals, 28 px text, progress dots and a Skip button.
@@ -147,8 +148,6 @@ func _gui_input(event: InputEvent) -> void:
 		_advance()
 	elif event.is_action_pressed("ui_accept"):
 		_advance()
-	elif event.is_action_pressed("ui_cancel"):
-		_finish(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -156,8 +155,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("ui_accept") or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 			_advance()
 			accept_event()
-		elif event.is_action_pressed("ui_cancel"):
-			_finish(true)
 
 
 func _advance() -> void:
