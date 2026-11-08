@@ -1715,7 +1715,9 @@ func _gd_files(dir_path: String) -> Array:
 func test_enemy_difficulty_scaling() -> void:
 	await 0.0
 	var table: Dictionary = DataRegistry.rule("enemy_stat_multiplier_by_difficulty", {})
-	assert_true(is_equal_approx(float(table["nightmare"]), 1.15) and is_equal_approx(float(table["hard"]), 1.08) and is_equal_approx(float(table["normal"]), 1.0) and is_equal_approx(float(table["story"]), 1.0), "difficulty: GDD multipliers 1.15 / 1.08 / 1.0 / 1.0")
+	var levels: Dictionary = DataRegistry.rule("enemy_bonus_levels_by_difficulty", {})
+	assert_true(is_equal_approx(float(table["nightmare"]), 1.0) and is_equal_approx(float(table["hard"]), 1.0), "difficulty: stat multiplier is 1.0 on every tier (superseded by levels)")
+	assert_true(int(levels["story"]) == 0 and int(levels["normal"]) == 0 and int(levels["hard"]) == 2 and int(levels["nightmare"]) == 4, "difficulty: enemy bonus levels 0 / 0 / +2 / +4")
 	var u := UnitState.new()
 	u.power = 10; u.magic = 10; u.skill = 10; u.speed = 10; u.defense = 10; u.resistance = 10; u.luck = 10
 	u.max_hp = 30; u.hp = 30
@@ -1733,8 +1735,10 @@ func test_enemy_difficulty_scaling() -> void:
 	nightmare.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "nightmare")
 	var foe_n: UnitState = normal.state.units["unit_rebel_commander"]
 	var foe_x: UnitState = nightmare.state.units["unit_rebel_commander"]
-	assert_true(foe_x.power == int(floor(foe_n.power * 1.15)) and foe_x.defense == int(floor(foe_n.defense * 1.15)), "difficulty: Nightmare enemy stats x1.15, floored")
-	assert_true(foe_x.max_hp == foe_n.max_hp and foe_x.luck == foe_n.luck, "difficulty: enemy HP and Luck unscaled on Nightmare")
+	var expect := UnitState.from_data(DataRegistry.get_unit("unit_rebel_commander"), Vector2i.ZERO, foe_n.level + 4)
+	expect.apply_enemy_levels()
+	assert_true(foe_x.level == foe_n.level + 4 and foe_x.power == expect.power and foe_x.max_hp == expect.max_hp and foe_x.defense == expect.defense, "difficulty: Nightmare enemy is 4 levels higher, stats from its growths")
+	assert_true(foe_x.max_hp > foe_n.max_hp, "difficulty: the extra levels raise HP too (Fire Emblem style)")
 	assert_true(nightmare.state.units["unit_swordsman"].power == normal.state.units["unit_swordsman"].power, "difficulty: player units never scaled")
 
 
@@ -2010,12 +2014,16 @@ func test_enemy_levels() -> void:
 	var lv9 := UnitState.from_data(DataRegistry.get_unit("unit_demo_guard"), Vector2i.ZERO, 9)
 	lv9.apply_enemy_levels()
 	assert_true(lv9.max_hp == 25 and lv9.power == 10 and lv9.skill == 6, "enemy level: placement level 9 -> HP 25 Str 10 Skill 6, same every time")
-	# Difficulty multiplier applies on top of the levelled stats (Hard x1.08: Str 8 -> 8, Def 5 -> 5).
-	var hard := BattleDirector.new()
-	hard.setup(map, {"unit_demo_swordsman": map.deploy_cells[0], "unit_demo_knight": map.deploy_cells[1]}, "nightmare")
-	for u in hard.state.units.values():
-		if u.id == guard.id:
-			assert_true(u.power == int(floor(8 * float(DataRegistry.rule("enemy_stat_multiplier_by_difficulty", {}).get("nightmare", 1.0)))) and u.max_hp == 22, "enemy level: difficulty scales the levelled stats, HP untouched")
+	# Hard / Nightmare add levels: guard L7 = HP 24 Str 9 Skill 6 Spd 7 Def 5; L9 = HP 25 Str 10 Skill 6 Spd 7 Def 6.
+	for tier in ["hard", "nightmare"]:
+		var tough := BattleDirector.new()
+		tough.setup(map, {"unit_demo_swordsman": map.deploy_cells[0], "unit_demo_knight": map.deploy_cells[1]}, tier)
+		var g: UnitState = tough.state.units[guard.id]
+		if tier == "hard":
+			assert_true(g.level == 7 and g.max_hp == 24 and g.power == 9 and g.skill == 6 and g.speed == 7 and g.defense == 5, "enemy level: Hard guard is L7 (HP 24 Str 9 Skill 6 Spd 7 Def 5)")
+		else:
+			assert_true(g.level == 9 and g.max_hp == 25 and g.power == 10 and g.skill == 6 and g.speed == 7 and g.defense == 6, "enemy level: Nightmare guard is L9 (HP 25 Str 10 Skill 6 Spd 7 Def 6)")
+		assert_true(tough.state.units["unit_demo_swordsman"].level == 1, "enemy level: player units get no difficulty levels")
 	# Hit chances land in the approved band (plain-ground numbers checked by formula).
 	assert_true(CombatResolver._hit_pct(director.state, sword, guard) < 100 and CombatResolver._hit_pct(director.state, guard, sword) <= 75, "enemy level: no more near-certain hits both ways")
 	# Legacy ch01 rebels are level 1: unchanged.
@@ -2128,6 +2136,14 @@ func test_ai_pathing_regressions() -> void:
 		if walk["move_cell"] != npc.pos:
 			npc.pos = walk["move_cell"]
 	assert_true(float(field.get(npc.pos, INF)) < start_cost - 4.0, "ai: the escort NPC keeps making progress around the water (path cost %.1f -> %.1f)" % [start_cost, float(field.get(npc.pos, INF))])
+	# Designer 08-11-2026: the escort walks through a player unit standing on its path, not vice versa.
+	var blocker: UnitState = d2.state.units["unit_demo_swordsman"]
+	npc.pos = Vector2i(5, 4)
+	blocker.pos = Vector2i(6, 4)
+	npc.acted = false
+	var through := NpcAI.plan_walk(d2.state, npc, goal)
+	assert_true(through["move_cell"] == Vector2i(7, 4), "ai: the escort NPC walks through our unit on its path (5,4) -> (7,4)")
+	assert_true(not MovementHandler._passable(d2.state, blocker, npc.pos, false), "ai: our units still cannot walk through the NPC")
 
 
 func _sides(plan: Dictionary) -> Array:

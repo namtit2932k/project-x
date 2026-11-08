@@ -32,8 +32,11 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: 
 	# F-PAS: turn 1 opens on the player phase (Magician burst readiness etc.).
 	PassiveSystem.on_phase_started(state, "player")
 	# F-ELV first (level gains on the base stats), then F-DIFF's multiplier on the result.
+	var bonus_levels := int(DataRegistry.rule("enemy_bonus_levels_by_difficulty", {}).get(difficulty, 0))
+	var level_cap := int(DataRegistry.rule("level_cap", 20))
 	for u in state.units.values():
 		if u.side == "enemy":
+			u.level = mini(u.level + bonus_levels, level_cap)   # Hard / Nightmare: +levels
 			u.apply_enemy_levels()
 	_scale_enemies(difficulty)
 

@@ -48,3 +48,15 @@ the F-ELV target band.
    hold back (Protect/Persuade AI), or fewer guards.
 4. **The other five maps are short and safe** (2 enemies each, won in 2–4 turns, no unit lost) —
    fine for a tutorial slice, too easy for anything else.
+
+## Designer answers (2026-11-08) and the re-run
+
+1. **Escort NPCs may walk through the player's units** (not the other way round) — done in
+   `MovementHandler._passable`. demo_02: 88% → **100%** wins, no more stalls.
+2. **Hard adds enemy levels** (Fire Emblem style): Hard +2, Nightmare +4, stat multiplier 1.0 on
+   every tier (F-DIFF superseded). Hard now differs from Normal: enemy hit 62–68% → 64–72%, enemy
+   damage +1 to +1.5 per strike; demo_03 Hard: aggressive 64% wins (9 hero losses), restrained 32%;
+   demo_04 Hard 96%.
+3. **The demo maps are reference only, not official content** — observations 3 and 4 above are
+   not acted on (no map/threshold rebalancing); the maps stay as they are for checking systems.
+

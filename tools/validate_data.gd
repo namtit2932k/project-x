@@ -159,6 +159,12 @@ func check_rules() -> void:
 		var mult := float(enemy_mult.get(difficulty, 1.0))
 		if mult < 1.0 or mult > 2.0:
 			_err("rules: enemy_stat_multiplier '%s' out of [1.0, 2.0]" % difficulty)
+	var bonus_levels: Dictionary = DataRegistry.rule("enemy_bonus_levels_by_difficulty", {})
+	for difficulty in DIFFICULTIES:
+		if not bonus_levels.has(difficulty):
+			_err("rules: enemy_bonus_levels_by_difficulty missing '%s'" % difficulty)
+		elif int(bonus_levels[difficulty]) < 0:
+			_err("rules: enemy_bonus_levels '%s' < 0" % difficulty)
 	# F-EXP: EXP/level numbers must keep the level-up loop meaningful; caps use GDD stat keys.
 	if int(DataRegistry.rule("exp_per_action", 25)) < 0:
 		_err("rules: exp_per_action < 0")

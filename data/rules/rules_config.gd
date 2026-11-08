@@ -171,8 +171,13 @@ class_name RulesConfig
 @export var hp_blink_band: float = 0.25
 ## Nhân chỉ số địch khi Deploy theo độ khó: nhân Str/Mag/Skill/Speed/Def/Res, lấy phần nguyên xuống;
 ## KHÔNG nhân HP/Luck (GDD-Combat §5). Quyết định tạm theo Phụ lục D.
+## F-DIFF (superseded 08-11-2026): kept as a knob, 1.0 everywhere - difficulty now adds levels.
 @export var enemy_stat_multiplier_by_difficulty: Dictionary = {
-	"story": 1.0, "normal": 1.0, "hard": 1.08, "nightmare": 1.15,
+	"story": 1.0, "normal": 1.0, "hard": 1.0, "nightmare": 1.0,
+}
+## F-DIFF / F-ELV (designer 08-11-2026): extra enemy levels per difficulty, Fire Emblem style.
+@export var enemy_bonus_levels_by_difficulty: Dictionary = {
+	"story": 0, "normal": 0, "hard": 2, "nightmare": 4,
 }
 ## Restraint (C11) bật theo độ khó; Nightmare tắt (Phụ lục D, quyết định tạm).
 @export var restraint_rule_active_by_difficulty: Dictionary = {

@@ -59,7 +59,7 @@ Put new code in the matching folder. If a new top-level folder seems needed, ask
 
 - Phase order: player → enemy → NPC. A unit acts at most once per phase unless a skill says otherwise. The next phase starts only when the current one ends.
 - Win/lose is checked after each relevant event: move, combat, turn change, NPC action.
-- Movement: allowed through allies; cannot end on an occupied tile; cannot pass enemies or blocked tiles; cost depends on terrain.
+- Movement: allowed through allies; cannot end on an occupied tile; cannot pass enemies or blocked tiles; cost depends on terrain. Escort/NPC actors may also walk through the player's units (designer 08-11-2026), never the other way round.
 - Selecting any unit (player, enemy, NPC) shows its move range; attack range is shown from the edge of the move range. Move range and attack range use different colors and update after moves or deaths.
 - Combat flow: choose valid target → show forecast (hit, crit, damage, counter) → confirm → combat screen (attacker first, then counter if able) → return to map.
 - Defeat: any critical unit (protagonist or must-survive) dies = game over. Map-specific fail conditions come from map data. Casualty policy per difficulty lives in `rules_config.casualty_by_difficulty` (see D06).
@@ -307,6 +307,10 @@ Overrides GDD `game-concept.md` "a failed persuasion carries forward into the st
 - **Designer-confirmed (08-11-2026, "keep it like that"):** (a) the bad ending ends the run like a Game Over — **nothing from that battle is merged** (EXP, kills, bonds, chapter completion) so Retry chapter replays it from the pre-battle state; (b) Retry chapter and Main menu are offered.
 - Validator warns about a remnant faction with `kill_threshold` 0 (always red → every victory would be a bad ending) and errors on an unknown `bad_ending_dialogue_id`.
 
+### Demo maps are reference only (designer 08-11-2026)
+
+The six `demo_0N` maps/chapters are **reference material, not official content**: do not rebalance their layouts, enemy counts or faction thresholds from playtest results (e.g. demo_03's strict persuasion). Playtests on them are for checking rules and systems.
+
 ### F-ELV — Enemy levels, Fire Emblem style (designer chose the approach and approved the mechanism + numbers below, 08-11-2026)
 
 Approach approved ("làm C"): put the demo layer on the roster's stat scale the Fire Emblem way — enemies are ordinary class units on the same scale as the player, and difficulty per map comes from the enemy's **level**, not hand-tuned stats.
@@ -372,7 +376,8 @@ Supersedes the D05 point rules (and the old 20/45/70 thresholds); the adjacency 
 
 ### F-DIFF — Enemy stats by difficulty (08-11-2026, `difficulty-system.md` F-DS2 / AC-DS2 / AC-DS4, `core-combat-system.md` Core Rule 1)
 
-- At deploy time (`BattleDirector.setup`), every **enemy-side** unit's Str/Mag/Skill/Speed/Def/Res becomes `floor(stat × rules_config.enemy_stat_multiplier_by_difficulty[tier])` — Story 1.0, Normal 1.0, Hard 1.08, Nightmare 1.15. **HP and Luck are never scaled**; player units and NPCs are never scaled. Unknown tier → 1.0 (GDD edge case). The scaled values are the battle's own stats, so forecast, AI and rewind all see them.
+- **Superseded on 08-11-2026 (designer, after the demo playtest showed Hard = Normal at roster scale):** difficulty now adds enemy **levels** (F-ELV): `rules_config.enemy_bonus_levels_by_difficulty` Story 0, Normal 0, **Hard +2, Nightmare +4**, added to every enemy's level before its level gains (capped at `level_cap`). The stat multiplier stays as a data knob but is **1.0 on every tier** (no effect). Example guard L5 → Hard L7 (HP 24 Str 9 Skill 6 Spd 7 Def 5), Nightmare L9 (HP 25 Str 10 Skill 6 Spd 7 Def 6).
+- (Original rule, knob still in code:) at deploy time (`BattleDirector.setup`), every **enemy-side** unit's Str/Mag/Skill/Speed/Def/Res becomes `floor(stat × rules_config.enemy_stat_multiplier_by_difficulty[tier])` — was Story 1.0, Normal 1.0, Hard 1.08, Nightmare 1.15. **HP and Luck are never scaled**; player units and NPCs are never scaled. Unknown tier → 1.0 (GDD edge case). The scaled values are the battle's own stats, so forecast, AI and rewind all see them.
 
 ### I18N — Two UI languages (designer 08-11-2026: "the game will have at least 2 languages, do both")
 
@@ -433,6 +438,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (23) — Claude (Opus) — done: designer answers to the playtest: (1) escort/NPC actors walk through the player's units (`MovementHandler._passable`; §6 movement rule updated); (2) difficulty = enemy levels: `rules_config.enemy_bonus_levels_by_difficulty` Story 0 / Normal 0 / Hard +2 / Nightmare +4, applied before the F-ELV level gains (capped at level_cap); stat multiplier now 1.0 on every tier (F-DIFF marked superseded); validator checks the new table; (3) demo maps recorded as reference-only (new §7b note) — no map rebalancing. Tests updated (difficulty, enemy levels, NPC pass-through). Playtest re-run: demo_02 100%, Hard now harder than Normal. Verified: validation 0/0, run_tests **421/421**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: content localization when the official story arrives; official maps when designed. — issues: not pushed (no repo access).
 
 - 2026-11-08 (22) — Claude (Opus) — done: automated playtest of the 6 demo maps (new `tools/playtest_demo_maps.tscn`: bots on both sides, 25 seeds × Normal/Hard × aggressive/restrained; report `docs/playtest/demo_maps_report.md`, findings `docs/playtest/2026-11-08_demo_findings.md`). It found and this pass fixed two AI bugs: (1) `EnemyAI` took standing cells from the threat ring outside the move area, so enemies never moved+attacked and usually just waited (since milestone 1); (2) NPC walk / enemy approach used straight-line distance and froze at water — demo_02 escort was unwinnable; new `MovementHandler.distance_field()` / `closest_by_path()`. ch01 smoke kill check relaxed to >= 3 (the objective targets 3 soldiers). New `test_ai_pathing_regressions`. Verified: validation 0/0, run_tests **415/415**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: designer answers on the playtest findings (escort NPC passing player units, Hard = Normal at this stat scale, demo_03 persuasion too strict, other maps very easy). — issues: not pushed (no repo access).
 

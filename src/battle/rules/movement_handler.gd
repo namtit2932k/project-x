@@ -85,6 +85,9 @@ static func _passable(state: BattleState, unit: UnitState, cell: Vector2i, flyin
 		# May walk through same-side units; never through others (mixed squads share a side).
 		if occ.side == unit.side:
 			return true
+		# Designer 08-11-2026: escort / NPC actors may walk through the player's units.
+		if unit.side == "npc" and occ.side == "player":
+			return true
 		return false
 	var defs: Dictionary = DataRegistry.rule("terrain_defs", {})
 	var td: Dictionary = defs.get(state.terrain_at(cell), {"blocked": true})
