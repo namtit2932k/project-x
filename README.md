@@ -46,7 +46,7 @@ godot --path .
 | Forecast & confirm | Attack → click an enemy on a red tile → ForecastPanel → Confirm |
 | Cancel / take an unconfirmed move back | Right click |
 | End phase | "End phase" button (top right); automatic once every unit has acted |
-| Pause menu | "Pause" button (top right) — there is no Esc key |
+| Pause menu | Esc or the "Pause" button (top right) |
 | Rewind (costs one use) | "Rewind" button |
 
 A unit moves **once per phase**. Until its action is confirmed the move is provisional (right click puts it back for free); after that, changing position requires Rewind.
@@ -63,7 +63,7 @@ godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test map
 godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example maps: units, stats, objectives (F6)
 ```
 
-Current: rule tests **658/658**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
+Current: rule tests **656/656**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
 
 Debug builds also get a **Test maps** entry on the main menu: every `data/maps/test_*` map
 starts a battle straight away with the default roster (no chapter loop; results never merge

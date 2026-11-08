@@ -186,7 +186,10 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if paused:
 		return
-	# F-NOESC (designer 09-11-2026): mouse only - no Esc key; the HUD Pause button pauses.
+	# Esc opens the pause menu (D11). It never backs out a step - right click does (F-NOESC).
+	if event.is_action_pressed("ui_cancel") and mode != Mode.BUSY and director.state.battle_over.is_empty():
+		_toggle_pause()
+		return
 	if event is InputEventMouseButton and event.pressed:
 		var cell := map_view.global_to_cell(event.position)
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -929,7 +932,7 @@ func _refresh_overlays() -> void:
 
 # ------------------------------------------------------------------ N08 pause
 
-## The HUD Pause button opens the pause menu (no Esc key, F-NOESC). While open, map input and the enemy/NPC loops stall
+## Esc or the HUD Pause button opens the pause menu. While open, map input and the enemy/NPC loops stall
 ## (the loops wait on process_frame until paused is cleared); nothing mid-battle is saved.
 func _toggle_pause() -> void:
 	if paused:

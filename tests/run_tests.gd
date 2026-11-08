@@ -812,7 +812,7 @@ func test_reconcile_hud() -> void:
 
 
 func test_pause_menu() -> void:
-	## N08: the Pause button opens the pause menu, blocks map clicks and the enemy phase loop until
+	## N08: Esc (or the Pause button) opens the pause menu, blocks map clicks and the enemy phase loop until
 	## Resume; Quit-to-menu fires the dedicated signal (no merge path).
 	GameState.new_game()
 	# F4: tests exercise the legacy ch01 data, not the demo campaign.
@@ -3247,7 +3247,7 @@ func test_unit_sprites() -> void:
 
 
 ## "Group 1" clean-up (09-11-2026): the test watchdog and the themed ConfirmDialog (S lock, pause
-## quit); F-NOESC: the Esc key does nothing anywhere (battle, pause, confirmations, dialogue).
+## quit); F-NOESC: Esc keeps only its earlier jobs (pause, resume, skip, cancel) and never backs out.
 func test_group1_cleanup() -> void:
 	# Watchdog: this scene carries one, and it tells a missing / broken root script apart.
 	var dog := find_child("Watchdog", false, false) as TestWatchdog
@@ -3268,9 +3268,7 @@ func test_group1_cleanup() -> void:
 	assert_true(Rect2(Vector2.ZERO, UITheme.FRAME).encloses(Rect2(win.position, win.size)) and style.border_color == UITheme.ACCENT, "confirm: a themed window inside the frame")
 	assert_true(_has_label_containing(dialog, "Message text") and _find_button(dialog, "Yes") != null and _find_button(dialog, "No") != null, "confirm: title, message, Confirm and Cancel")
 	get_viewport().push_input(_esc_event())
-	assert_true(results.is_empty() and not dialog.is_queued_for_deletion(), "no esc: Esc leaves a confirmation open")
-	(dialog.find_child("CancelButton", true, false) as Button).pressed.emit()
-	assert_true(results == ["cancel"] and dialog.is_queued_for_deletion(), "confirm: the Cancel button cancels and closes")
+	assert_true(results == ["cancel"] and dialog.is_queued_for_deletion(), "confirm: Esc cancels and closes, as Godot's dialog did")
 	# Pause menu Quit uses it too.
 	var pause := PauseMenu.new()
 	var quit_seen := [false]
@@ -3284,7 +3282,7 @@ func test_group1_cleanup() -> void:
 	(quit_dialog.find_child("ConfirmButton", true, false) as Button).pressed.emit()
 	assert_true(quit_seen[0], "pause: confirming quits to the menu")
 	pause.queue_free()
-	# Battle: Esc neither takes a move back nor pauses / resumes; the mouse does.
+	# Battle: Esc pauses (D11) but never takes a move back; right click does.
 	GameState.new_game()
 	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
@@ -3303,18 +3301,15 @@ func test_group1_cleanup() -> void:
 		break
 	battle._on_left_click(dest)
 	get_viewport().push_input(_esc_event())
-	assert_true(director.state.units["unit_swordsman"].pos == dest and director.state.units["unit_swordsman"].moved and not battle.paused, "no esc: Esc neither takes the move back nor pauses")
+	assert_true(battle.paused and battle._pause_menu != null and director.state.units["unit_swordsman"].pos == dest and director.state.units["unit_swordsman"].moved, "esc: opens the pause menu and does not take the move back")
+	get_viewport().push_input(_esc_event())
+	assert_true(not battle.paused, "esc: pressed again in the pause menu it resumes")
 	battle._on_right_click(dest)
-	assert_true(director.state.units["unit_swordsman"].pos == start and battle.selected_unit_id == "unit_swordsman", "no esc: right click still takes the move back")
-	battle._on_right_click(start)
-	get_viewport().push_input(_esc_event())
-	assert_true(not battle.paused and battle._pause_menu == null, "no esc: Esc does not open the pause menu")
+	assert_true(director.state.units["unit_swordsman"].pos == start and battle.selected_unit_id == "unit_swordsman", "esc: right click is what takes the move back")
 	battle._pause_button.pressed.emit()   # the HUD Pause button
-	assert_true(battle.paused and battle._pause_menu != null, "pause: the HUD Pause button opens the menu")
-	get_viewport().push_input(_esc_event())
-	assert_true(battle.paused and not battle._pause_menu.is_queued_for_deletion(), "no esc: Esc does not resume either")
+	assert_true(battle.paused and battle._pause_menu != null, "pause: the HUD Pause button opens the menu too")
 	battle._pause_menu._on_resume()
-	# Dialogue: Esc does not skip a scene (the Skip button does).
+	# Dialogue: Esc still skips a scene.
 	var dlg := DialogueData.new()
 	dlg.id = "dlg_test_no_esc"
 	dlg.lines = [{"speaker": "A", "text": "One."}, {"speaker": "B", "text": "Two."}]
@@ -3324,8 +3319,9 @@ func test_group1_cleanup() -> void:
 	add_child(player)
 	await get_tree().process_frame
 	get_viewport().push_input(_esc_event())
-	assert_true(not finished[0] and player._index == 0, "no esc: Esc does not skip a dialogue scene")
-	player.queue_free()
+	assert_true(finished[0], "esc: still skips a dialogue scene")
+	if is_instance_valid(player) and not player.is_queued_for_deletion():
+		player.queue_free()
 	battle.queue_free()
 	GameState.new_game()
 

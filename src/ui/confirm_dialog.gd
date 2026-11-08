@@ -2,7 +2,8 @@ extends Control
 class_name ConfirmDialog
 ## F-UI: the themed yes / no dialog (UI doc "Leave confirm" look): dimmed screen, opaque
 ## gold-bordered window, serif title, message, Cancel + gold Confirm. Replaces Godot's
-## ConfirmationDialog, whose separate window ignored the game theme. Mouse only (F-NOESC).
+## ConfirmationDialog, whose separate window ignored the game theme. Esc = Cancel, as Godot's
+## dialog did before.
 ## Used by the camp S lock and the pause menu's Quit to menu.
 
 signal confirmed
@@ -65,3 +66,9 @@ func _ok() -> void:
 func _cancel() -> void:
 	canceled.emit()
 	queue_free()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if is_visible_in_tree() and event.is_action_pressed("ui_cancel"):
+		accept_event()
+		_cancel()
