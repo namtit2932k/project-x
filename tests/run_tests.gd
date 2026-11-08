@@ -47,6 +47,7 @@ func _ready() -> void:
 	await test_placeholder_tileset()
 	await test_move_then_act()
 	await test_auto_end_phase()
+	await test_unit_sprites()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -398,6 +399,7 @@ func test_second_target_via_clicks() -> void:
 	var e2: UnitState = _spawn(director.state, "foe2", "faction_rebel_ch01", hero2.pos + Vector2i(0, -1), false, false, "enemy")
 	e2.speed = 0
 	var e2_before: int = e2.hp
+	battle.auto_end_phase = false   # reads acted flags after the last attack (F-AUTOEND would start turn 2)
 	battle._on_left_click(hero1.pos)
 	battle._on_left_click(e1.pos)
 	battle._confirm_forecast()   # D01: forecast opens on the red-cell click, Confirm commits
@@ -3204,6 +3206,27 @@ func test_auto_end_phase() -> void:
 	assert_true(director.state.turn == 2 and director.state.phase == BattleState.PHASE_PLAYER, "auto end: the enemy phase ran by itself and turn 2 began (%.1fs)" % waited)
 	battle.queue_free()
 	GameState.new_game()
+
+
+## Placeholder unit sprites: every class of the data maps to a sheet (or the fallback); when the
+## (git-ignored) pack is installed, every mapped sheet exists in all three side colours.
+func test_unit_sprites() -> void:
+	await 0.0
+	var s := UnitSprites.data()
+	assert_true(s != null and s.frame_size == 32 and s.idle_frames == 4, "sprites: the sprite set data loads")
+	assert_true(UnitSprites.sheet_path("class_swordsman", "player").ends_with("SwordFighter_ShortHair_Blue1.png") and UnitSprites.sheet_path("class_swordsman", "enemy").contains("_Red") and UnitSprites.sheet_path("class_unknown", "npc").contains("_Green"), "sprites: side colours and the fallback sheet")
+	assert_true(UnitSprites.idle_frame(0) == 0 and UnitSprites.idle_frame(int(s.frame_time * 1000.0 * 5.0) + 1) == 1, "sprites: the idle animation cycles its frames")
+	var probe: Resource = load("res://data/tilesets/unit_sprites.tres")
+	if not ResourceLoader.exists(UnitSprites.sheet_path("class_swordsman", "player")):
+		assert_true(probe != null, "sprites: pack not installed - the map draws letter blocks")
+		return
+	var missing: Array = []
+	for class_id in s.class_sheets.keys() + ["__fallback__"]:
+		for side in ["player", "enemy", "npc"]:
+			var path := UnitSprites.sheet_path(String(class_id), side)
+			if not ResourceLoader.exists(path):
+				missing.append(path.get_file())
+	assert_true(missing.is_empty(), "sprites: every mapped sheet is installed in Blue / Red / Green (missing %s)" % str(missing))
 
 
 func _sides(plan: Dictionary) -> Array:

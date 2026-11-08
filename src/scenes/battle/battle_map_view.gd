@@ -99,10 +99,19 @@ static func hp_pulses(ratio: float) -> bool:
 	return ratio <= float(DataRegistry.rule("hp_blink_band", 0.25))
 
 
+var _last_idle_frame := -1
+
+
 func _process(_delta: float) -> void:
-	# Only the low-HP pulse animates: redraw while any unit needs it.
+	# The low-HP pulse and the sprites' idle animation redraw the map.
 	if state == null:
 		return
+	if UnitSprites.data() != null:
+		var frame := UnitSprites.idle_frame(Time.get_ticks_msec())
+		if frame != _last_idle_frame:
+			_last_idle_frame = frame
+			queue_redraw()
+			return
 	for u in state.alive_units():
 		if hp_pulses(float(u.hp) / float(maxi(u.max_hp, 1))):
 			queue_redraw()
@@ -187,10 +196,13 @@ func _draw() -> void:
 			color = Color(0.2, 0.55, 0.95)
 		elif u.side == "npc":
 			color = Color(0.95, 0.8, 0.25)
-		var r := Rect2(Vector2.ZERO - Vector2(16, 16), Vector2(32, 32))
-		draw_rect(r, color)
-		draw_rect(r, Color(0, 0, 0), false, 2)
-		draw_string(font, Vector2.ZERO + Vector2(-6, 5), u.display_name.substr(0, 2), HORIZONTAL_ALIGNMENT_CENTER, 12, 14, Color.WHITE)
+		# Placeholder sprite when installed (AGENTS.md "Placeholder unit sprites"), else the block.
+		var has_sprite := UnitSprites.draw_unit(self, Vector2.ZERO, REF_CELL, u)
+		if not has_sprite:
+			var r := Rect2(Vector2.ZERO - Vector2(16, 16), Vector2(32, 32))
+			draw_rect(r, color)
+			draw_rect(r, Color(0, 0, 0), false, 2)
+			draw_string(font, Vector2.ZERO + Vector2(-6, 5), u.display_name.substr(0, 2), HORIZONTAL_ALIGNMENT_CENTER, 12, 14, Color.WHITE)
 		# F-BUI Rules 3/4: HP bar in its colour band, pulsing at low HP.
 		var hp_ratio := float(u.hp) / float(maxi(u.max_hp, 1))
 		var bar_color := hp_band_color(hp_ratio)
@@ -212,8 +224,8 @@ func _draw() -> void:
 			var text := "%s+%d (%d)" % [String(field).substr(0, 3), int(buff.get("amount", 0)), int(buff.get("turns_remaining", 0))]
 			draw_string(font, Vector2.ZERO + Vector2(-20, -28 - row * 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.6, 1.0, 0.6))
 			row += 1
-		if u.acted and u.side == "player":
-			draw_circle(Vector2.ZERO, 18.0, Color(0, 0, 0, 0.25))
+		if u.acted and u.side == "player" and not has_sprite:
+			draw_circle(Vector2.ZERO, 18.0, Color(0, 0, 0, 0.25))   # sprites are greyed instead
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_unit_markers(markers)
 	_draw_marker_labels(markers, font)

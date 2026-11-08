@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="UnitSpriteSet" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/tilesets/unit_sprite_set.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "sprites_fantasy_battle_pack"
+sheet_dir = "res://assets/third_party/fantasy_battle_pack/sprites"
+frame_size = 32
+idle_row = 0
+idle_frames = 4
+frame_time = 0.18
+side_colors = {
+"enemy": "Red",
+"npc": "Green",
+"player": "Blue"
+}
+class_sheets = {
+"class_assassin": "Thief/Thief_{color}1.png",
+"class_bard": "Wizard/Wizard_{color}2.png",
+"class_beastman": "AxeFighter/AxeFighter_LongHair_{color}1.png",
+"class_civilian": "Thief/Thief_{color}2.png",
+"class_commander": "LanceKnight/LanceKnight_{color}.png",
+"class_guard": "SpearFighter/SpearFighter_LongHair_{color}1.png",
+"class_gunner": "Archer/Archer_{color}1.png",
+"class_healer": "Wizard/Wizard_{color}3.png",
+"class_knight": "SwordCavalier/SwordCavalier_ShortHair_{color}1.png",
+"class_lancer": "SpearFighter/SpearFighter_ShortHair_{color}1.png",
+"class_lumberjack": "AxeFighter/AxeFighter_ShortHair_{color}1.png",
+"class_magic_swordsman": "SwordFighter/SwordFighter_LongHair_{color}1.png",
+"class_magic_user": "Wizard/Wizard_{color}1.png",
+"class_rebel_commander": "AxeKnight/AxeKnight_{color}.png",
+"class_rebel_soldier": "SpearFighter/SpearFighter_ShortHair_{color}2.png",
+"class_swordsman": "SwordFighter/SwordFighter_ShortHair_{color}1.png",
+"class_wyvern_knight": "LanceCavalier/LanceCavalier_LongHair_{color}1.png"
+}
+fallback_sheet = "SwordFighter/SwordFighter_ShortHair_{color}2.png"
+draw_scale = 1.4
