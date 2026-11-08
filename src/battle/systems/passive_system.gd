@@ -53,7 +53,7 @@ static func ignores_terrain(attacker: UnitState, defender: UnitState) -> bool:
 			and RangeHandler.manhattan(attacker.pos, defender.pos) == attacker.attack_range_max
 
 
-## force_double: the attacker strikes twice even without the Speed advantage (Lancer).
+## force_double (designer version): two strikes back to back before any counter (Lancer).
 static func forces_double(attacker: UnitState) -> bool:
 	return effect(attacker) == "force_double"
 
@@ -80,15 +80,13 @@ static func on_attack_committed(attacker: UnitState) -> void:
 		attacker.fragile_circle_ready = false
 
 
-## survive_once: the defender's first lethal hit of the battle leaves it at 1 HP. Returns the
-## damage to actually apply.
-static func guard_lethal(defender: UnitState, is_exchange_defender: bool, damage: int) -> int:
-	if not is_exchange_defender or effect(defender) != "survive_once" or defender.miracle_used:
+## survive_once (designer version): the first time the unit would die in this battle — from any
+## combat damage, attacking or defending — it stays at 1 HP. Returns the damage to apply.
+static func guard_lethal(unit: UnitState, damage: int) -> int:
+	if effect(unit) != "survive_once" or unit.miracle_used or damage < unit.hp:
 		return damage
-	if damage < defender.hp:
-		return damage
-	defender.miracle_used = true
-	return maxi(defender.hp - 1, 0)
+	unit.miracle_used = true
+	return maxi(unit.hp - 1, 0)
 
 
 ## After one landed strike by `striker` on `target` (attacker side of the exchange only).
@@ -112,7 +110,7 @@ static func thorns(defender: UnitState, attacker: UnitState, defender_hp_at_star
 		return {}
 	if float(defender_hp_at_start) < float(defender.max_hp) * float(p.get("min_hp_ratio", 1.0)):
 		return {}
-	var amount := int(p.get("damage", 0))
+	var amount := guard_lethal(attacker, int(p.get("damage", 0)))
 	attacker.take_damage(amount)
 	return {
 		"side": "counter", "attacker_id": defender.id, "target_id": attacker.id, "hit": true,

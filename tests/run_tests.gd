@@ -13,6 +13,7 @@ func _ready() -> void:
 	await test_fe_formula()
 	await test_class_passives()
 	await test_bard_encore()
+	await test_skill_target_selection()
 	await test_objectives()
 	await test_rewind()
 	await test_bond_and_reconcile()
@@ -1300,7 +1301,9 @@ func test_class_passives() -> void:
 	var foe4 := _spawn(s4, "foe4", "faction_e", Vector2i(1, 0), false, false, "enemy")
 	assert_true(_attacker_strikes(CombatResolver.forecast(s4, lance, foe4)) == 1, "passive lancer: setup, equal Speed normally strikes once")
 	lance.passive_id = "twin_lance_strike"
-	assert_true(_attacker_strikes(CombatResolver.forecast(s4, lance, foe4)) == 2, "passive lancer: force_double strikes twice")
+	assert_true(_sides(CombatResolver.forecast(s4, lance, foe4)) == ["attacker", "attacker", "counter"], "passive lancer: two strikes back to back, then the counter")
+	lance.speed = 20
+	assert_true(_sides(CombatResolver.forecast(s4, lance, foe4)) == ["attacker", "attacker", "counter"], "passive lancer: never a third strike with a Speed edge")
 
 	# Gunner cover_piercing_shot: from exactly max range the defender's forest Avoid is ignored.
 	var s5: BattleState = _plain_map_enemy_state()
@@ -1327,6 +1330,29 @@ func test_class_passives() -> void:
 	assert_true(wyvern.alive and wyvern.hp == 1 and wyvern.miracle_used, "passive wyvern: survives the first lethal hit at 1 HP")
 	CombatResolver.execute(s6, slayer, wyvern)
 	assert_true(not wyvern.alive, "passive wyvern: only once per battle")
+	# Designer: any death counts — also when the Wyvern Knight attacks and falls to the counter.
+	var s6b: BattleState = _plain_map_enemy_state()
+	var rider := _spawn(s6b, "rider", "faction_p", Vector2i(0, 0), false, false, "player")
+	rider.passive_id = "survival_instinct"
+	rider.hit_bonus = -999
+	rider.hp = 3
+	var wall := _spawn(s6b, "wall", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	wall.skill = 60
+	wall.power = 50
+	wall.crit_bonus = -500
+	CombatResolver.execute(s6b, rider, wall)
+	assert_true(rider.alive and rider.hp == 1 and rider.miracle_used, "passive wyvern: revived at 1 HP after dying to a counter")
+	# ...and from thorns damage.
+	var s6c: BattleState = _plain_map_enemy_state()
+	var rider2 := _spawn(s6c, "rider2", "faction_p", Vector2i(0, 0), false, false, "player")
+	rider2.passive_id = "survival_instinct"
+	rider2.hit_bonus = -999
+	rider2.hp = 2
+	var spikes := _spawn(s6c, "spikes", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	spikes.passive_id = "iron_retaliation"
+	spikes.can_attack = false
+	CombatResolver.execute(s6c, rider2, spikes)
+	assert_true(rider2.alive and rider2.hp == 1, "passive wyvern: revived after lethal thorns damage")
 
 	# Beastwoman feral_regeneration: +5 HP after its own Attack, hit or miss.
 	var s7: BattleState = _plain_map_enemy_state()
@@ -1439,6 +1465,55 @@ func test_bard_encore() -> void:
 	fresh.active_debuffs = {"defense": {"amount": 3, "turns_remaining": 2}}
 	director.commit("wait", {"unit_id": "fresh"})
 	assert_true(int(fresh.active_debuffs["defense"]["turns_remaining"]) == 1, "debuff: counts down when its unit acts")
+
+
+## Designer (08-11-2026): the player picks the Heal / Encore target. Skill button -> highlighted
+## targets -> left click commits, right click cancels with nothing spent.
+func test_skill_target_selection() -> void:
+	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var director := BattleDirector.new()
+	# deploy cells: (2,8) (3,8) (4,8) ... (2,9): healer next to swordsman, knight at range 2, bard below.
+	director.setup(map, {"unit_healer": map.deploy_cells[0], "unit_swordsman": map.deploy_cells[1], "unit_knight": map.deploy_cells[2], "unit_bard": map.deploy_cells[4]}, "normal")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	main._swap_to(battle)
+	await get_tree().process_frame
+	var healer: UnitState = director.state.units["unit_healer"]
+	var sword: UnitState = director.state.units["unit_swordsman"]
+	var knight: UnitState = director.state.units["unit_knight"]
+	var bard: UnitState = director.state.units["unit_bard"]
+	sword.hp = sword.max_hp - 12
+	knight.hp = knight.max_hp - 20   # the most hurt: the old auto-pick would have chosen the Knight
+	var knight_hp: int = knight.hp
+	var sword_hp: int = sword.hp
+	battle._on_left_click(healer.pos)
+	battle._use_skill("skill_heal")
+	assert_true(battle.mode == BattleScene.Mode.SKILL_TARGET and battle._skill_targets.has("unit_swordsman") and battle._skill_targets.has("unit_knight"), "skill target: Heal lists every hurt ally in range")
+	battle._on_right_click(healer.pos)
+	assert_true(battle.mode != BattleScene.Mode.SKILL_TARGET and not healer.acted and sword.hp == sword_hp, "skill target: right click cancels, nothing spent")
+	battle._use_skill("skill_heal")
+	battle._on_left_click(sword.pos)
+	assert_true(sword.hp > sword_hp and knight.hp == knight_hp and healer.acted, "skill target: Heal lands on the clicked ally (the Swordsman), not the most hurt one")
+	# Encore: the Bard picks the healer (adjacent, already acted).
+	battle._on_left_click(bard.pos)
+	battle._use_skill("skill_encore")
+	assert_true(battle.mode == BattleScene.Mode.SKILL_TARGET and battle._skill_targets.has("unit_healer"), "skill target: Encore lists the adjacent ally that acted")
+	battle._on_left_click(healer.pos)
+	assert_true(not healer.acted and bard.acted, "skill target: Encore refreshes the clicked ally")
+	main.queue_free()
+
+
+func _sides(plan: Dictionary) -> Array:
+	var out: Array = []
+	for entry in plan["sequence"]:
+		out.append(String(entry["side"]))
+	return out
 
 
 func _attacker_strikes(plan: Dictionary) -> int:

@@ -36,8 +36,8 @@ static func execute(state: BattleState, attacker: UnitState, defender: UnitState
 		if crit:
 			damage = _round_value(int(damage * float(DataRegistry.rule("crit_multiplier", 3.0))))
 		damage += state.rng().randi_range(0, int(DataRegistry.rule("damage_flat", 0)))
-		# F-PAS survive_once: only the exchange's defender (role "defender") can be saved.
-		var applied := PassiveSystem.guard_lethal(d, attacker_side, damage)
+		# F-PAS survive_once: the Wyvern Knight's first death in the battle is undone at 1 HP.
+		var applied := PassiveSystem.guard_lethal(d, damage)
 		d.take_damage(applied)
 		strikes.append({
 			"side": entry["side"], "attacker_id": a.id, "target_id": d.id,
@@ -67,14 +67,18 @@ static func _strike_plan(state: BattleState, attacker: UnitState, defender: Unit
 	var sequence: Array = []
 	# F-PAS burst_damage: first strike of the exchange only.
 	sequence.append(_entry(state, "attacker", attacker, defender, PassiveSystem.burst_bonus(attacker)))
+	# F-PAS Lancer (designer): always two strikes back to back, before any counter.
+	var lancer := PassiveSystem.forces_double(attacker)
+	if lancer:
+		sequence.append(_entry(state, "attacker", attacker, defender))
 	# F-PAS suppress_retaliation: no counter against an Assassin while the target is still Ready.
 	var counter_ok := defender.alive and RangeHandler.can_counter(state, defender, attacker.pos) \
 			and not PassiveSystem.suppresses_retaliation(attacker, defender)
 	if counter_ok:
 		sequence.append(_entry(state, "counter", defender, attacker))
 	var gap := int(DataRegistry.rule("double_threshold", 4))
-	# F-CC7: each side's doubling check is independent; Lancer's force_double overrides its own.
-	if attacker.eff("speed") - defender.eff("speed") >= gap or PassiveSystem.forces_double(attacker):
+	# F-CC7: each side's doubling check is independent (a Lancer already struck twice).
+	if not lancer and attacker.eff("speed") - defender.eff("speed") >= gap:
 		sequence.append(_entry(state, "attacker", attacker, defender))
 	if counter_ok and defender.eff("speed") - attacker.eff("speed") >= gap:
 		sequence.append(_entry(state, "counter", defender, attacker))

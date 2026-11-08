@@ -6,7 +6,7 @@ class_name BattleScene
 signal battle_finished(win: bool)
 signal quit_to_menu   # N08: pause menu quit — straight to the menu, no campaign merge
 
-enum Mode { IDLE, UNIT_SELECTED, TARGET_SELECT, CONFIRM_ATTACK, BUSY }
+enum Mode { IDLE, UNIT_SELECTED, TARGET_SELECT, CONFIRM_ATTACK, BUSY, SKILL_TARGET }
 
 const CELL := BattleMapView.CELL
 
@@ -18,6 +18,10 @@ var active_targets: Dictionary = {}     # target_id -> cell
 var hover_cell := Vector2i(-1, -1)
 var _pending_target_id := ""           # D01: target chosen, awaiting forecast confirmation
 var _forecast_panel: ForecastPanel = null
+## Skill target selection (Heal / Encore): pending skill, its valid targets, mode to return to.
+var _pending_skill_id := ""
+var _skill_targets: Dictionary = {}     # unit_id -> cell
+var _mode_before_skill: int = Mode.IDLE
 var paused: bool = false                # N08: pause blocks map input and the phase loops
 var _pause_menu: PauseMenu = null
 
@@ -151,6 +155,12 @@ func _on_left_click(cell: Vector2i) -> void:
 		return   # forecast waiting on Confirm/Cancel; map clicks are inert
 	var unit: UnitState = director.state.unit_at(cell)
 	match mode:
+		Mode.SKILL_TARGET:
+			# Only a highlighted target commits; other clicks are ignored (right click cancels).
+			for target_id in _skill_targets:
+				if _skill_targets[target_id] == cell:
+					_commit_skill(String(target_id))
+					return
 		Mode.IDLE:
 			if unit != null:
 				_select_unit(unit)
@@ -196,6 +206,9 @@ func _on_right_click(cell: Vector2i) -> void:
 		return
 	if mode == Mode.CONFIRM_ATTACK:
 		_cancel_selection()   # D01: right-click during the forecast = Cancel (não commit)
+		return
+	if mode == Mode.SKILL_TARGET:
+		_cancel_skill_target()   # back out of Heal / Encore target choice, nothing spent
 		return
 	var sel := _selected()
 	if sel != null and sel.moved and not sel.acted and mode == Mode.TARGET_SELECT:
@@ -271,7 +284,7 @@ func _show_action_menu(unit: UnitState) -> void:
 	# right click) sau khi move để hoàn tác hành động bằng Wait. Menu chỉ còn skill.
 	for skill_id in unit.skill_ids:
 		var skill := DataRegistry.get_data("skills", skill_id)
-		if skill == null or _find_skill_target(unit, skill) == null:
+		if skill == null or _skill_targets_for(unit, skill_id).is_empty():
 			continue
 		var label := String(skill.display_name) if String(skill.display_name) != "" else skill_id
 		var sk := UIBuilder.button(_action_menu, "skill: " + label, 16)
@@ -313,42 +326,64 @@ func _do_wait() -> void:
 	_finish_action()
 
 
+## Skill button (designer 08-11-2026): enter target selection — the player picks the target
+## for Heal / Encore. Valid targets are highlighted; right click cancels at no cost.
 func _use_skill(skill_id: String) -> void:
+	var sel := _selected()
 	var skill := DataRegistry.get_data("skills", skill_id)
-	if skill == null:
+	if sel == null or skill == null:
 		return
-	var target := _find_skill_target(_selected(), skill)
-	if target == null:
-		
+	var targets := _skill_targets_for(sel, skill_id)
+	if targets.is_empty():
 		return
+	_pending_skill_id = skill_id
+	_skill_targets = targets
+	_mode_before_skill = mode
+	mode = Mode.SKILL_TARGET
+	_hide_action_menu()
+	var skill_name := String(skill.display_name) if String(skill.display_name) != "" else skill_id
+	_info_label.text = "Choose a target for %s (right click to cancel)." % skill_name
+	_refresh_overlays()
+
+
+## Commits the pending skill on the clicked target, through the director like every action.
+func _commit_skill(target_id: String) -> void:
+	var sel := _selected()
+	var skill := DataRegistry.get_data("skills", _pending_skill_id)
+	if sel == null or skill == null:
+		_cancel_skill_target()
+		return
+	var target: UnitState = director.state.units[target_id]
 	mode = Mode.BUSY
-	director.commit("skill", {"unit_id": _selected().id, "skill_id": skill_id, "target_id": target.id})
+	director.commit("skill", {"unit_id": sel.id, "skill_id": _pending_skill_id, "target_id": target_id})
 	# Only a heal has a number to show on the combat screen; Encore just refreshes the ally.
 	if String(skill.effect_type) == "heal":
-		_last_strikes = [{"side": "skill", "attacker_id": _selected().id, "target_id": target.id, "hit": true, "crit": false, "damage": -int(skill.power), "target_hp_after": target.hp, "slain": ""}]
+		_last_strikes = [{"side": "skill", "attacker_id": sel.id, "target_id": target_id, "hit": true, "crit": false, "damage": -int(skill.power), "target_hp_after": target.hp, "slain": ""}]
 	else:
 		_last_strikes = []
+	_pending_skill_id = ""
+	_skill_targets.clear()
 	_finish_action()
 
 
-## Skill target lookup is data-driven by effect type; "heal" finds the weakest hurt ally in range.
-func _find_skill_target(unit: UnitState, skill: Resource) -> UnitState:
-	var best: UnitState = null
-	if String(skill.effect_type) == "heal":
-		for u in director.state.alive_units():
-			if u.side != unit.side or u.id == unit.id or u.hp >= u.max_hp:
-				continue
-			var d := RangeHandler.manhattan(u.pos, unit.pos)
-			if d < int(skill.range_min) or d > int(skill.range_max):
-				continue
-			if best == null or (best.max_hp - best.hp) < (u.max_hp - u.hp):
-				best = u
-	elif String(skill.effect_type) == "encore":
-		# F-PAS Bard Encore: first adjacent ally the command itself accepts (auto-pick, like heal).
-		for u in director.state.alive_units():
-			if SkillCommand.check(director.state, unit, String(skill.id), u) == "":
-				return u
-	return best
+## Leaves target selection without spending anything; back to the step before the button.
+func _cancel_skill_target() -> void:
+	_pending_skill_id = ""
+	_skill_targets.clear()
+	mode = _mode_before_skill
+	var sel := _selected()
+	if sel != null:
+		_show_action_menu(sel)
+	_refresh_overlays()
+
+
+## Every unit the skill command accepts as a target right now: {unit_id: cell}.
+func _skill_targets_for(unit: UnitState, skill_id: String) -> Dictionary:
+	var out := {}
+	for u in director.state.alive_units():
+		if SkillCommand.check(director.state, unit, skill_id, u) == "":
+			out[u.id] = u.pos
+	return out
 
 
 
@@ -642,6 +677,13 @@ func _refresh_overlays() -> void:
 	var sel := _selected()
 	if sel == null or not sel.alive:
 		map_view.set_overlays({}, {}, {} if active_targets.is_empty() else active_targets)
+		return
+	if mode == Mode.SKILL_TARGET:
+		# Only the skill's valid targets are highlighted while choosing.
+		var skill_cells := {}
+		for t in _skill_targets:
+			skill_cells[_skill_targets[t]] = true
+		map_view.set_overlays({}, {}, skill_cells)
 		return
 	var reach := MovementHandler.compute_reachable(director.state, sel)
 	var move_cells := MovementHandler.compute_move_cells(director.state, sel) if mode == Mode.UNIT_SELECTED else {}
