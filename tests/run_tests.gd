@@ -38,6 +38,7 @@ func _ready() -> void:
 	await test_aftermath_scenes()
 	await test_autosave_after_aftermath()
 	await test_camp_roster_menu()
+	await test_ui_start_flow()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2641,14 +2642,18 @@ func test_nightmare_lock() -> void:
 	camp2._on_cycle_difficulty()
 	assert_true(GameState.difficulty == "story", "difficulty: Hard wraps to Story, skipping Nightmare")
 	camp2.queue_free()
-	# The main menu still reaches Nightmare before a new campaign.
-	var menu := MenuScene.new()
-	add_child(menu)
+	# The new-game difficulty screen still reaches Nightmare (after a confirmation).
+	var picker := DifficultyScene.new()
+	add_child(picker)
 	await get_tree().process_frame
-	GameState.difficulty = "hard"
-	menu._on_cycle_difficulty()
-	assert_true(GameState.difficulty == "nightmare", "difficulty: the main menu can pick Nightmare")
-	menu.queue_free()
+	var picked := [""]
+	picker.start_pressed.connect(func(d: String) -> void: picked[0] = d)
+	picker.select("nightmare")
+	picker._on_start()
+	assert_true(picked[0] == "" and picker._confirm != null, "difficulty: Nightmare asks for confirmation first")
+	(picker._confirm.find_child("ConfirmNightmare", true, false) as Button).pressed.emit()
+	assert_true(picked[0] == "nightmare", "difficulty: confirming starts on Nightmare")
+	picker.queue_free()
 	GameState.difficulty = "normal"
 	GameState.new_game()
 
@@ -2784,6 +2789,59 @@ func test_camp_roster_menu() -> void:
 	await get_tree().process_frame
 	assert_true(_has_label_containing(camp2, "No active units"), "roster: an empty roster says so (AC-RPM8)")
 	camp2.queue_free()
+	GameState.new_game()
+
+
+## F-UI step 2: 3-entry main menu, difficulty cards with rules-driven text, options with window
+## mode and three volume buses, and the New game -> difficulty -> story flow.
+func test_ui_start_flow() -> void:
+	GameState.new_game()
+	if SaveService.has_save():
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveService.SAVE_PATH))
+	var menu := MenuScene.new()
+	add_child(menu)
+	await get_tree().process_frame
+	assert_true(menu.menu_entries() == ["NewGame", "Continue", "Options"], "start: the card has exactly New game / Continue / Options %s" % str(menu.menu_entries()))
+	assert_true(menu._continue_button.disabled, "start: Continue is disabled without a save")
+	assert_true(not _find_button_containing(menu, "Shop") and not _find_button_containing(menu, "Difficulty"), "start: no shop and no difficulty on the menu")
+	menu.open_options()
+	await get_tree().process_frame
+	var mode: OptionButton = menu._options_dialog.find_child("WindowMode", true, false)
+	var music: HSlider = menu._options_dialog.find_child("Slider_volume_music", true, false)
+	var sfx: HSlider = menu._options_dialog.find_child("Slider_volume_sfx", true, false)
+	assert_true(mode != null and mode.item_count == 2 and music != null and sfx != null, "start: options show window mode and the music / effects sliders")
+	music.value = 0.3
+	assert_true(is_equal_approx(float(GameState.options["volume_music"]), 0.3) and AudioServer.get_bus_index("Music") != -1, "start: the music slider stores its option and drives a Music bus")
+	sfx.value = 0.0
+	assert_true(AudioServer.is_bus_mute(AudioServer.get_bus_index("SFX")), "start: effects at 0 mute the SFX bus")
+	sfx.value = 0.8
+	menu.close_options()
+	menu.queue_free()
+	# Options survive a new campaign.
+	GameState.new_game()
+	assert_true(is_equal_approx(float(GameState.options["volume_music"]), 0.3), "start: New campaign keeps the player's options")
+	# Difficulty cards: rules-driven text, Normal recommended.
+	var picker := DifficultyScene.new()
+	add_child(picker)
+	await get_tree().process_frame
+	assert_true(picker._cards.size() == 4 and DifficultyScene.rewind_text("story") == "∞" and DifficultyScene.rewind_text("hard") == "3", "start: four cards, rewinds from rules (Story ∞, Hard 3)")
+	assert_true(DifficultyScene.casualty_caption("hard").contains("SIT OUT") and DifficultyScene.casualty_caption("normal").contains("RETURN"), "start: casualty text follows F-CAS, no permanent death")
+	picker.select("normal")
+	assert_true(picker._summary_title.text.contains("recommended"), "start: Normal is recommended for a first run")
+	picker.queue_free()
+	# Main: New game opens the difficulty screen; Start begins the campaign on that tier.
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	await get_tree().process_frame
+	main._on_new_game()
+	await get_tree().process_frame
+	assert_true(main._current is DifficultyScene, "start: New game opens the difficulty screen")
+	(main._current as DifficultyScene).select("hard")
+	(main._current as DifficultyScene)._on_start()
+	await get_tree().process_frame
+	assert_true(GameState.difficulty == "hard" and not GameState.roster.is_empty() and not (main._current is DifficultyScene), "start: Start begins a Hard campaign and moves on to the story")
+	main.queue_free()
+	GameState.difficulty = "normal"
 	GameState.new_game()
 
 

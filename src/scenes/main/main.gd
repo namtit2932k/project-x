@@ -22,9 +22,7 @@ func _swap_to(screen: Node) -> void:   # dùm Node cho cả Control và Node2D s
 
 
 func _apply_options() -> void:
-	AudioServer.set_bus_volume_db(0, linear_to_db(clampf(float(GameState.options.get("volume", 0.8)), 0.05, 1.0)))
-	if bool(GameState.options.get("fullscreen", false)) and not DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	OptionsPanel.apply_audio_and_window()   # one place for buses + window mode (F-UI step 2)
 
 
 # ------------------------------------------------------------------ screens
@@ -41,7 +39,16 @@ func _show_menu() -> void:
 	_swap_to(menu)
 
 
+## F-UI step 2: New game -> difficulty screen -> (Nightmare confirm) -> the campaign starts.
 func _on_new_game() -> void:
+	var screen := DifficultyScene.new()
+	screen.start_pressed.connect(_start_new_campaign)
+	screen.back_pressed.connect(_show_menu)
+	_swap_to(screen)
+
+
+func _start_new_campaign(difficulty: String) -> void:
+	GameState.difficulty = difficulty
 	GameState.new_game()
 	GameState.build_roster()
 	_play_story_of_current_chapter()

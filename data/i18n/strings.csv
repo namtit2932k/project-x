@@ -213,3 +213,35 @@ Resting this map: %s,Resting this map: %s,Nghỉ map này: %s
 Level %d,Level %d,Cấp %d
 EXP %d/%d,EXP %d/%d,EXP %d/%d
 Bonds: %s,Bonds: %s,Gắn kết: %s
+New game,New game,Trò chơi mới
+Debug:,Debug:,Debug:
+Display,Display,Hiển thị
+Window mode,Window mode,Chế độ màn hình
+Windowed,Windowed,Cửa sổ
+Sound,Sound,Âm thanh
+Master volume,Master volume,Âm lượng tổng
+Music,Music,Nhạc
+Effects,Effects,Hiệu ứng
+How do you want to fight?,How do you want to fight?,Bạn muốn chiến đấu thế nào?
+"Difficulty sets enemy strength, how often you can rewind and what happens when an ally falls.","Difficulty sets enemy strength, how often you can rewind and what happens when an ally falls.","Độ khó quyết định sức mạnh đối phương, số lần quay lại và hậu quả khi đồng đội gục ngã."
+NEW GAME / STEP 01,NEW GAME / STEP 01,TRÒ CHƠI MỚI / BƯỚC 01
+01 / STORY,01 / STORY,01 / CỐT TRUYỆN
+02 / BALANCED,02 / BALANCED,02 / CÂN BẰNG
+03 / HARSH,03 / HARSH,03 / KHẮC NGHIỆT
+04 / MERCILESS,04 / MERCILESS,04 / KHÔNG KHOAN NHƯỢNG
+Follow the story with many chances to fix mistakes.,Follow the story with many chances to fix mistakes.,Đi theo câu chuyện với nhiều cơ hội sửa sai.
+Enough challenge for every decision to matter.,Enough challenge for every decision to matter.,Đủ thử thách để từng quyết định có sức nặng.
+Fewer chances to fix mistakes; enemies are stronger.,Fewer chances to fix mistakes; enemies are stronger.,Ít cơ hội sửa sai; đối phương mạnh hơn.
+No rewinds. The enemy shows no mercy.,No rewinds. The enemy shows no mercy.,Không quay lại. Đối phương không nương tay.
+REWIND %s,REWIND %s,QUAY LẠI %s
+FALLEN ALLIES SIT OUT THE NEXT MAP,FALLEN ALLIES SIT OUT THE NEXT MAP,ĐỒNG ĐỘI GỤC NGÃ NGHỈ MAP KẾ
+FALLEN ALLIES RETURN AFTER THE BATTLE,FALLEN ALLIES RETURN AFTER THE BATTLE,ĐỒNG ĐỘI GỤC NGÃ TRỞ LẠI SAU TRẬN
+fallen allies sit out the next map,fallen allies sit out the next map,đồng đội gục ngã nghỉ map kế tiếp
+fallen allies return after the battle,fallen allies return after the battle,đồng đội gục ngã trở lại sau trận
+Normal · recommended for a first run,Normal · recommended for a first run,Normal · đề xuất cho lần đầu
+Rewind %s · %s,Rewind %s · %s,Quay lại %s · %s
+START THE JOURNEY →,START THE JOURNEY →,BẮT ĐẦU HÀNH TRÌNH →
+← Back to menu,← Back to menu,← Quay lại menu
+Choose Nightmare?,Choose Nightmare?,Chọn Nightmare?
+"Nightmare cannot be changed for the rest of this campaign: no rewinds, enemies are four levels stronger, and fallen allies sit out the next map.","Nightmare cannot be changed for the rest of this campaign: no rewinds, enemies are four levels stronger, and fallen allies sit out the next map.","Nightmare không thể đổi trong suốt chiến dịch này: không có quay lại, đối phương mạnh hơn bốn cấp, và đồng đội gục ngã phải nghỉ map kế tiếp."
+Start on Nightmare,Start on Nightmare,Bắt đầu với Nightmare

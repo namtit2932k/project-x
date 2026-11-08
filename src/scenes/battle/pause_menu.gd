@@ -19,7 +19,7 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var window_panel := UIBuilder.panel(self, 440, 120, 400, 440)
+	var window_panel := UIBuilder.centered_modal_panel(self, 460, 640)   # F-UI: opaque, fits the options block
 	var box := UIBuilder.vbox(window_panel, 14)
 	UIBuilder.label(box, UIBuilder.t("Paused"), 32)
 	var resume := UIBuilder.button(box, UIBuilder.t("Resume"), 24)

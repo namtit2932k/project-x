@@ -85,8 +85,7 @@ func new_game() -> void:
 	gold = 0
 	pressure_continues_count.clear()
 	campaign_checkpoint = 0
-	# The UI language is a player setting, it survives a new campaign.
-	options = {"volume": 0.8, "fullscreen": false, "language": language()}
+	# Options (volumes, window mode, language) are player settings: a new campaign keeps them.
 
 
 ## Register the roster of the active campaign (F4.2): only units tagged for it (or
