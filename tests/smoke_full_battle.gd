@@ -71,7 +71,8 @@ func run() -> void:
 	ok(String(director.state.battle_over.get("status", "")) == "win", "smoke: battle won by AI pressure (status=%s)" % String(director.state.battle_over.get("status", "none")))
 	ok(director.state.reconcile_state.has("faction_rebel_ch01"), "smoke: reconcile tracked for remnant faction")
 	var kills := int(director.state.reconcile_state["faction_rebel_ch01"]["kills"])
-	ok(kills == 4, "smoke: 4 rebels defeated (kills=%d)" % kills)
+	# D03: the objective targets the three soldiers; the commander may or may not fall first.
+	ok(kills >= 3, "smoke: at least the 3 target soldiers defeated (kills=%d)" % kills)
 	ok(bool(director.state.reconcile_state["faction_rebel_ch01"].get("evaluated", false)), "smoke: reconcile evaluated at battle end")
 
 	# Rewind sanity inside a real battle history.

@@ -23,9 +23,13 @@ static func plan_unit(state: BattleState, unit: UnitState, target_sides: Array) 
 		return {"unit_id": unit.id, "move_cell": unit.pos, "wait": true}
 
 	# Try to close on the nearest reachable enemy.
-	var reach_attack := RangeHandler.compute_attack_cells(state, unit, reach)
+	# Standing cells are the cells the unit can MOVE to (plus where it stands). The old code
+	# used compute_attack_cells(), which only returns the threat ring outside the move area,
+	# so every planned move was illegal and the unit just waited (found by the demo playtest).
 	var attack_options: Array = []
-	for cell in reach_attack:
+	if not unit.can_attack:
+		reach_cells = []
+	for cell in reach_cells:
 		# Only stand on an empty cell (or the current one) - commit would reject a move onto
 		# another unit's tile.
 		if cell != unit.pos and state.unit_at(cell) != null:
@@ -58,13 +62,10 @@ static func plan_unit(state: BattleState, unit: UnitState, target_sides: Array) 
 				best = opt
 		return {"unit_id": unit.id, "move_cell": best["cell"], "target_id": best["target_id"]}
 
-	# Approach: move to the reachable cell minimizing distance to the closest player unit.
-	var best_cell := unit.pos
-	var best_dist := 1 << 30
+	# Approach the closest target by real walking distance (terrain-aware), not straight line.
+	var closest: UnitState = enemies[0]
 	for target in enemies:
-		for cell in reach_cells:
-			var d := RangeHandler.manhattan(cell, target.pos)
-			if d < best_dist:
-				best_dist = d
-				best_cell = cell
+		if RangeHandler.manhattan(unit.pos, target.pos) < RangeHandler.manhattan(unit.pos, closest.pos):
+			closest = target
+	var best_cell := MovementHandler.closest_by_path(state, unit, reach_cells, closest.pos)
 	return {"unit_id": unit.id, "move_cell": best_cell, "target_id": ""}

@@ -27,6 +27,7 @@ func _ready() -> void:
 	await test_demo_starting_bond()
 	await test_enemy_levels()
 	await test_faction_state_across_chapters()
+	await test_ai_pathing_regressions()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2089,6 +2090,44 @@ func test_faction_state_across_chapters() -> void:
 	GameState.from_dict(saved)
 	assert_true(GameState.faction_states.is_empty(), "faction state: an old save loads as Unengaged")
 	GameState.new_game()
+
+
+## Playtest regressions: (1) enemy AI picks its standing cell among cells it can reach, so it
+## moves and attacks in the same turn; (2) NPC / enemy approach follows real paths around
+## water instead of freezing at the bank (demo_02 escort was unwinnable).
+func test_ai_pathing_regressions() -> void:
+	await 0.0
+	GameState.new_game()
+	GameState.build_roster()
+	var maps := DataRegistry.chapters_sorted("demo")
+	var m1 := DataRegistry.get_map(String(maps[0].map_id))
+	var d1 := BattleDirector.new()
+	d1.setup(m1, {"unit_demo_swordsman": m1.deploy_cells[0], "unit_demo_knight": m1.deploy_cells[1]}, "normal", 7)
+	var sword: UnitState = d1.state.units["unit_demo_swordsman"]
+	var enemy: UnitState = null
+	for u in d1.state.units.values():
+		if u.side == "enemy":
+			enemy = u
+			break
+	sword.pos = enemy.pos + Vector2i(-3, 0)
+	var plan := EnemyAI.plan_unit(d1.state, enemy, ["player"])
+	var reach := MovementHandler.compute_move_cells(d1.state, enemy)
+	assert_true(String(plan.get("target_id", "")) == sword.id and (plan["move_cell"] == enemy.pos or reach.has(plan["move_cell"])), "ai: enemy plans a reachable standing cell and attacks in the same turn")
+	assert_true(d1.commit_ai_plan(plan) and enemy.pos == plan["move_cell"], "ai: the planned move is legal and happens")
+	# demo_02: the messenger walks around the water band toward its goal.
+	var m2 := DataRegistry.get_map(String(maps[1].map_id))
+	var d2 := BattleDirector.new()
+	d2.setup(m2, {"unit_demo_swordsman": m2.deploy_cells[0], "unit_demo_knight": m2.deploy_cells[1]}, "normal", 7)
+	var npc: UnitState = d2.state.units["messenger"]
+	var goal: Vector2i = d2._npc_goals()["messenger"]
+	var field := MovementHandler.distance_field(d2.state, npc, goal)
+	var start_cost := float(field.get(npc.pos, INF))
+	for turn in 6:
+		npc.acted = false
+		var walk := NpcAI.plan_walk(d2.state, npc, goal)
+		if walk["move_cell"] != npc.pos:
+			npc.pos = walk["move_cell"]
+	assert_true(float(field.get(npc.pos, INF)) < start_cost - 4.0, "ai: the escort NPC keeps making progress around the water (path cost %.1f -> %.1f)" % [start_cost, float(field.get(npc.pos, INF))])
 
 
 func _sides(plan: Dictionary) -> Array:

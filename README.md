@@ -57,11 +57,12 @@ godot --headless --path . --quit-after 5        # boot check, no script errors
 godot --headless --path . res://tools/validate_data.tscn     # data validation (0 errors expected)
 godot --headless --path . res://tests/run_tests.tscn         # rule tests (movement/combat/objectives/rewind/bond/exp/save)
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI end-to-end
+godot --headless --path . res://tools/playtest_demo_maps.tscn # bot playtest of the 6 demo maps (report in docs/playtest/)
 godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test maps, win + lose each
 godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example maps: units, stats, objectives (F6)
 ```
 
-Current: rule tests **412/412**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
+Current: rule tests **415/415**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
 
 Debug builds also get a **Test maps** entry on the main menu: every `data/maps/test_*` map
 starts a battle straight away with the default roster (no chapter loop; results never merge
