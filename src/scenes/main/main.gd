@@ -124,6 +124,9 @@ func _show_post_battle(win: bool) -> void:
 	var chapter := GameState.current_chapter()
 	# D06: the merge itself decides win/lose from the stored result; defeat touches nothing.
 	CampaignMerge.merge(_battle_director.state if _battle_director != null else null, chapter, ResultStore.last_result)
+	if not win:
+		_show_game_over(chapter)
+		return
 	var post := PostBattleScene.build(chapter)
 	post.continue_pressed.connect(_show_camp)
 	if win:
@@ -131,6 +134,15 @@ func _show_post_battle(win: bool) -> void:
 		# resumes the story from where the player actually is, never a replay.
 		GameState.advance_chapter()
 	_swap_to(post)
+
+
+## Designer (F-EXP, 08-11-2026): losing is a game over — Game Over screen with Retry chapter
+## (same chapter, pre-battle roster) or Main menu; no results screen, no camp.
+func _show_game_over(chapter: Resource) -> void:
+	var over := GameOverScene.build(chapter)
+	over.retry_pressed.connect(_on_retry_chapter)
+	over.menu_pressed.connect(_show_menu)
+	_swap_to(over)
 
 
 func _show_camp() -> void:

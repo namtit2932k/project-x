@@ -14,7 +14,7 @@ class_name RulesConfig
 ## F-CC + F-CC-FE (AGENTS.md): Accuracy = hit_base + skill*accuracy_skill_mult + luck*accuracy_luck_mult
 ## + hit_bonus + weapon_accuracy_mod + bond; Avoid = speed*avoid_speed_mult + luck*avoid_luck_mult
 ## + terrain_avoid + bond; Hit% = clamp(Accuracy - Avoid, 0, 100). One roll, no 2RN.
-## hit_base stands in for Fire Emblem's per-weapon Hit (70–95); 70 is the designer's provisional value.
+## hit_base stands in for Fire Emblem's weapon Hit; 70 for every weapon, designer-confirmed (no triangle).
 @export var hit_base: int = 70
 @export var accuracy_skill_mult: float = 2.0
 @export var accuracy_luck_mult: float = 0.5

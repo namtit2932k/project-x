@@ -17,6 +17,7 @@ func _ready() -> void:
 	await test_bond_cap()
 	await test_bond_rules_d05()
 	await test_campaign_merge_d06()
+	await test_game_over_screen()
 	await test_evacuate()
 	await test_terrain_costs()
 	await test_save_load()
@@ -228,6 +229,33 @@ func test_campaign_merge_d06() -> void:
 	camp.queue_free()
 	camp2.queue_free()
 	camp3.queue_free()
+
+
+## Designer (08-11-2026): a lost battle opens the Game Over screen with Retry chapter and
+## Main menu — no results screen, no camp, nothing merged.
+func test_game_over_screen() -> void:
+	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var chapter := GameState.current_chapter()
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	await get_tree().process_frame
+	ResultStore.last_result = {"status": "lose", "reason": "critical_unit_down", "unit_id": "unit_swordsman"}
+	main._show_post_battle(false)
+	await get_tree().process_frame
+	var over: GameOverScene = main._current as GameOverScene
+	assert_true(over != null, "game over: a defeat opens the Game Over screen")
+	assert_true(over != null and _find_button(over, "Retry chapter") != null and _find_button(over, "Main menu") != null, "game over: Retry chapter and Main menu offered")
+	assert_true(GameOverScene.reason_text(ResultStore.last_result).contains("Swordsman"), "game over: names the fallen critical unit")
+	assert_true(GameOverScene.reason_text({"status": "lose"}).contains("objective"), "game over: objective failure reason")
+	assert_true(not GameState.completed_chapters.has(String(chapter.id)), "game over: chapter not completed")
+	var retried := [false]
+	over.retry_pressed.connect(func() -> void: retried[0] = true)
+	_find_button(over, "Retry chapter").pressed.emit()
+	assert_true(retried[0], "game over: Retry chapter button emits retry")
+	main.queue_free()
 
 
 func _find_button(root: Node, text: String) -> Button:
