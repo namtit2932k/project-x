@@ -207,3 +207,9 @@ rests next map,rests next map,nghỉ map kế tiếp
 Difficulty: %s (locked),Difficulty: %s (locked),Độ khó: %s (đã khoá)
 Difficulty: %s (rewind %s / casualty %s),Difficulty: %s (rewind %s / casualty %s),Độ khó: %s (rewind %s / thương vong: %s)
 Progress saved,Progress saved,Đã tự động lưu
+No active units,No active units,Không có quân nào đang hoạt động
+Resting this map: %s,Resting this map: %s,Nghỉ map này: %s
+%s | %s | Lv %d | EXP %d/%d,%s | %s | Lv %d | EXP %d/%d,%s | %s | Lv %d | EXP %d/%d
+Level %d,Level %d,Cấp %d
+EXP %d/%d,EXP %d/%d,EXP %d/%d
+Bonds: %s,Bonds: %s,Gắn kết: %s

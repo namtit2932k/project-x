@@ -28,16 +28,22 @@ func _ready() -> void:
 	var roster_panel := UIBuilder.panel(self, 60, 130, 760, 560)
 	var roster_box := UIBuilder.vbox(roster_panel, 6)
 	UIBuilder.label(roster_box, UIBuilder.t("Roster"), 24)
+	# F-ROSTER Roster Browsing (GDD AC-RPM1): active units only, each opens its Unit Detail.
+	var active := active_roster_ids()
+	if active.is_empty():
+		UIBuilder.label(roster_box, UIBuilder.t("No active units"), 16)
+	for unit_id in active:
+		var row := UIBuilder.button(roster_box, roster_row_text(unit_id), 16)
+		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var chosen := unit_id
+		row.pressed.connect(func() -> void: open_unit_detail(chosen))
+	var resting: Array[String] = []
 	for unit_id in GameState.roster:
-		var ud := DataRegistry.get_unit(String(unit_id))
-		var r: Dictionary = GameState.roster[unit_id]
-		var status := UIBuilder.t("alive") if bool(r.alive) else UIBuilder.t("fallen")
-		var line := UIBuilder.t("%s | %s | Lv %d | exp %d | %s") % [ud.display_name, ud.class_id, int(r.level), int(r.exp), status]
 		if GameState.is_resting(String(unit_id)):
-			line += " | " + UIBuilder.t("rests next map")
-		if not (r.get("items", []) as Array).is_empty():
-			line += " | " + UIBuilder.t("Items: %s") % BattleScene.item_list_text(r.get("items", []))
-		UIBuilder.label(roster_box, line, 16)
+			var rud := DataRegistry.get_unit(String(unit_id))
+			resting.append(rud.display_name if rud != null else String(unit_id))
+	if not resting.is_empty():
+		UIBuilder.label(roster_box, UIBuilder.t("Resting this map: %s") % ", ".join(resting), 16)
 
 	# Bond panel (eligible designer pairs only).
 	var bond_panel := UIBuilder.panel(self, 860, 130, 1000, 560)
@@ -111,6 +117,9 @@ func _rebuild_bond_panel() -> void:
 		c.queue_free()
 	UIBuilder.label(_scene_box, UIBuilder.t("Bonds (eligibility is designer data)"), 24)
 	for pair in DataRegistry.all_bond_pairs():
+		# Only pairs of this campaign's roster (the demo campaign must not list the legacy pairs).
+		if not GameState.roster.has(String(pair.unit_a)) or not GameState.roster.has(String(pair.unit_b)):
+			continue
 		var points := int(GameState.bond_points.get(String(pair.id), 0))
 		var rank := GameState.bond_rank_for(String(pair.id))
 		var ua := DataRegistry.get_unit(String(pair.unit_a))
@@ -303,3 +312,80 @@ static func item_effect_text(item: ItemData) -> String:
 	if item.is_buff_item():
 		return UIBuilder.t("+%d %s for %d turns") % [int(item.buff_amount), String(item.buff_stat), int(item.buff_duration)]
 	return ""
+
+
+# ------------------------------------------------------------ F-ROSTER roster menu
+
+var _detail_panel: Control = null
+
+
+## Roster units that can be browsed: alive and not resting (GDD: Active only).
+static func active_roster_ids() -> Array[String]:
+	var out: Array[String] = []
+	for unit_id in GameState.roster:
+		if bool(GameState.roster[unit_id].get("alive", true)) and not GameState.is_resting(String(unit_id)):
+			out.append(String(unit_id))
+	return out
+
+
+static func roster_row_text(unit_id: String) -> String:
+	var ud := DataRegistry.get_unit(unit_id)
+	var r: Dictionary = GameState.roster[unit_id]
+	var line := UIBuilder.t("%s | %s | Lv %d | EXP %d/%d") % [ud.display_name if ud != null else unit_id, ud.class_id if ud != null else "", int(r.get("level", 1)), int(r.get("exp", 0)), int(DataRegistry.rule("exp_per_level", 100))]
+	if not (r.get("items", []) as Array).is_empty():
+		line += " | " + UIBuilder.t("Items: %s") % BattleScene.item_list_text(r.get("items", []))
+	return line
+
+
+## Unit Detail (read-only): level, EXP bar, the stats it will start the next battle with, items, bonds.
+func open_unit_detail(unit_id: String) -> void:
+	close_unit_detail()
+	var ud := DataRegistry.get_unit(unit_id)
+	if ud == null or not GameState.roster.has(unit_id):
+		return
+	_detail_panel = UIBuilder.modal(self)
+	var box := UIBuilder.vbox(UIBuilder.modal_panel(_detail_panel, 560, 140, 800, 700), 8)
+	for line in unit_detail_lines(unit_id):
+		UIBuilder.label(box, line, 18)
+	var bar := ProgressBar.new()
+	bar.name = "ExpBar"
+	bar.max_value = int(DataRegistry.rule("exp_per_level", 100))
+	bar.value = int(GameState.roster[unit_id].get("exp", 0))
+	bar.custom_minimum_size = Vector2(400, 20)
+	bar.show_percentage = false
+	box.add_child(bar)
+	box.move_child(bar, 3)   # right under the EXP line
+	var close := UIBuilder.button(box, UIBuilder.t("Close"), 18)
+	close.pressed.connect(close_unit_detail)
+
+
+static func unit_detail_lines(unit_id: String) -> Array[String]:
+	var ud := DataRegistry.get_unit(unit_id)
+	var r: Dictionary = GameState.roster[unit_id]
+	var u := UnitState.from_data(ud, Vector2i.ZERO, int(r.get("level", 1)))
+	var lines: Array[String] = []
+	lines.append("%s | %s" % [ud.display_name, ud.class_id])
+	lines.append(UIBuilder.t("Level %d") % int(r.get("level", 1)))
+	lines.append(UIBuilder.t("EXP %d/%d") % [int(r.get("exp", 0)), int(DataRegistry.rule("exp_per_level", 100))])
+	lines.append("HP %d  Str %d  Mag %d  Skill %d" % [u.max_hp, u.power, u.magic, u.skill])
+	lines.append("Spd %d  Luck %d  Def %d  Res %d  Move %d" % [u.speed, u.luck, u.defense, u.resistance, u.move_range])
+	lines.append(UIBuilder.t("Items: %s") % (BattleScene.item_list_text(r.get("items", [])) if not (r.get("items", []) as Array).is_empty() else UIBuilder.t("none")))
+	var bonds: Array[String] = []
+	for pair_id in DataRegistry.all_ids("bonds"):
+		var pair := DataRegistry.get_data("bonds", pair_id)
+		if pair == null or (String(pair.unit_a) != unit_id and String(pair.unit_b) != unit_id):
+			continue
+		var rank := GameState.bond_rank_for(String(pair_id))
+		if rank == "":
+			continue
+		var other_id := String(pair.unit_b) if String(pair.unit_a) == unit_id else String(pair.unit_a)
+		var other := DataRegistry.get_unit(other_id)
+		bonds.append("%s (%s)" % [other.display_name if other != null else other_id, rank])
+	lines.append(UIBuilder.t("Bonds: %s") % (", ".join(bonds) if not bonds.is_empty() else UIBuilder.t("none")))
+	return lines
+
+
+func close_unit_detail() -> void:
+	if _detail_panel != null and is_instance_valid(_detail_panel):
+		_detail_panel.queue_free()
+	_detail_panel = null

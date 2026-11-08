@@ -37,6 +37,7 @@ func _ready() -> void:
 	await test_nightmare_lock()
 	await test_aftermath_scenes()
 	await test_autosave_after_aftermath()
+	await test_camp_roster_menu()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2759,6 +2760,39 @@ func test_autosave_after_aftermath() -> void:
 	assert_true(int(gs.get("campaign_checkpoint", 0)) == 1 and String(gs.get("current_chapter_id", "")) != String(chapter.id), "autosave: checkpoint 1 and the next chapter are stored")
 	assert_true(main._current is PostBattleScene and _has_label_containing(main._current, "Progress saved"), "autosave: the results screen says progress was saved")
 	main.queue_free()
+	GameState.new_game()
+
+
+## F-ROSTER: camp Roster Browsing (active units only, empty state) and the read-only Unit Detail
+## with level, EXP n/100, stats, items and bonds (AC-RPM1/8/11/12).
+func test_camp_roster_menu() -> void:
+	GameState.new_game()
+	GameState.build_roster()   # demo: Swordsman + Knight, bond C
+	GameState.roster["unit_demo_swordsman"]["level"] = 7
+	GameState.roster["unit_demo_swordsman"]["exp"] = 42
+	GameState.roster["unit_demo_knight"]["rest"] = 1
+	assert_true(CampScene.active_roster_ids() == ["unit_demo_swordsman"], "roster: resting units are not browsable (AC-RPM1)")
+	var camp := CampScene.new()
+	add_child(camp)
+	await get_tree().process_frame
+	assert_true(_find_button_containing(camp, "EXP 42/100") and _has_label_containing(camp, "Resting this map"), "roster: the row shows EXP 42/100 and the resting line names the Knight")
+	assert_true(not _has_label_containing(camp, "Lancer x Gunner"), "roster: the demo camp lists only its own bond pairs")
+	var before := GameState.to_dict().duplicate(true)
+	camp.open_unit_detail("unit_demo_swordsman")
+	await get_tree().process_frame
+	var joined := "\n".join(CampScene.unit_detail_lines("unit_demo_swordsman"))
+	assert_true(joined.contains("Level 7") and joined.contains("EXP 42/100") and joined.contains("Str ") and joined.contains("(C)"), "roster: Unit Detail shows level 7, EXP 42/100, stats and the rank-C bond (AC-RPM11)")
+	var bar: ProgressBar = camp._detail_panel.find_child("ExpBar", true, false)
+	assert_true(bar != null and int(bar.value) == 42 and int(bar.max_value) == 100, "roster: the EXP bar reads 42 of 100")
+	camp.close_unit_detail()
+	assert_true(GameState.to_dict() == before, "roster: the menu writes nothing (AC-RPM12)")
+	camp.queue_free()
+	GameState.roster["unit_demo_swordsman"]["rest"] = 1
+	var camp2 := CampScene.new()
+	add_child(camp2)
+	await get_tree().process_frame
+	assert_true(_has_label_containing(camp2, "No active units"), "roster: an empty roster says so (AC-RPM8)")
+	camp2.queue_free()
 	GameState.new_game()
 
 

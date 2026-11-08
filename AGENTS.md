@@ -381,6 +381,11 @@ Right after a battle ends (before the results / Game Over screen), `Aftermath.sc
 - After a **victory**, once every aftermath scene has finished, `GameState.campaign_checkpoint` (the GDD checkpoint, saved) goes up by 1 and the campaign is saved to the single save slot (`SaveService.save_campaign()`, the same file as the manual save) — after the chapter has advanced, so Continue resumes at the next chapter. The results screen says "Progress saved".
 - No autosave after a defeat / Game Over or the bad ending (nothing from those battles is kept), nor mid-battle, nor for debug test maps. The manual Save at camp stays.
 
+### F-ROSTER — Camp roster menu (08-11-2026, user request "D6"; `roster-progression-menu-system.md` Core Rules 1-3, AC-RPM1/8/11/12)
+
+- **Roster Browsing** (the camp roster panel): one row per **active** unit (on the roster, not resting) — name, class, level, `EXP n/100`, items. Resting units (F-CAS, the GDD's Incapacitated) are not browsable; they are named on one "Resting this map" line under the list. No active unit → "No active units".
+- **Unit Detail** (click a row, modal): level, an EXP bar + `exp/100` read straight from the roster, the full stat block as the unit will enter the next battle (`UnitState.from_data`, roster bonuses included), items, and its bond pairings with their rank. Read-only: nothing on this screen writes state (AC-RPM12).
+
 ### Demo maps are reference only (designer 08-11-2026)
 
 The six `demo_0N` maps/chapters are **reference material, not official content**: do not rebalance their layouts, enemy counts or faction thresholds from playtest results (e.g. demo_03's strict persuasion). Playtests on them are for checking rules and systems.
@@ -512,6 +517,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (34) — Claude (Opus) — done: camp roster menu (new §7b **F-ROSTER**, GDD Roster Progression Menu Rules 1-3, AC-RPM1/8/11/12). Roster panel rows = active units only (name, class, level, EXP n/100, items), resting units on a "Resting this map" line, "No active units" when empty; clicking a row opens a read-only Unit Detail (level, EXP bar + n/100, next-battle stats, items, bond ranks). Also: the camp bond panel now lists only pairs of the current roster (the demo camp was listing the legacy pairs). New `test_camp_roster_menu`; screenshots checked. Verified: validation 0/0, run_tests **548/548**, smoke_full_battle 21/21 (×2), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: list D done (D3/D5 wait for story content); C clean-up (test runner timeout); push when access is granted. — issues: not pushed (no repo access).
 
 - 2026-11-08 (33) — Claude (Opus) — done: autosave after the aftermath (new §7b **F-AUTOSAVE**, GDD Save Rules 1-2a). After a victory's aftermath scenes finish, `Main._after_aftermath` advances the chapter, raises `GameState.campaign_checkpoint` (new, saved) and writes the single save slot; the results screen shows "Progress saved". No autosave on a defeat, the bad ending, mid-battle or debug test maps. New `test_autosave_after_aftermath`. Verified: validation 0/0, run_tests **541/541**, smoke_full_battle 21/21 (×2), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: D6 roster detail screen. — issues: not pushed (no repo access); save tests overwrite / delete user://save_game.json on the dev machine.
 
