@@ -36,6 +36,7 @@ func _ready() -> void:
 	await test_no_permadeath_sit_out()
 	await test_nightmare_lock()
 	await test_aftermath_scenes()
+	await test_autosave_after_aftermath()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2719,6 +2720,45 @@ func test_aftermath_scenes() -> void:
 	GameState.new_game()
 	GameState.from_dict(saved)
 	assert_true(int(GameState.pressure_continues_count.get("faction_river_guard", 0)) == 2, "aftermath: the beat counter is saved")
+	GameState.new_game()
+
+
+## F-AUTOSAVE: a victory autosaves once its aftermath has finished (checkpoint +1, next chapter
+## stored); a defeat never autosaves.
+func test_autosave_after_aftermath() -> void:
+	GameState.new_game()
+	GameState.build_roster()
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	var d := BattleDirector.new()
+	d.setup(map, {"unit_demo_swordsman": map.deploy_cells[0], "unit_demo_knight": map.deploy_cells[1]}, "normal")
+	if SaveService.has_save():
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveService.SAVE_PATH))
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	await get_tree().process_frame
+	main._battle_director = d
+	# Defeat: aftermath, Game Over, no save.
+	ResultStore.last_result = {"status": "lose", "restraint": {"zero_ally_deaths": true}}
+	main._show_post_battle(false)
+	await get_tree().process_frame
+	(main._current as DialoguePlayer).finished.emit(true)
+	await get_tree().process_frame
+	assert_true(main._current is GameOverScene and not SaveService.has_save(), "autosave: a defeat does not save")
+	# Victory: nothing is written while the aftermath scene is still playing...
+	ResultStore.last_result = {"status": "win", "results": [], "reconcile": {}}
+	main._show_post_battle(true)
+	await get_tree().process_frame
+	assert_true(main._current is DialoguePlayer and not SaveService.has_save(), "autosave: not while the aftermath plays")
+	(main._current as DialoguePlayer).finished.emit(true)
+	await get_tree().process_frame
+	# ...and once it has finished, the next chapter and checkpoint 1 are on disk.
+	var saved := SaveService.read_save()
+	assert_true(SaveService.has_save() and int(saved.get("save_version", 0)) == 3, "autosave: written after the aftermath")
+	var gs: Dictionary = saved.get("game_state", {})
+	assert_true(int(gs.get("campaign_checkpoint", 0)) == 1 and String(gs.get("current_chapter_id", "")) != String(chapter.id), "autosave: checkpoint 1 and the next chapter are stored")
+	assert_true(main._current is PostBattleScene and _has_label_containing(main._current, "Progress saved"), "autosave: the results screen says progress was saved")
+	main.queue_free()
 	GameState.new_game()
 
 

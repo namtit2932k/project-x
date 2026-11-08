@@ -59,6 +59,10 @@ func _ready() -> void:
 	if not gold.is_empty():
 		UIBuilder.label(box, UIBuilder.t("Gold earned: +%d (victory %d, retrieve bonus %d, persuasion %d, villages %d)") % [int(gold.get("total", 0)), int(gold.get("victory", 0)), int(gold.get("retrieve", 0)), int(gold.get("persuasion", 0)), int(gold.get("villages", 0))], 18)
 
+	# F-AUTOSAVE: the victory was saved right after its aftermath.
+	if bool(result.get("autosaved", false)):
+		UIBuilder.label(box, UIBuilder.t("Progress saved"), 16)
+
 	var post := UIBuilder.button(self, UIBuilder.t("Continue"), 24)
 	post.position = Vector2(60, 840)
 	post.size = Vector2(220, 56)

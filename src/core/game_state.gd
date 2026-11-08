@@ -29,6 +29,8 @@ var faction_states: Dictionary = {}
 var gold: int = 0
 ## F-AFTER (GDD Narrative Rule 6c): how many "pressure continues" beats each faction has had.
 var pressure_continues_count: Dictionary = {}
+## F-AUTOSAVE (GDD Narrative Rule 1): story checkpoint, +1 after each victory's aftermath.
+var campaign_checkpoint: int = 0
 const TERMINAL_FACTION_STATES: Array[String] = ["persuaded", "unpersuadable"]
 ## Story branch id (work in progress: filled by event/dialogue choices; saved with the game).
 var story_branch: String = ""
@@ -82,6 +84,7 @@ func new_game() -> void:
 	faction_states.clear()
 	gold = 0
 	pressure_continues_count.clear()
+	campaign_checkpoint = 0
 	# The UI language is a player setting, it survives a new campaign.
 	options = {"volume": 0.8, "fullscreen": false, "language": language()}
 
@@ -274,6 +277,7 @@ func to_dict() -> Dictionary:
 		"faction_states": faction_states,
 		"gold": gold,
 		"pressure_continues_count": pressure_continues_count,
+		"campaign_checkpoint": campaign_checkpoint,
 		"story_branch": story_branch,
 		"story_flags": story_flags,
 		"options": options,
@@ -301,6 +305,7 @@ func from_dict(d: Dictionary) -> void:
 	faction_states = d.get("faction_states", {})
 	gold = maxi(int(d.get("gold", 0)), 0)
 	pressure_continues_count = d.get("pressure_continues_count", {})
+	campaign_checkpoint = int(d.get("campaign_checkpoint", 0))
 	# Saves written before F-ITEM: roster units start with their data-authored items.
 	for unit_id in roster:
 		if not (roster[unit_id] as Dictionary).has("items"):

@@ -376,6 +376,11 @@ Right after a battle ends (before the results / Game Over screen), `Aftermath.sc
 - **6d plain victory:** the standard victory scene.
 - **Content lookup, first found wins:** faction data (`FactionData.persuaded_dialogue_id`, `FactionData.engaged_dialogue_ids[count]`, last one reused when the list runs out) → the map's `aftermath_lines` (`Persuaded` / `Engaged` / `Victory` / `LostFallen` / `LostClean` / `Lost`, played as a narrator scene) → for 6d the chapter's `post_dialogue_id` → `rules_config.aftermath_dialogue_ids` placeholder scenes (writer content pending). On a victory the chapter's `post_dialogue_id` story scene also plays after a 6c scene.
 
+### F-AUTOSAVE — Autosave after the aftermath (08-11-2026, user request "D4"; `save-progression-system.md` Core Rules 1-2, `narrative-bond-scene-system.md` Core Rule 1)
+
+- After a **victory**, once every aftermath scene has finished, `GameState.campaign_checkpoint` (the GDD checkpoint, saved) goes up by 1 and the campaign is saved to the single save slot (`SaveService.save_campaign()`, the same file as the manual save) — after the chapter has advanced, so Continue resumes at the next chapter. The results screen says "Progress saved".
+- No autosave after a defeat / Game Over or the bad ending (nothing from those battles is kept), nor mid-battle, nor for debug test maps. The manual Save at camp stays.
+
 ### Demo maps are reference only (designer 08-11-2026)
 
 The six `demo_0N` maps/chapters are **reference material, not official content**: do not rebalance their layouts, enemy counts or faction thresholds from playtest results (e.g. demo_03's strict persuasion). Playtests on them are for checking rules and systems.
@@ -507,6 +512,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (33) — Claude (Opus) — done: autosave after the aftermath (new §7b **F-AUTOSAVE**, GDD Save Rules 1-2a). After a victory's aftermath scenes finish, `Main._after_aftermath` advances the chapter, raises `GameState.campaign_checkpoint` (new, saved) and writes the single save slot; the results screen shows "Progress saved". No autosave on a defeat, the bad ending, mid-battle or debug test maps. New `test_autosave_after_aftermath`. Verified: validation 0/0, run_tests **541/541**, smoke_full_battle 21/21 (×2), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: D6 roster detail screen. — issues: not pushed (no repo access); save tests overwrite / delete user://save_game.json on the dev machine.
 
 - 2026-11-08 (32) — Claude (Opus) — done: post-battle aftermath scenes (new §7b **F-AFTER**, GDD Narrative Rules 6-7). New `Aftermath.scenes()` picks, before the merge: loss with a fallen ally / clean defeat; victory with a holdout faction -> persuasion scene or the per-faction, per-encounter "pressure continues" beat (`GameState.pressure_continues_count`, saved, advanced by the victory merge); plain victory -> chapter post scene / map lines / generic; bad ending -> none. Content lookup: `FactionData.persuaded_dialogue_id` / `engaged_dialogue_ids` -> map `aftermath_lines` (the demo maps' lines now play) -> chapter `post_dialogue_id` -> `rules_config.aftermath_dialogue_ids` (5 new placeholder dialogues). `Main._play_scene_queue` plays them one by one before the results / Game Over screen. 6a severance cannot happen (no permadeath). Validator checks the scene ids. `test_game_over_screen` now steps through the clean-defeat scene; new `test_aftermath_scenes`. Verified: validation 0/0, run_tests **536/536**, smoke_full_battle 21/21 (×2), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: D4 autosave after the aftermath, D6 roster detail screen. — issues: not pushed (no repo access).
 

@@ -151,12 +151,14 @@ func _after_aftermath(win: bool, chapter: Resource) -> void:
 	if not win:
 		_show_game_over(chapter)
 		return
+	# Advance the chapter NOW so any save stores the NEXT chapter: Continue resumes the story
+	# from where the player actually is, never a replay.
+	GameState.advance_chapter()
+	# F-AUTOSAVE (GDD Save Rule 2a): the aftermath has resolved -> checkpoint +1 and autosave.
+	GameState.campaign_checkpoint += 1
+	ResultStore.last_result["autosaved"] = not SaveService.save_campaign().is_empty()
 	var post := PostBattleScene.build(chapter)
 	post.continue_pressed.connect(_show_camp)
-	if win:
-		# Advance the chapter NOW so saving at camp stores the NEXT chapter: Continue
-		# resumes the story from where the player actually is, never a replay.
-		GameState.advance_chapter()
 	_swap_to(post)
 
 
