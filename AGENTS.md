@@ -192,7 +192,7 @@ The demo maps now run on the GDD objective plugins (F-OBJ below). Still data-onl
   bond, reconcile, chapter completion); defeat writes nothing. Defeat result screen offers
   Retry chapter (same chapter, pre-battle roster), Main menu, and Rewind on the banner.
   Camp hides "Next chapter" while the current chapter is not completed. Casualties:
-  Story/Normal = temp_injury (fuel restoration, "wounded" recorded), Hard/Nightmare = permadeath.
+  Story/Normal = temp_injury (fuel restoration, "wounded" recorded), Hard/Nightmare = ~~permadeath~~ sit out the next map (F-CAS, 08-11-2026).
 - **D07 — Scope.** Nightmare stays. No shop (camp keeps a stub only). Evacuate keeps its deck
   definition. An "escape" objective type is backlog P3, not in the slice.
 - **D08 — EXP & level-ups. (Superseded by F-EXP, 08-11-2026 — kept for history.)** Only the player side earns EXP; attacking or being attacked pays
@@ -491,6 +491,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (30) — Claude (Opus) — done: no permadeath (new §7b **F-CAS**, designer). Hard/Nightmare `casualty_by_difficulty` = `sit_out`: a unit that falls in a won battle gets `roster.rest = 1`, is disabled on the next prep screen ("resting this map"), and the next victory frees it; defeats merge nothing (still resting for the retry); Story/Normal unchanged. Dual Restraint `zero_ally_deaths` now breaks on any fallen ally on every tier (designer). Saves with a dead roster unit bring it back (`SaveService.migrate`). Validator rejects `permadeath`. Camp line "rests next map". Also stabilised the Raider part of `test_enemy_ai_profiles` (a random counter could fell the Raider). New `test_no_permadeath_sit_out`. Verified: validation 0/0, run_tests **515/515**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: D1 Nightmare lock (GDD Difficulty Rule 2), D2 post-battle aftermath scenes, D4 autosave, D6 roster detail. — issues: not pushed (no repo access).
 
 - 2026-11-08 (29) — Claude (Opus) — done: save version 3 + old-save migration (new §7b **F-SAVE**, option 1 chosen by the designer; D-A2 / W9 closed). `SAVE_VERSION` 3 (1-3 readable); `SaveService.migrate()` runs after loading a v1/v2 save and drops roster units that no longer exist or are not in the save’s campaign (leaked demo units), logging each; the next save is v3. Stat bonuses (old atk/skl keys still apply) and old bond points load unchanged, as agreed. New `test_save_migration_v3`. Verified: validation 0/0, run_tests **508/508**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: C clean-up (test runner timeout); content work waits for the designer. — issues: not pushed (no repo access); the save tests overwrite user://save_game.json on the dev machine (pre-existing).
 
