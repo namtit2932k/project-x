@@ -475,14 +475,10 @@ func _s_pair_free(pair: Resource) -> bool:
 ## F-BOND: confirmation first (both can never lock S with anyone else); Cancel changes nothing.
 ## Confirm re-checks and locks atomically (BondCampaign.lock_s), then the S scene plays.
 func _confirm_lock_s(pair: Resource) -> void:
-	var dialog := ConfirmationDialog.new()
-	dialog.title = UIBuilder.t("Lock S pair")
-	dialog.dialog_text = UIBuilder.t("Lock this S pair? Both characters will never be able to lock S with anyone else.")
-	dialog.ok_button_text = UIBuilder.t("Lock S pair")
-	dialog.cancel_button_text = UIBuilder.t("Cancel")
+	# F-UI: the themed ConfirmDialog (it was Godot's unthemed ConfirmationDialog).
+	var dialog := ConfirmDialog.build(UIBuilder.t("Lock S pair"), UIBuilder.t("Lock this S pair? Both characters will never be able to lock S with anyone else.") + "\n" + pair_title(pair), UIBuilder.t("Lock S pair"), UIBuilder.t("Cancel"))
 	add_child(dialog)
 	dialog.confirmed.connect(func() -> void: _lock_s(pair))
-	dialog.popup_centered()
 
 
 func _both_alive(pair: Resource) -> bool:

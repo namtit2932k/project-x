@@ -136,7 +136,7 @@ func _build_ui() -> void:
 
 func _canvas() -> CanvasLayer:
 	for child in get_children():
-		if child is CanvasLayer:
+		if child is CanvasLayer and child.name != "PauseLayer":   # the HUD layer, never the pause one
 			return child
 	var layer := CanvasLayer.new()
 	add_child(layer)
@@ -187,7 +187,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if paused:
 		return
 	if event.is_action_pressed("ui_cancel") and mode != Mode.BUSY and director.state.battle_over.is_empty():
-		_toggle_pause()
+		_on_escape()
 		return
 	if event is InputEventMouseButton and event.pressed:
 		var cell := map_view.global_to_cell(event.position)
@@ -267,6 +267,22 @@ func _on_right_click(cell: Vector2i) -> void:
 			_refresh_rewind_button()
 			return
 	_cancel_selection()
+
+
+## Esc (designer 09-11-2026, F-MOVE): backs out one step like a right click while there is
+## something to back out of - the trade or rewind list, a target choice, a selected unit or an
+## unconfirmed move; with nothing selected it opens the pause menu.
+func _on_escape() -> void:
+	if _trade_panel != null and is_instance_valid(_trade_panel):
+		_close_trade()
+		return
+	if _rewind_picker != null and is_instance_valid(_rewind_picker):
+		_close_rewind_picker()
+		return
+	if selected_unit_id != "" or mode in [Mode.UNIT_SELECTED, Mode.TARGET_SELECT, Mode.SKILL_TARGET, Mode.CONFIRM_ATTACK]:
+		_on_right_click(hover_cell)
+		return
+	_toggle_pause()
 
 
 ## F-MOVE: takes back a move the player has not confirmed with an action (no-op otherwise).
@@ -943,7 +959,14 @@ func _toggle_pause() -> void:
 	_pause_menu.quit_to_menu.connect(func() -> void:
 		paused = false
 		quit_to_menu.emit())
-	add_child(_pause_menu)
+	# Its own layer above the HUD (layer 1) and the forecast (5), so the dim covers the whole
+	# screen; the layer goes away with the menu.
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	layer.name = "PauseLayer"
+	add_child(layer)
+	layer.add_child(_pause_menu)
+	_pause_menu.tree_exited.connect(layer.queue_free)
 
 
 func _on_resume() -> void:

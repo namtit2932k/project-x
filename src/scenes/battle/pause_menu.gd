@@ -47,15 +47,11 @@ func _on_resume() -> void:
 
 
 ## Confirmation spells out D11: no mid-battle save, only the last manual save survives.
+## F-UI: the themed ConfirmDialog (Esc = Back to battle).
 func _confirm_quit() -> void:
-	var dialog := ConfirmationDialog.new()
-	dialog.title = UIBuilder.t("Quit to menu")
-	dialog.dialog_text = UIBuilder.t("Current battle progress will be lost. Only your latest manual save is kept. Quit anyway?")
-	dialog.ok_button_text = UIBuilder.t("Quit")
-	dialog.cancel_button_text = UIBuilder.t("Back to battle")
+	var dialog := ConfirmDialog.build(UIBuilder.t("Quit to menu"), UIBuilder.t("Current battle progress will be lost. Only your latest manual save is kept. Quit anyway?"), UIBuilder.t("Quit"), UIBuilder.t("Back to battle"))
 	add_child(dialog)
 	dialog.confirmed.connect(func() -> void: quit_to_menu.emit())
-	dialog.popup_centered()
 
 
 func _unhandled_input(event: InputEvent) -> void:

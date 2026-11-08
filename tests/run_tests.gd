@@ -48,6 +48,7 @@ func _ready() -> void:
 	await test_move_then_act()
 	await test_auto_end_phase()
 	await test_unit_sprites()
+	await test_group1_cleanup()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -233,14 +234,14 @@ func test_bond_campaign() -> void:
 	add_child(camp)
 	await get_tree().process_frame
 	camp._confirm_lock_s(knight_pair)
-	var dialog: ConfirmationDialog = null
-	for child in camp.get_children():
-		if child is ConfirmationDialog:
-			dialog = child
-	assert_true(dialog != null and GameState.s_pairs.is_empty(), "bond S: a confirmation is shown first, nothing locked yet")
-	dialog.canceled.emit()
-	assert_true(GameState.s_pairs.is_empty() and GameState.bond_rank_for("bond_swordsman_knight") == "A", "bond S: Cancel changes nothing")
-	dialog.confirmed.emit()
+	await get_tree().process_frame
+	var dialog := _find_confirm(camp)
+	assert_true(dialog != null and GameState.s_pairs.is_empty(), "bond S: a (themed) confirmation is shown first, nothing locked yet")
+	(dialog.find_child("CancelButton", true, false) as Button).pressed.emit()
+	assert_true(GameState.s_pairs.is_empty() and GameState.bond_rank_for("bond_swordsman_knight") == "A" and dialog.is_queued_for_deletion(), "bond S: Cancel changes nothing and closes the dialog")
+	camp._confirm_lock_s(knight_pair)
+	await get_tree().process_frame
+	(_find_confirm(camp).find_child("ConfirmButton", true, false) as Button).pressed.emit()
 	assert_true(GameState.bond_rank_for("bond_swordsman_knight") == "S" and String(GameState.s_pairs.get("unit_swordsman", "")) == "bond_swordsman_knight" and String(GameState.s_pairs.get("unit_knight", "")) == "bond_swordsman_knight", "bond S: confirm locks rank S with symmetric partners")
 	assert_true(BondCampaign.s_state(knight_pair) == "locked" and BondCampaign.s_state(beast_pair) == "closed", "bond S: the other candidate is closed")
 	assert_true(not BondCampaign.lock_s(beast_pair) and GameState.bond_rank_for("bond_swordsman_beastwoman") == "A", "bond S: a closed pair cannot lock, its A bonus stays")
@@ -1676,6 +1677,14 @@ func _note_of(forecast: Dictionary, effect_type: String) -> Dictionary:
 		if String(note.get("effect_type", "")) == effect_type:
 			return note
 	return {}
+
+
+## The open (not closing) ConfirmDialog directly under a screen, or null.
+func _find_confirm(screen: Node) -> ConfirmDialog:
+	for child in screen.get_children():
+		if child is ConfirmDialog and not child.is_queued_for_deletion():
+			return child
+	return null
 
 
 func _has_label_containing(root: Node, text: String) -> bool:
@@ -3227,6 +3236,74 @@ func test_unit_sprites() -> void:
 			if not ResourceLoader.exists(path):
 				missing.append(path.get_file())
 	assert_true(missing.is_empty(), "sprites: every mapped sheet is installed in Blue / Red / Green (missing %s)" % str(missing))
+
+
+## "Group 1" clean-up (09-11-2026): the test watchdog, the themed ConfirmDialog (S lock, pause
+## quit) and Esc backing out one step in battle before it opens the pause menu.
+func test_group1_cleanup() -> void:
+	# Watchdog: this scene carries one, and it tells a missing / broken root script apart.
+	var dog := find_child("Watchdog", false, false) as TestWatchdog
+	assert_true(dog != null and dog.timeout_sec >= 60.0, "watchdog: the rule-test scene has a watchdog with a sane timeout")
+	var bare := Node.new()
+	assert_true(TestWatchdog.root_problem(self) == "" and TestWatchdog.root_problem(bare).contains("did not load") and TestWatchdog.root_problem(null) != "", "watchdog: a root without a usable script is reported")
+	bare.free()
+	# ConfirmDialog: themed window inside the frame; Esc = Cancel.
+	var dialog := ConfirmDialog.build("Title", "Message text", "Yes", "No")
+	var results := []
+	dialog.confirmed.connect(func() -> void: results.append("ok"))
+	dialog.canceled.connect(func() -> void: results.append("cancel"))
+	add_child(dialog)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var win := dialog.find_child("ConfirmWindow", true, false) as PanelContainer
+	var style := win.get_theme_stylebox("panel") as StyleBoxFlat
+	assert_true(Rect2(Vector2.ZERO, UITheme.FRAME).encloses(Rect2(win.position, win.size)) and style.border_color == UITheme.ACCENT, "confirm: a themed window inside the frame")
+	assert_true(_has_label_containing(dialog, "Message text") and _find_button(dialog, "Yes") != null and _find_button(dialog, "No") != null, "confirm: title, message, Confirm and Cancel")
+	var esc := InputEventAction.new()
+	esc.action = "ui_cancel"
+	esc.pressed = true
+	dialog._unhandled_input(esc)
+	assert_true(results == ["cancel"] and dialog.is_queued_for_deletion(), "confirm: Esc cancels and closes")
+	# Pause menu Quit uses it too.
+	var pause := PauseMenu.new()
+	var quit_seen := [false]
+	pause.quit_to_menu.connect(func() -> void: quit_seen[0] = true)
+	add_child(pause)
+	await get_tree().process_frame
+	pause._confirm_quit()
+	await get_tree().process_frame
+	var quit_dialog := _find_confirm(pause)
+	assert_true(quit_dialog != null and not quit_seen[0], "pause: Quit to menu asks first (themed)")
+	(quit_dialog.find_child("ConfirmButton", true, false) as Button).pressed.emit()
+	assert_true(quit_seen[0], "pause: confirming quits to the menu")
+	pause.queue_free()
+	# Esc in battle: unconfirmed move back -> deselect -> pause menu.
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	add_child(battle)
+	await get_tree().process_frame
+	var start: Vector2i = director.state.units["unit_swordsman"].pos
+	battle._on_left_click(start)
+	var dest := Vector2i(-1, -1)
+	for c in MovementHandler.compute_move_cells(director.state, director.state.units["unit_swordsman"]):
+		dest = c
+		break
+	battle._on_left_click(dest)
+	battle._on_escape()
+	assert_true(director.state.units["unit_swordsman"].pos == start and not director.state.units["unit_swordsman"].moved and battle.selected_unit_id == "unit_swordsman" and not battle.paused, "esc: takes the unconfirmed move back, unit still selected")
+	battle._on_escape()
+	assert_true(battle.selected_unit_id == "" and not battle.paused, "esc: then deselects")
+	battle._on_escape()
+	assert_true(battle.paused and battle._pause_menu != null, "esc: with nothing selected it opens the pause menu")
+	battle._pause_menu._on_resume()
+	battle.queue_free()
+	GameState.new_game()
 
 
 func _sides(plan: Dictionary) -> Array:

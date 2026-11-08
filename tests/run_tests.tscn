@@ -1,6 +1,11 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://tests/run_tests.gd" id="1_tests"]
+[ext_resource type="Script" path="res://tests/test_watchdog.gd" id="watchdog"]
 
 [node name="RunTests" type="Node"]
 script = ExtResource("1_tests")
+
+[node name="Watchdog" type="Node" parent="."]
+script = ExtResource("watchdog")
+timeout_sec = 300.0
