@@ -15,17 +15,22 @@ static func build(chapter: Resource) -> PostBattleScene:
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	UIBuilder.fill_screen(self)
 	var bg := ColorRect.new()
-	bg.color = Color(0.08, 0.09, 0.12)
+	bg.color = UITheme.BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
 	var result: Dictionary = ResultStore.last_result
-	var title := UIBuilder.label(self, UIBuilder.t("Victory") if result.get("status", "") == "win" else UIBuilder.t("Defeat"), 54)
-	title.position = Vector2(60, 40)
+	var title := UIBuilder.title(self, UIBuilder.t("Victory") if result.get("status", "") == "win" else UIBuilder.t("Defeat"), 40)
+	title.position = Vector2(48, 20)
 
-	var box := UIBuilder.vbox(UIBuilder.panel(self, 60, 150, 1000, 640), 10)
+	# F-UI: long results scroll inside the 1280 x 720 frame.
+	var results_panel := UIBuilder.panel(self, 48, 96, 1184, 500)
+	var results_scroll := ScrollContainer.new()
+	results_scroll.custom_minimum_size = Vector2(1150, 470)
+	results_panel.add_child(results_scroll)
+	var box := UIBuilder.vbox(results_scroll, 8)
 	UIBuilder.label(box, UIBuilder.t("Chapter: %s") % _chapter.display_name, 22)
 
 	UIBuilder.label(box, UIBuilder.t("Objectives:"), 20)
@@ -64,8 +69,8 @@ func _ready() -> void:
 		UIBuilder.label(box, UIBuilder.t("Progress saved"), 16)
 
 	var post := UIBuilder.button(self, UIBuilder.t("Continue"), 24)
-	post.position = Vector2(60, 840)
-	post.size = Vector2(220, 56)
+	post.position = Vector2(1012, 620)
+	post.size = Vector2(220, 48)
 	post.pressed.connect(func() -> void: continue_pressed.emit())
 
 

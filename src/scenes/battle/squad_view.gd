@@ -17,7 +17,7 @@ static func build(p_state: BattleState) -> SquadView:
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	UIBuilder.fill_screen(self)
 	show_list()
 
 
@@ -25,7 +25,7 @@ func _ready() -> void:
 func show_list() -> void:
 	_clear()
 	_panel = UIBuilder.modal(self)
-	var box := UIBuilder.vbox(UIBuilder.modal_panel(_panel, 610, 140, 700, 760), 6)
+	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_panel, 700, 600), 6)
 	UIBuilder.label(box, UIBuilder.t("Squad"), 28)
 	for u in allies(state):
 		var line := "%s | Lv %d | HP %d/%d" % [u.display_name, u.level, u.hp, u.max_hp]
@@ -48,7 +48,7 @@ func show_detail(unit_id: String) -> void:
 		show_list()
 		return
 	_panel = UIBuilder.modal(self)
-	var box := UIBuilder.vbox(UIBuilder.modal_panel(_panel, 610, 140, 700, 760), 6)
+	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_panel, 700, 600), 6)
 	for line in detail_lines(state, u):
 		UIBuilder.label(box, line, 18)
 	var back := UIBuilder.button(box, UIBuilder.t("Back"), 18)

@@ -13,13 +13,13 @@ var _squad_view: SquadView = null
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	UIBuilder.fill_screen(self)
 	var bg := ColorRect.new()
 	bg.color = Color(0, 0, 0, 0.7)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var window_panel := UIBuilder.panel(self, 760, 220, 400, 420)
+	var window_panel := UIBuilder.panel(self, 440, 120, 400, 440)
 	var box := UIBuilder.vbox(window_panel, 14)
 	UIBuilder.label(box, UIBuilder.t("Paused"), 32)
 	var resume := UIBuilder.button(box, UIBuilder.t("Resume"), 24)

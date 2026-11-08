@@ -16,17 +16,17 @@ static func build(chapter: Resource) -> PrepScene:
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	UIBuilder.fill_screen(self)
 	var bg := ColorRect.new()
-	bg.color = Color(0.08, 0.09, 0.12)
+	bg.color = UITheme.BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var title := UIBuilder.label(self, "%s  -  preparation" % _chapter.display_name, 36)
-	title.position = Vector2(60, 40)
+	var title := UIBuilder.title(self, "%s  -  preparation" % _chapter.display_name, 40)
+	title.position = Vector2(48, 24)
 
 	# Objectives panel (primary + fail conditions).
-	var obj_panel := UIBuilder.panel(self, 60, 130, 500, 300)
+	var obj_panel := UIBuilder.panel(self, 48, 100, 480, 320)
 	var obj_box := UIBuilder.vbox(obj_panel, 8)
 	UIBuilder.label(obj_box, UIBuilder.t("Objectives"), 22)
 	var map := DataRegistry.get_map(String(_chapter.map_id))
@@ -55,7 +55,7 @@ func _ready() -> void:
 		UIBuilder.label(obj_box, UIBuilder.t("Note: limit your kills if you want to persuade the remnants."), 16)
 
 	# Deploy roster panel.
-	var list_panel := UIBuilder.panel(self, 600, 130, 760, 500)
+	var list_panel := UIBuilder.panel(self, 548, 100, 684, 440)
 	var list_box := UIBuilder.vbox(list_panel, 6)
 	UIBuilder.label(list_box, UIBuilder.t("Deploy (max %d)") % int(_chapter.deploy_max), 22)
 	var locked_any := false
@@ -80,8 +80,8 @@ func _ready() -> void:
 			locked_any = true
 
 	_start_button = UIBuilder.button(self, UIBuilder.t("Start battle"), 24)
-	_start_button.position = Vector2(600, 680)
-	_start_button.size = Vector2(220, 56)
+	_start_button.position = Vector2(1012, 620)
+	_start_button.size = Vector2(220, 48)
 	_start_button.pressed.connect(_on_start)
 	_enforce_count()
 

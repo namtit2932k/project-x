@@ -44,7 +44,7 @@ var objectives: Array = []
 func set_state(p_state: BattleState, p_player_sides: Array) -> void:
 	state = p_state
 	player_sides = p_player_sides
-	origin = Vector2((1920.0 - p_state.width * CELL) / 2.0, (1080.0 - p_state.height * CELL) / 2.0)
+	origin = Vector2((UITheme.FRAME.x - p_state.width * CELL) / 2.0, (UITheme.FRAME.y - p_state.height * CELL) / 2.0)
 
 
 func set_overlays(p_move: Dictionary, p_attack: Dictionary, p_targets: Dictionary) -> void:

@@ -17,13 +17,13 @@ static func build(chapter: Resource) -> BadEndingScene:
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	UIBuilder.fill_screen(self)
 	var bg := ColorRect.new()
-	bg.color = Color(0.08, 0.03, 0.02)
+	bg.color = UITheme.BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var box := UIBuilder.vbox(UIBuilder.panel(self, 460, 240, 1000, 560), 16)
+	var box := UIBuilder.vbox(UIBuilder.panel(self, 240, 110, 800, 500), 14)
 	UIBuilder.label(box, UIBuilder.t("Bad Ending"), 64)
 	if _chapter != null:
 		UIBuilder.label(box, UIBuilder.t("Chapter: %s") % _chapter.display_name, 22)

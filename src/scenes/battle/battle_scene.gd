@@ -62,30 +62,31 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	_objective_label = UIBuilder.label(_ui_root(), "", 18)
-	_objective_label.position = Vector2(24, 16)
-	_objective_label.size = Vector2(700, 90)
+	# F-UI frame 1280 x 720 (the document's battle layout comes in its own step).
+	_objective_label = UIBuilder.label(_ui_root(), "", 15)
+	_objective_label.position = Vector2(16, 10)
+	_objective_label.size = Vector2(520, 70)
 
-	_info_label = UIBuilder.label(_ui_root(), "", 18)
-	_info_label.position = Vector2(24, 920)
-	_info_label.size = Vector2(700, 60)
+	_info_label = UIBuilder.label(_ui_root(), "", 15)
+	_info_label.position = Vector2(16, 654)
+	_info_label.size = Vector2(860, 50)
 
-	_hint_label = UIBuilder.label(_ui_root(), UIBuilder.t("Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait"), 20)
-	_hint_label.position = Vector2(400, 60)
+	_hint_label = UIBuilder.label(_ui_root(), UIBuilder.t("Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait"), 13)
+	_hint_label.position = Vector2(16, 612)
 
-	_end_turn_button = UIBuilder.button(_ui_root(), UIBuilder.t("End phase"), 22)
-	_end_turn_button.position = Vector2(1740, 990)
-	_end_turn_button.size = Vector2(150, 52)
+	_end_turn_button = UIBuilder.button(_ui_root(), UIBuilder.t("End phase"), 18)
+	_end_turn_button.position = Vector2(1110, 664)
+	_end_turn_button.size = Vector2(154, 44)
 	_end_turn_button.pressed.connect(_on_end_phase)
 
 	_rewind_button = UIBuilder.button(_ui_root(), "", 20)
-	_rewind_button.position = Vector2(1740, 920)
-	_rewind_button.size = Vector2(150, 52)
+	_rewind_button.position = Vector2(1110, 612)
+	_rewind_button.size = Vector2(154, 44)
 	_rewind_button.pressed.connect(open_rewind_picker)
 	# F-BUI Rule 6: charges as pips (or the infinity glyph on Story) inside the button.
 	_rewind_pips = HBoxContainer.new()
 	_rewind_pips.add_theme_constant_override("separation", 3)
-	_rewind_pips.position = Vector2(96, 19)
+	_rewind_pips.position = Vector2(96, 15)
 	_rewind_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_rewind_pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rewind_button.add_child(_rewind_pips)
@@ -478,11 +479,11 @@ func _play_combat(strikes: Array) -> void:
 	_combat_layer.add_child(overlay)
 	var v := UIBuilder.vbox(overlay, 12)
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.offset_left = 500
-	v.offset_top = 260
-	v.offset_right = -500
-	_skip_btn_ = UIBuilder.button(overlay, UIBuilder.t("Skip"), 20)
-	_skip_btn_.position = Vector2(1740, 990)
+	v.offset_left = 240
+	v.offset_top = 180
+	v.offset_right = -240
+	_skip_btn_ = UIBuilder.button(overlay, UIBuilder.t("Skip"), 18)
+	_skip_btn_.position = Vector2(1110, 664)
 	_skip_btn_.pressed.connect(func() -> void: _combat_skip = true)
 
 	var first: UnitState = director.state.units.get(String(strikes[0].get("attacker_id", "")), null)
@@ -767,13 +768,13 @@ func _build_reconcile_hud() -> void:
 	if factions.is_empty():
 		return
 	_reconcile_notice = UIBuilder.label(_ui_root(),
-		UIBuilder.t("Limit your kills if you want to persuade the remnants - watch the pressure colour."), 18)
-	_reconcile_notice.position = Vector2(24, 960)
-	_reconcile_notice.size = Vector2(1500, 40)
+		UIBuilder.t("Limit your kills if you want to persuade the remnants - watch the pressure colour."), 13)
+	_reconcile_notice.position = Vector2(16, 632)
+	_reconcile_notice.size = Vector2(860, 22)
 	_reconcile_chip_box = HBoxContainer.new()
 	_reconcile_chip_box.add_theme_constant_override("separation", 14)
-	_reconcile_chip_box.position = Vector2(1240, 900)
-	_reconcile_chip_box.size = Vector2(660, 44)
+	_reconcile_chip_box.position = Vector2(880, 560)
+	_reconcile_chip_box.size = Vector2(384, 44)
 	_ui_root().add_child(_reconcile_chip_box)
 	_refresh_reconcile_hud()
 
@@ -902,7 +903,7 @@ func _open_trade_partners() -> void:
 		return
 	_close_trade()
 	_trade_panel = UIBuilder.modal(_ui_root())
-	var box := UIBuilder.vbox(UIBuilder.modal_panel(_trade_panel, 700, 340, 520, 380), 8)
+	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_trade_panel, 600, 380), 8)
 	UIBuilder.label(box, UIBuilder.t("Trade with whom?"), 18)
 	for partner_id in trade_partners(director.state, sel):
 		var btn := UIBuilder.button(box, director.state.units[partner_id].display_name, 16)
@@ -977,7 +978,7 @@ func _open_trade(partner_id: String) -> void:
 	_close_trade()
 	var partner: UnitState = director.state.units[partner_id]
 	_trade_panel = UIBuilder.modal(_ui_root())
-	var box := UIBuilder.vbox(UIBuilder.modal_panel(_trade_panel, 700, 340, 520, 380), 8)
+	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_trade_panel, 600, 380), 8)
 	UIBuilder.label(box, UIBuilder.t("Trade with %s - choose:") % partner.display_name, 18)
 	for opt in trade_options(director.state, sel, partner):
 		var btn := UIBuilder.button(box, String(opt["label"]), 16)
@@ -1019,12 +1020,12 @@ func open_rewind_picker() -> void:
 		return
 	_close_rewind_picker()
 	_rewind_picker = UIBuilder.modal(_ui_root())
-	var box := UIBuilder.vbox(UIBuilder.modal_panel(_rewind_picker, 660, 140, 600, 760), 6)
+	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_rewind_picker, 600, 600), 6)
 	UIBuilder.label(box, UIBuilder.t("Rewind to which point? (costs 1 use)"), 22)
 	var quick := UIBuilder.button(box, UIBuilder.t("Undo last action"), 18)
 	quick.pressed.connect(func() -> void: _rewind_to(frames[0]))
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(580, 560)
+	scroll.custom_minimum_size = Vector2(560, 420)
 	box.add_child(scroll)
 	var list := UIBuilder.vbox(scroll, 4)
 	for index in frames:

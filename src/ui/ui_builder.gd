@@ -64,9 +64,42 @@ static func modal(parent: Control) -> Control:
 static func modal_panel(parent: Control, x: float, y: float, w: float, h: float) -> PanelContainer:
 	var p := panel(parent, x, y, w, h)
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.11, 0.12, 0.15, 1.0)
-	style.set_border_width_all(2)
-	style.border_color = Color(0.35, 0.38, 0.45)
-	style.set_content_margin_all(14)
+	style.bg_color = UITheme.PANEL
+	style.set_border_width_all(1)
+	style.border_color = UITheme.ACCENT
+	style.set_content_margin_all(18)
 	p.add_theme_stylebox_override("panel", style)
 	return p
+
+
+## F-UI: a modal panel of size w x h centred in the 1280 x 720 frame.
+static func centered_modal_panel(parent: Control, w: float, h: float) -> PanelContainer:
+	return modal_panel(parent, (UITheme.FRAME.x - w) / 2.0, (UITheme.FRAME.y - h) / 2.0, w, h)
+
+
+## F-UI: a serif title label (UI doc: 55 px page titles).
+static func title(parent: Control, text: String, size: int = 55) -> Label:
+	var l := label(parent, text, size)
+	l.add_theme_font_override("font", UITheme.title_font())
+	return l
+
+
+## F-UI: the screen background colour of the shared look.
+static func background(parent: Control) -> ColorRect:
+	var bg := ColorRect.new()
+	bg.color = UITheme.BG
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(bg)
+	return bg
+
+
+## F-UI: make a screen root cover the whole frame. Screens live under plain Nodes (Main,
+## CanvasLayers, the battle Node2D), where full-rect anchors give a 0 x 0 rect - so the
+## background, centred panels and anchored children would collapse. Size it explicitly then.
+static func fill_screen(screen: Control) -> void:
+	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	if not (screen.get_parent() is Control):
+		screen.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		screen.position = Vector2.ZERO
+		screen.size = screen.get_viewport_rect().size

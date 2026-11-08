@@ -17,13 +17,13 @@ static func build(chapter: Resource) -> GameOverScene:
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	UIBuilder.fill_screen(self)
 	var bg := ColorRect.new()
-	bg.color = Color(0.06, 0.02, 0.03)
+	bg.color = UITheme.BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var box := UIBuilder.vbox(UIBuilder.panel(self, 460, 260, 1000, 520), 16)
+	var box := UIBuilder.vbox(UIBuilder.panel(self, 240, 120, 800, 480), 14)
 	UIBuilder.label(box, UIBuilder.t("Game Over"), 64)
 	if _chapter != null:
 		UIBuilder.label(box, UIBuilder.t("Chapter: %s") % _chapter.display_name, 22)

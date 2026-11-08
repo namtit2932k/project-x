@@ -9,6 +9,7 @@ var _battle_director: BattleDirector = null
 
 
 func _ready() -> void:
+	get_tree().root.theme = UITheme.build()   # F-UI: one shared look for every screen
 	_apply_options()
 	_show_menu()
 

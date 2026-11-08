@@ -21,6 +21,7 @@ static func build(data: Resource) -> DialoguePlayer:
 
 
 func _ready() -> void:
+	UIBuilder.fill_screen(self)
 	var bg := ColorRect.new()
 	bg.color = Color(0.02, 0.02, 0.05, 0.92)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -28,10 +29,11 @@ func _ready() -> void:
 
 	var box := VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = 160
-	box.offset_top = 720
-	box.offset_right = -160
-	box.offset_bottom = -60
+	# F-UI visual-novel box: x 7 %-93 %, bottom -216 to -28 (UI doc).
+	box.offset_left = 90
+	box.offset_top = UITheme.FRAME.y - 216
+	box.offset_right = -90
+	box.offset_bottom = -28
 	add_child(box)
 
 	var panel_box := PanelContainer.new()
@@ -42,13 +44,14 @@ func _ready() -> void:
 	_text_label = Label.new()
 	_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text_label.add_theme_font_size_override("font_size", 24)
+	_text_label.custom_minimum_size = Vector2(0, 110)
 	inner.add_child(_text_label)
 
 	_prompt = UIBuilder.label(self, UIBuilder.t("Click / Space: continue   -   Esc: skip"), 14)
-	_prompt.position = Vector2(160, 1010)
+	_prompt.position = Vector2(96, UITheme.FRAME.y - 240)
 
 	var skip := UIBuilder.button(self, UIBuilder.t("Skip scene"), 16)
-	skip.position = Vector2(1640, 990)
+	skip.position = Vector2(1060, UITheme.FRAME.y - 252)
 	skip.pressed.connect(func() -> void: _finish(true))
 
 	var title := UIBuilder.label(header_anchor(), _title_text(), 14)
@@ -69,10 +72,10 @@ func _show_portrait(path: String) -> void:
 		return
 	_portrait_rect = TextureRect.new()
 	_portrait_rect.texture = tex
-	_portrait_rect.custom_minimum_size = Vector2(400, 480)
+	_portrait_rect.custom_minimum_size = Vector2(260, 300)
 	_portrait_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	add_child(_portrait_rect)
-	_portrait_rect.position = Vector2(160, 220)
+	_portrait_rect.position = Vector2(96, 150)
 
 
 var _portrait_rect: TextureRect = null

@@ -15,20 +15,17 @@ var _diff_button: Button
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bg := ColorRect.new()
-	bg.color = Color(0.06, 0.07, 0.1)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	UIBuilder.fill_screen(self)
+	UIBuilder.background(self)
 
-	var title := UIBuilder.label(self, "PROJECT X", 64)
-	title.position = Vector2(60, 80)
-	var sub := UIBuilder.label(self, UIBuilder.t("Tactical turn-based RPG - vertical slice build"), 22)
-	sub.position = Vector2(64, 160)
+	var title := UIBuilder.title(self, "PROJECT X", 64)
+	title.position = Vector2(48, 60)
+	var sub := UIBuilder.label(self, UIBuilder.t("Tactical turn-based RPG - vertical slice build"), 18)
+	sub.position = Vector2(52, 150)
 
-	var box := UIBuilder.vbox(self, 14)
-	box.position = Vector2(64, 280)
-	box.custom_minimum_size = Vector2(360, 400)
+	var box := UIBuilder.vbox(self, 10)
+	box.position = Vector2(52, 210)
+	box.custom_minimum_size = Vector2(330, 400)
 
 	var new_btn := UIBuilder.button(box, UIBuilder.t("New campaign"), 24)
 	new_btn.pressed.connect(func() -> void: _reset_options_and_emit("new"))
@@ -50,7 +47,7 @@ func _ready() -> void:
 	quit.pressed.connect(func() -> void: get_tree().quit())
 
 	# Options reuse the shared module (N08): identical behavior in the battle pause menu.
-	var options := UIBuilder.panel(self, 1500, 640, 360, 300)
+	var options := UIBuilder.panel(self, 860, 330, 372, 300)
 	var obox := UIBuilder.vbox(options, 10)
 	var opts := OptionsPanel.new()
 	opts.language_changed.connect(func() -> void: language_changed.emit())
@@ -62,7 +59,7 @@ func _ready() -> void:
 func _open_test_maps() -> void:
 	if _test_maps_panel != null:
 		_test_maps_panel.queue_free()
-	var panel := UIBuilder.panel(self, 600, 160, 400, 420)
+	var panel := UIBuilder.panel(self, 440, 90, 400, 420)
 	_test_maps_panel = panel
 	var box := UIBuilder.vbox(panel, 8)
 	UIBuilder.label(box, UIBuilder.t("Test maps (debug build only)"), 22)

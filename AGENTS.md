@@ -386,6 +386,16 @@ Right after a battle ends (before the results / Game Over screen), `Aftermath.sc
 - **Roster Browsing** (the camp roster panel): one row per **active** unit (on the roster, not resting) — name, class, level, `EXP n/100`, items. Resting units (F-CAS, the GDD's Incapacitated) are not browsable; they are named on one "Resting this map" line under the list. No active unit → "No active units".
 - **Unit Detail** (click a row, modal): level, an EXP bar + `exp/100` read straight from the roster, the full stat block as the unit will enter the next battle (`UnitState.from_data`, roster bonuses included), items, and its bond pairings with their rank. Read-only: nothing on this screen writes state (AC-RPM12).
 
+### F-UI — UI redesign from "Project-X-Demo-UI-Design (3).docx" (designer 08-11-2026)
+
+Source: the designer's UI design document (demo screenshots of 13-10-2026 + spec update 15-10-2026; local copy only, `docs/reference/` is not committed). Decisions taken with the designer:
+
+- **Frame 1280 × 720** (also P-14): every screen is rebuilt for it with containers; sizes follow the document's table (content margin 48, buttons ≥ 195 × 46 with 16 px text, titles 55 px, action menu ≥ 280 wide with 44 px rows, visual-novel box x 7-93 % / bottom -216 to -28 with 28 px text, dialogs ≥ 600 wide).
+- **Look:** dark teal background, thin-bordered panels, gold accent, serif titles (one shared theme, `UITheme`).
+- **Superseded parts of the document (not built):** the "squad & stat upgrade" screen and the "+N to the shared pool" summary line — the GDD retired the stat-point pool on 17-10 (EXP / levels instead, F-EXP); the difficulty cards say "sits out the next map" instead of "permanent death" (F-CAS).
+- **One Game Over screen** for every lost battle (reason + Retry chapter + Main menu); no separate "objective failed" summary.
+- **Order:** (1) 1280 × 720 + shared theme, every screen fitting the frame; then the document's screens one by one: start flow (3-button menu, difficulty cards + Nightmare confirm, options), prep (two columns + minimap + shop entry), battle HUD (full-screen map with camera, objective box top-left, unit card bottom-left, terrain box bottom-right, small Pause / Rewind), visual-novel dialogue, summary / Game Over / ending, between-battles lobby. One commit with screenshots per step.
+
 ### Demo maps are reference only (designer 08-11-2026)
 
 The six `demo_0N` maps/chapters are **reference material, not official content**: do not rebalance their layouts, enemy counts or faction thresholds from playtest results (e.g. demo_03's strict persuasion). Playtests on them are for checking rules and systems.
@@ -482,7 +492,7 @@ Supersedes **D08** and **P-04** outright. D06/P-09 stay as they were (see "No de
 ## 8. Assets and UI
 
 - Request or expect assets as `.png` with transparent background, same canvas size and resolution per frame, equal spacing if packed in a sprite sheet. Each asset needs a description: purpose and which scene uses it.
-- UI is laid out for 16:9 (1920×1080) first. Check fonts and element sizes against that before accepting a handoff.
+- UI is laid out for 16:9 at **1280×720** (F-UI, designer 08-11-2026; was 1920×1080). Check fonts and element sizes against that before accepting a handoff.
 - Use placeholder art for anything missing; keep it behind the same data ids so it can be swapped.
 
 ## 9. Git workflow
@@ -517,6 +527,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (36) — Claude (Opus) — done: UI redesign step 1 (new §7b **F-UI**, from the designer's UI design document; decisions: 1280×720, no stat-point upgrade screen, one Game Over screen, foundation first). Project frame 1280×720 + default clear colour; new `UITheme` (dark teal / thin borders / gold accent / serif titles, set on the root window by Main); `UIBuilder.title()`, `background()`, `centered_modal_panel()`, `fill_screen()` (screens under plain Nodes got a 0×0 rect, so backgrounds and centred panels collapsed — the old camp-only fix is replaced). Every screen re-placed for the frame (menu, prep, battle HUD, combat screen, forecast, dialogue box per the document's visual-novel box, results with a scroll, Game Over, bad ending, camp + shop + unit detail, pause, squad view, rewind picker, trade). Fixed the forecast window: its columns and buttons sat directly in one PanelContainer and overlapped. Screenshots checked. Verified: validation 0/0, run_tests **546/546**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: F-UI step 2, start flow (3-button menu, difficulty cards + Nightmare confirm, options with window mode + 3 volumes). — issues: not pushed (no repo access); no art fonts yet (system serif).
 
 - 2026-11-08 (35) — Claude (Opus) — done: designer dropped the loss narrative (F-AFTER 6b): `Aftermath.scenes()` returns nothing on a loss, so a lost battle goes straight to Game Over; removed the two loss placeholder dialogues (created earlier today) and their `aftermath_dialogue_ids` / validator keys; tests updated. Verified: validation 0/0, run_tests **546/546**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: C clean-up (test runner timeout); content waits for the designer. — issues: not pushed (no repo access).
 

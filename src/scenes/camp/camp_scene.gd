@@ -12,20 +12,17 @@ var _diff_btn: Button = null
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	if size.x < 1.0:   # under a plain Node the anchors give no rect: take the viewport's
-		set_anchors_preset(Control.PRESET_TOP_LEFT)
-		size = get_viewport_rect().size
+	UIBuilder.fill_screen(self)
 	var bg := ColorRect.new()
-	bg.color = Color(0.07, 0.1, 0.09)
+	bg.color = UITheme.BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var title := UIBuilder.label(self, UIBuilder.t("Camp - manage the squad"), 40)
-	title.position = Vector2(60, 40)
+	var title := UIBuilder.title(self, UIBuilder.t("Camp - manage the squad"), 40)
+	title.position = Vector2(48, 20)
 
 	# Roster panel.
-	var roster_panel := UIBuilder.panel(self, 60, 130, 760, 560)
+	var roster_panel := UIBuilder.panel(self, 48, 84, 560, 460)
 	var roster_box := UIBuilder.vbox(roster_panel, 6)
 	UIBuilder.label(roster_box, UIBuilder.t("Roster"), 24)
 	# F-ROSTER Roster Browsing (GDD AC-RPM1): active units only, each opens its Unit Detail.
@@ -35,6 +32,9 @@ func _ready() -> void:
 	for unit_id in active:
 		var row := UIBuilder.button(roster_box, roster_row_text(unit_id), 16)
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.clip_text = true                       # long item lists stay inside the panel
+		row.custom_minimum_size = Vector2(520, 0)
+		row.tooltip_text = roster_row_text(unit_id)
 		var chosen := unit_id
 		row.pressed.connect(func() -> void: open_unit_detail(chosen))
 	var resting: Array[String] = []
@@ -46,32 +46,32 @@ func _ready() -> void:
 		UIBuilder.label(roster_box, UIBuilder.t("Resting this map: %s") % ", ".join(resting), 16)
 
 	# Bond panel (eligible designer pairs only).
-	var bond_panel := UIBuilder.panel(self, 860, 130, 1000, 560)
+	var bond_panel := UIBuilder.panel(self, 624, 84, 608, 460)
 	_scene_box = UIBuilder.vbox(bond_panel, 6)
 	_rebuild_bond_panel()
 
 	# D10: show the true-ending eligibility derived from finished chapters + persuade.
 	var ending_word := UIBuilder.t("possible") if GameState.is_true_ending_eligible() else UIBuilder.t("locked")
 	var ending_note := UIBuilder.label(self, UIBuilder.t("True ending: %s (every true-ending chapter finished, remnants persuaded)") % ending_word, 16)
-	ending_note.position = Vector2(60, 700)
+	ending_note.position = Vector2(48, 556)
 
 	var save_btn := UIBuilder.button(self, UIBuilder.t("Save"), 22)
-	save_btn.position = Vector2(60, 730)
-	save_btn.size = Vector2(180, 50)
+	save_btn.position = Vector2(48, 584)
+	save_btn.size = Vector2(150, 44)
 	save_btn.pressed.connect(_on_save)
 
 	# F-ITEM: campaign gold and the shop (when the campaign has one).
 	var gold_label := UIBuilder.label(self, UIBuilder.t("Gold: %d") % GameState.gold, 20)
-	gold_label.position = Vector2(880, 700)
+	gold_label.position = Vector2(664, 594)
 	if bool(DataRegistry.rule("shop_enabled", false)):
 		var shop_btn := UIBuilder.button(self, UIBuilder.t("Shop"), 22)
-		shop_btn.position = Vector2(880, 730)
-		shop_btn.size = Vector2(180, 50)
+		shop_btn.position = Vector2(500, 584)
+		shop_btn.size = Vector2(150, 44)
 		shop_btn.pressed.connect(open_shop)
 
 	_diff_btn = UIBuilder.button(self, "", 20)
-	_diff_btn.position = Vector2(280, 730)
-	_diff_btn.size = Vector2(320, 50)
+	_diff_btn.position = Vector2(210, 584)
+	_diff_btn.size = Vector2(280, 44)
 	_diff_btn.pressed.connect(_on_cycle_difficulty)
 	_refresh_difficulty_button()
 
@@ -80,12 +80,12 @@ func _ready() -> void:
 		_add_retry_button()
 	elif not GameState.has_next_chapter():
 		var done_label := UIBuilder.label(self, UIBuilder.t("Campaign complete"), 22)
-		done_label.position = Vector2(1640, 690)
+		done_label.position = Vector2(1032, 552)
 		var done_note := UIBuilder.label(self, UIBuilder.t("No further chapters in data yet."), 16)
-		done_note.position = Vector2(1640, 720)
+		done_note.position = Vector2(1032, 578)
 		var menu_after := UIBuilder.button(self, UIBuilder.t("Main menu"), 22)
-		menu_after.position = Vector2(1660, 730)
-		menu_after.size = Vector2(200, 50)
+		menu_after.position = Vector2(1032, 604)
+		menu_after.size = Vector2(200, 44)
 		menu_after.pressed.connect(func() -> void: to_menu.emit())
 	elif not GameState.completed_chapters.has(String(GameState.current_chapter().id)):
 		# D06: UIBuilder.t("Next chapter") unlocks only after the CURRENT chapter was won (defensive
@@ -93,13 +93,13 @@ func _ready() -> void:
 		_add_retry_button()
 	else:
 		var next_btn := UIBuilder.button(self, UIBuilder.t("Next chapter"), 22)
-		next_btn.position = Vector2(1660, 730)
-		next_btn.size = Vector2(200, 50)
+		next_btn.position = Vector2(1032, 584)
+		next_btn.size = Vector2(200, 44)
 		next_btn.pressed.connect(func() -> void: next_chapter.emit())
 
 	var menu_btn := UIBuilder.button(self, UIBuilder.t("Main menu"), 22)
-	menu_btn.position = Vector2(1660, 810)
-	menu_btn.size = Vector2(200, 50)
+	menu_btn.position = Vector2(1032, 640)
+	menu_btn.size = Vector2(200, 44)
 	menu_btn.pressed.connect(func() -> void: to_menu.emit())
 
 
@@ -107,8 +107,8 @@ func _ready() -> void:
 ## a defeat writes nothing, so the retry never counts as a defeat either).
 func _add_retry_button() -> void:
 	var retry_btn := UIBuilder.button(self, UIBuilder.t("Retry chapter"), 22)
-	retry_btn.position = Vector2(1660, 730)
-	retry_btn.size = Vector2(200, 50)
+	retry_btn.position = Vector2(1032, 584)
+	retry_btn.size = Vector2(200, 44)
 	retry_btn.pressed.connect(func() -> void: retry_chapter.emit())
 
 
@@ -241,7 +241,7 @@ func _refresh_difficulty_button() -> void:
 
 func toast(text: String) -> void:
 	var t := UIBuilder.label(self, text, 16)
-	t.position = Vector2(60, 900)
+	t.position = Vector2(48, 676)
 	var timer := get_tree().create_timer(2.5)
 	timer.timeout.connect(t.queue_free)   # bound to the label: dropped if the camp closes first
 
@@ -255,7 +255,7 @@ var _shop_panel: Control = null
 func open_shop() -> void:
 	close_shop()
 	_shop_panel = UIBuilder.modal(self)
-	var box := UIBuilder.vbox(UIBuilder.modal_panel(_shop_panel, 560, 160, 800, 620), 8)
+	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_shop_panel, 800, 600), 8)
 	UIBuilder.label(box, UIBuilder.t("Shop - gold: %d") % GameState.gold, 26)
 	for entry in Shop.catalog():
 		var item_id := String(entry["item_id"])
@@ -270,7 +270,7 @@ func open_shop() -> void:
 func _choose_buyer(item_id: String) -> void:
 	close_shop()
 	_shop_panel = UIBuilder.modal(self)
-	var box := UIBuilder.vbox(UIBuilder.modal_panel(_shop_panel, 560, 160, 800, 620), 8)
+	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_shop_panel, 800, 600), 8)
 	UIBuilder.label(box, UIBuilder.t("Buy %s for whom?") % BattleScene.item_name(item_id), 24)
 	var units := Shop.eligible_units()
 	if units.is_empty():
@@ -344,7 +344,7 @@ func open_unit_detail(unit_id: String) -> void:
 	if ud == null or not GameState.roster.has(unit_id):
 		return
 	_detail_panel = UIBuilder.modal(self)
-	var box := UIBuilder.vbox(UIBuilder.modal_panel(_detail_panel, 560, 140, 800, 700), 8)
+	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_detail_panel, 760, 560), 8)
 	for line in unit_detail_lines(unit_id):
 		UIBuilder.label(box, line, 18)
 	var bar := ProgressBar.new()

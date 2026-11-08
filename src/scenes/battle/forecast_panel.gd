@@ -19,7 +19,7 @@ static func build(forecast: Dictionary, attacker: UnitState, defender: UnitState
 
 
 func _render(forecast: Dictionary, attacker: UnitState, defender: UnitState) -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	UIBuilder.fill_screen(self)
 	mouse_filter = Control.MOUSE_FILTER_STOP   # map input waits while the forecast is up
 
 	var bg := ColorRect.new()
@@ -28,14 +28,14 @@ func _render(forecast: Dictionary, attacker: UnitState, defender: UnitState) -> 
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 
-	var window := PanelContainer.new()
-	window.set_anchors_preset(Control.PRESET_CENTER)
-	window.custom_minimum_size = Vector2(900, 520)
-	add_child(window)
-
+	# F-UI: one opaque, centred window; columns, buttons and the reminder stack inside it
+	# (they used to share the PanelContainer directly and overlapped).
+	var window := UIBuilder.centered_modal_panel(self, 860, 400)
+	var stack := UIBuilder.vbox(window, 16)
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 40)
-	window.add_child(columns)
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stack.add_child(columns)
 	var left := _render_side(columns, attacker, _strikes_for(forecast, "attacker"), false)
 	var right := _render_side(columns, defender, _strikes_for(forecast, "counter"), bool(forecast.get("can_counter", false)))
 	# F-PAS preview: passive side effects listed under the side that owns them.
@@ -45,17 +45,15 @@ func _render(forecast: Dictionary, attacker: UnitState, defender: UnitState) -> 
 
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 30)
-	buttons.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	window.add_child(buttons)
+	stack.add_child(buttons)
 	var ok_btn := UIBuilder.button(buttons, UIBuilder.t("Confirm attack"), 24)
 	ok_btn.pressed.connect(func() -> void: confirmed.emit())
 	var cancel_btn := UIBuilder.button(buttons, UIBuilder.t("Cancel"), 24)
 	cancel_btn.pressed.connect(func() -> void: cancelled.emit())
 	# A окна hint line under the title keeps the wait reminder from T09 visible.
-	var wait_hint := UIBuilder.label(self, UIBuilder.t("NOT committed yet - Confirm to fight. Cancel / right-click to step back."), 14)
-	wait_hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	wait_hint.position = Vector2(wait_hint.position.x, wait_hint.position.y + 40)
+	var wait_hint := UIBuilder.label(stack, UIBuilder.t("NOT committed yet - Confirm to fight. Cancel / right-click to step back."), 14)
+	wait_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
 static func _strikes_for(forecast: Dictionary, side: String) -> Array:
@@ -69,6 +67,7 @@ static func _strikes_for(forecast: Dictionary, side: String) -> Array:
 func _render_side(columns: Container, unit: UnitState, strikes: Array, active: bool) -> VBoxContainer:
 	var side_box := VBoxContainer.new()
 	side_box.add_theme_constant_override("separation", 10)
+	side_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_child(side_box)
 	if strikes.is_empty() and not active:
 		UIBuilder.label(side_box, "%s  (HP %d/%d)" % [unit.display_name, unit.hp, unit.max_hp], 24)
