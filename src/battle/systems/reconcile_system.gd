@@ -61,7 +61,19 @@ static func evaluate(state: BattleState) -> Dictionary:
 	return outcomes
 
 
-## UI hint (colour) without revealing the hidden threshold: safe/neutral/lost.
+## F-PS4: the one kill value the HUD may read, 0.0-1.0. 1.0 exactly when kills reach the
+## threshold (the same test evaluate() uses), and always 1.0 for a threshold of 0.
+## No cross-chapter persistent kill count exists yet, so only this battle's kills count.
+static func kill_pressure_ratio(state: BattleState, faction_id: String) -> float:
+	var f := DataRegistry.get_faction(faction_id)
+	var threshold := int(f.reconcile.get("kill_threshold", 0)) if f != null else 0
+	if threshold <= 0:
+		return 1.0
+	var kills := int(state.reconcile_state.get(faction_id, {}).get("kills", 0))
+	return clampf(float(kills) / float(threshold), 0.0, 1.0)
+
+
+## Attitude used for the feedback dialogues (FactionData.feedback): safe/neutral/lost.
 static func attitude(state: BattleState, faction_id: String) -> String:
 	var rs: Dictionary = state.reconcile_state.get(faction_id, {})
 	var f := DataRegistry.get_faction(String(faction_id))

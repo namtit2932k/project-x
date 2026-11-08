@@ -52,10 +52,7 @@ Defeat,Defeat,Thất bại
 "%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid","%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid","%s | HP %d/%d | Công %d Thủ %d Kháng %d Tốc %d | địa hình +%d thủ, +%d né"
 "terrain: %s (+%d def, +%d avoid)","terrain: %s (+%d def, +%d avoid)","địa hình: %s (+%d thủ, +%d né)"
 %s: Heal %d -> +%d HP (%d->%d),%s: Heal %d -> +%d HP (%d->%d),%s: Hồi %d -> +%d HP (%d->%d)
-Limit your kills if you want to persuade the remnants - watch the attitude chips.,Limit your kills if you want to persuade the remnants - watch the attitude chips.,Hạn chế giết địch nếu muốn thuyết phục tàn quân - để ý các ô thái độ.
-Safe,Safe,An toàn
-Lost,Lost,Mất
-Neutral,Neutral,Trung lập
+Limit your kills if you want to persuade the remnants - watch the pressure colour.,Limit your kills if you want to persuade the remnants - watch the pressure colour.,Hạn chế giết địch nếu muốn thuyết phục tàn quân - để ý màu áp lực.
 Confirm attack,Confirm attack,Xác nhận tấn công
 Cancel,Cancel,Hủy
 NOT committed yet - Confirm to fight. Cancel / right-click to step back.,NOT committed yet - Confirm to fight. Cancel / right-click to step back.,CHƯA thực hiện - Xác nhận để đánh. Hủy / chuột phải để quay lại.

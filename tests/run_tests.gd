@@ -707,7 +707,10 @@ func test_reconcile_hud() -> void:
 	assert_true(battle._reconcile_chip_box != null and battle._reconcile_chip_box.get_child_count() == 1, "reconcile: one chip for the remnant faction")
 	assert_true(battle._reconcile_notice != null and battle._reconcile_notice.visible, "reconcile: battle-start limit-kills warning shown")
 	var chip: VBoxContainer = battle._reconcile_chip_box.get_child(0)
-	assert_true((chip.get_child(1) as Label).text.contains("Neutral"), "reconcile: chip starts Neutral (event not yet recorded, kills 0 is neutral per attitude() rules)")
+	var faction := DataRegistry.get_faction("faction_rebel_ch01")
+	var chip_text := (chip.get_child(1) as Label).text
+	assert_true(chip_text == faction.display_name and not chip_text.contains("%"), "pressure: chip shows the faction name only, no number or word (AC-BUI32)")
+	assert_true((chip.get_child(0) as ColorRect).color.is_equal_approx(faction.attitude_colors["safe"]), "pressure: no kills -> fully green")
 	# Kill a rebel unit: the chip flips to Lost and its feedback dialogue appears
 	# (transitions read the FactionData.feedback ids).
 	var commander: UnitState = director.state.units["unit_rebel_commander"]
@@ -719,7 +722,8 @@ func test_reconcile_hud() -> void:
 	director.commit("attack", {"unit_id": hero.id, "target_id": commander.id})
 	await get_tree().process_frame   # chip children are queue_free'd: one frame to settle
 	chip = battle._reconcile_chip_box.get_child(0)
-	assert_true((chip.get_child(1) as Label).text.contains("Lost"), "reconcile: kill flips the chip to Lost")
+	var one_kill := BattleScene.pressure_color(1.0 / 4.0, faction.attitude_colors)
+	assert_true((chip.get_child(0) as ColorRect).color.is_equal_approx(one_kill), "pressure: one kill of four moves the bar toward yellow live")
 	var feedback_seen := [false]
 	for child in battle.get_children():
 		if child is CanvasLayer:
@@ -731,7 +735,31 @@ func test_reconcile_hud() -> void:
 	battle._on_rewind()
 	await get_tree().process_frame   # rewind refreshes the HUD on a future-resolved signal
 	chip = battle._reconcile_chip_box.get_child(0)
-	assert_true((chip.get_child(1) as Label).text.contains("Neutral"), "reconcile: rewind restores the pre-kill chip")
+	assert_true((chip.get_child(0) as ColorRect).color.is_equal_approx(faction.attitude_colors["safe"]), "pressure: rewind turns the bar back to green (AC-BUI34)")
+	# F-PS4 lockstep: the ratio reaches 1.0 exactly at the threshold, and stays there.
+	var st := director.state
+	st.reconcile_state["faction_rebel_ch01"]["kills"] = 3
+	assert_true(is_equal_approx(ReconcileSystem.kill_pressure_ratio(st, "faction_rebel_ch01"), 0.75), "pressure: 3 of 4 kills -> 0.75 (GDD example)")
+	st.reconcile_state["faction_rebel_ch01"]["kills"] = 4
+	assert_true(ReconcileSystem.kill_pressure_ratio(st, "faction_rebel_ch01") == 1.0, "pressure: threshold reached -> 1.0 (AC-PS14)")
+	st.reconcile_state["faction_rebel_ch01"]["kills"] = 9
+	assert_true(ReconcileSystem.kill_pressure_ratio(st, "faction_rebel_ch01") == 1.0, "pressure: clamped at 1.0 past the threshold")
+	battle._refresh_reconcile_hud()
+	await get_tree().process_frame
+	chip = battle._reconcile_chip_box.get_child(0)
+	assert_true((chip.get_child(0) as ColorRect).color.is_equal_approx(faction.attitude_colors["lost"]), "pressure: pinned fully red once unpersuadable")
+	var saved_threshold: Variant = faction.reconcile["kill_threshold"]
+	faction.reconcile["kill_threshold"] = 0
+	st.reconcile_state["faction_rebel_ch01"]["kills"] = 0
+	assert_true(ReconcileSystem.kill_pressure_ratio(st, "faction_rebel_ch01") == 1.0, "pressure: threshold 0 pins the ratio to 1.0 (AC-PS15)")
+	faction.reconcile["kill_threshold"] = saved_threshold
+	assert_true(not BattleScene.pressure_color(0.3, faction.attitude_colors).is_equal_approx(BattleScene.pressure_color(0.4, faction.attitude_colors)), "pressure: 0.3 and 0.4 give different colours, a gradient not bands (AC-BUI31)")
+	assert_true(BattleScene.pressure_color(0.5, faction.attitude_colors).is_equal_approx(faction.attitude_colors["neutral"]), "pressure: 0.5 is yellow")
+	st.reconcile_state["faction_rebel_ch01"]["evaluated"] = true
+	st.reconcile_state["faction_rebel_ch01"]["persuaded"] = true
+	battle._refresh_reconcile_hud()
+	await get_tree().process_frame
+	assert_true(not battle._reconcile_chip_box.get_child(0).visible, "pressure: hidden once the faction is persuaded (AC-BUI30)")
 	main.queue_free()
 
 	# PrepScreen carries the same warning when the map has a remnant faction (T12 detail).

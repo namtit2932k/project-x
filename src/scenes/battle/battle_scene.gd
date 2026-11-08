@@ -737,14 +737,14 @@ func _on_resume() -> void:
 
 # ------------------------------------------------------------------ N10 reconcile HUD
 
-## One colored chip per remnant faction (from reconcile_state keys), driven by
-## ReconcileSystem.attitude(); plus the battle-start warning (no threshold leak).
+## F-PSI: one pressure chip per remnant faction (name + continuous colour bar from
+## ReconcileSystem.kill_pressure_ratio(), no numbers); plus the battle-start warning.
 func _build_reconcile_hud() -> void:
 	var factions: Array = director.state.reconcile_state.keys()
 	if factions.is_empty():
 		return
 	_reconcile_notice = UIBuilder.label(_ui_root(),
-		UIBuilder.t("Limit your kills if you want to persuade the remnants - watch the attitude chips."), 18)
+		UIBuilder.t("Limit your kills if you want to persuade the remnants - watch the pressure colour."), 18)
 	_reconcile_notice.position = Vector2(24, 960)
 	_reconcile_notice.size = Vector2(1500, 40)
 	_reconcile_chip_box = HBoxContainer.new()
@@ -755,11 +755,16 @@ func _build_reconcile_hud() -> void:
 	_refresh_reconcile_hud()
 
 
-func _attitude_word(attack: String) -> String:
-	match attack:
-		"safe": return UIBuilder.t("Safe")
-		"lost": return UIBuilder.t("Lost")
-		_: return UIBuilder.t("Neutral")
+## Continuous green -> yellow -> red blend (GDD Rule 14b: not bands). The three stops come
+## from FactionData.attitude_colors so the colours stay data.
+static func pressure_color(ratio: float, stops: Dictionary) -> Color:
+	var green: Color = stops.get("safe", Color(0.3, 0.8, 0.4))
+	var yellow: Color = stops.get("neutral", Color(0.9, 0.85, 0.3))
+	var red: Color = stops.get("lost", Color(0.85, 0.3, 0.3))
+	var r := clampf(ratio, 0.0, 1.0)
+	if r <= 0.5:
+		return green.lerp(yellow, r * 2.0)
+	return yellow.lerp(red, (r - 0.5) * 2.0)
 
 
 func _refresh_reconcile_hud() -> void:
@@ -770,15 +775,20 @@ func _refresh_reconcile_hud() -> void:
 	for faction_id in director.state.reconcile_state:
 		var f := DataRegistry.get_faction(String(faction_id))
 		var att := ReconcileSystem.attitude(director.state, String(faction_id))
+		var rs: Dictionary = director.state.reconcile_state[faction_id]
+		var persuaded := bool(rs.get("evaluated", false)) and bool(rs.get("persuaded", false))
 		var chip := VBoxContainer.new()
+		chip.name = "Pressure_%s" % String(faction_id)
+		chip.visible = not persuaded   # Rule 14e: the persuasion scene owns that moment
 		chip.add_theme_constant_override("separation", 2)
 		_reconcile_chip_box.add_child(chip)
 		var swatch := ColorRect.new()
 		swatch.custom_minimum_size = Vector2(200, 10)
-		swatch.color = f.attitude_colors.get(att, Color.WHITE) if f != null else Color.WHITE
+		var ratio := ReconcileSystem.kill_pressure_ratio(director.state, String(faction_id))
+		swatch.color = pressure_color(ratio, f.attitude_colors if f != null else {})
 		chip.add_child(swatch)
-		var text := "%s: %s" % [f.display_name if f != null else String(faction_id), _attitude_word(att)]
-		var lbl := UIBuilder.label(chip, text, 14)
+		# Name only: no number, percentage or attitude word next to the colour (AC-BUI32).
+		var lbl := UIBuilder.label(chip, f.display_name if f != null else String(faction_id), 14)
 		lbl.size = Vector2(200, 22)
 		# Feedback dialogue when the attitude FLIPS into a state (rewind flips count too, N10).
 		var previous: String = String(_reconcile_attitudes.get(String(faction_id), ""))
