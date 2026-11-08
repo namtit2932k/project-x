@@ -18,6 +18,7 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: 
 	state = BattleState.new()
 	state.setup(p_map, deploy, seed_value)
 	state.difficulty = difficulty
+	_drop_terminal_factions()
 	_load_prior_kills()
 	rewind = SnapshotStack.new()
 	objectives.clear()
@@ -35,6 +36,14 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: 
 		if u.side == "enemy":
 			u.apply_enemy_levels()
 	_scale_enemies(difficulty)
+
+
+## F-FST: a faction already persuaded / unpersuadable in the campaign is not tracked again
+## (GDD Persuasion Core Rule 1): no kill count, no pressure chip, no evaluation, no bad ending.
+func _drop_terminal_factions() -> void:
+	for faction_id in state.reconcile_state.keys():
+		if GameState.is_faction_terminal(String(faction_id)):
+			state.reconcile_state.erase(faction_id)
 
 
 ## F-PS3: kills committed by earlier victories join this battle as a constant per faction

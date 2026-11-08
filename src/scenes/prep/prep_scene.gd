@@ -48,7 +48,8 @@ func _ready() -> void:
 			continue
 		var fid := String(p.get("faction_override", "")) if String(p.get("faction_override", "")) != "" else String(ud.faction_id)
 		var fac := DataRegistry.get_faction(fid)
-		if fac != null and String(fac.remnant_id) != "":
+		# F-FST: a faction already persuaded (or lost) needs no kill warning any more.
+		if fac != null and String(fac.remnant_id) != "" and not GameState.is_faction_terminal(fid):
 			remnant_found = true
 	if remnant_found:
 		UIBuilder.label(obj_box, UIBuilder.t("Note: limit your kills if you want to persuade the remnants."), 16)

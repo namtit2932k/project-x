@@ -47,6 +47,12 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 			var fo: Dictionary = result["reconcile"][faction_id]
 			outcomes[faction_id] = {"persuaded": bool(fo.get("persuaded", false)), "kills": int(fo.get("kills", 0)), "events": fo.get("events", [])}
 		GameState.reconcile_outcomes[String(chapter.id)] = outcomes
+	# F-FST: every faction tracked this battle is now Engaged, or Persuaded if evaluate() said so.
+	for faction_id in battle_state.reconcile_state:
+		if GameState.is_faction_terminal(String(faction_id)):
+			continue
+		var persuaded := bool(result.get("reconcile", {}).get(faction_id, {}).get("persuaded", false))
+		GameState.faction_states[String(faction_id)] = "persuaded" if persuaded else "engaged"
 
 
 ## EXP / level / level-up stat gains of every deployed roster unit. The battle unit started

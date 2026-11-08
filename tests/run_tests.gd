@@ -26,6 +26,7 @@ func _ready() -> void:
 	await test_bad_ending()
 	await test_demo_starting_bond()
 	await test_enemy_levels()
+	await test_faction_state_across_chapters()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2026,6 +2027,67 @@ func test_enemy_levels() -> void:
 	var rebel: UnitState = legacy.state.units["unit_rebel_soldier_1"]
 	var fresh := UnitState.from_data(DataRegistry.get_unit("unit_rebel_soldier_1"), Vector2i.ZERO)
 	assert_true(rebel.power == fresh.power and rebel.max_hp == fresh.max_hp and rebel.skill == fresh.skill, "enemy level: level-1 legacy enemies keep their stats")
+	GameState.new_game()
+
+
+## F-FST: faction state is campaign-wide - Engaged after a victory, Persuaded is terminal and
+## a later battle ignores that faction (no tracking, no chip, no bad ending); saved with the game.
+func test_faction_state_across_chapters() -> void:
+	await 0.0
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var fid := "faction_rebel_ch01"
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	assert_true(GameState.faction_state(fid) == "unengaged", "faction state: unengaged before the first battle")
+	# Victory without persuasion -> Engaged.
+	var d1 := BattleDirector.new()
+	d1.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "normal")
+	CampaignMerge.merge(d1.state, chapter, {"status": "win", "reconcile": {fid: {"persuaded": false, "kills": 1}}})
+	assert_true(GameState.faction_state(fid) == "engaged" and not GameState.is_faction_terminal(fid), "faction state: a victory without persuasion leaves it Engaged")
+	# A defeat writes nothing.
+	CampaignMerge.merge(d1.state, chapter, {"status": "lose", "reconcile": {fid: {"persuaded": true}}})
+	assert_true(GameState.faction_state(fid) == "engaged", "faction state: a defeat changes nothing")
+	# Persuaded on a later victory -> terminal.
+	CampaignMerge.merge(d1.state, chapter, {"status": "win", "reconcile": {fid: {"persuaded": true, "kills": 0}}})
+	assert_true(GameState.faction_state(fid) == "persuaded" and GameState.is_faction_terminal(fid), "faction state: persuaded is terminal")
+	# Next battle with that faction: not tracked at all.
+	var d2 := BattleDirector.new()
+	d2.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "normal")
+	assert_true(not d2.state.reconcile_state.has(fid), "faction state: a persuaded faction is not tracked in later battles")
+	var soldier: UnitState = d2.state.units["unit_rebel_soldier_1"]
+	soldier.alive = false
+	ReconcileSystem.record_kill(d2.state, soldier)
+	assert_true(not bool(DualRestraint.result(d2.state)["kill_restraint_eligible"]) and ReconcileSystem.unpersuadable_factions(d2.state).is_empty(), "faction state: no kill term, no bad ending from a persuaded faction")
+	# It stays persuaded whatever happens next.
+	CampaignMerge.merge(d2.state, chapter, {"status": "win", "reconcile": {}})
+	assert_true(GameState.faction_state(fid) == "persuaded", "faction state: terminal states never change")
+	# The battle HUD shows no chip and the prep screen no kill warning for it.
+	var battle := BattleScene.new()
+	battle.setup(d2)
+	add_child(battle)
+	await get_tree().process_frame
+	assert_true(battle._reconcile_chip_box == null, "faction state: no pressure chip for a persuaded faction")
+	battle.queue_free()
+	var prep := PrepScene.build(chapter)
+	add_child(prep)
+	await get_tree().process_frame
+	assert_true(not _has_label_containing(prep, "persuade the remnants"), "faction state: no kill warning on the prep screen")
+	prep.free()
+	# True ending: persuaded later still counts, even if the chapter outcome said no.
+	GameState.completed_chapters[String(chapter.id)] = true
+	GameState.reconcile_outcomes[String(chapter.id)] = {fid: {"persuaded": false}}
+	assert_true(GameState.is_true_ending_eligible(), "faction state: persuaded later counts for the true ending")
+	# Saved and loaded; old saves read as Unengaged.
+	var saved := GameState.to_dict().duplicate(true)
+	GameState.new_game()
+	assert_true(GameState.faction_state(fid) == "unengaged", "faction state: New campaign resets it")
+	GameState.from_dict(saved)
+	assert_true(GameState.faction_state(fid) == "persuaded", "faction state: saved and loaded with the campaign")
+	saved.erase("faction_states")
+	GameState.from_dict(saved)
+	assert_true(GameState.faction_states.is_empty(), "faction state: an old save loads as Unengaged")
 	GameState.new_game()
 
 
