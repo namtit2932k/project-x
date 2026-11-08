@@ -119,6 +119,73 @@ static func thorns(defender: UnitState, attacker: UnitState, defender_hp_at_star
 	}
 
 
+# ------------------------------------------------------------ forecast preview
+
+## Passives that apply to this exchange, as data for the forecast panel (F-PAS preview):
+## [{owner: "attacker"|"defender", name, effect_type, value, ...}]. `plan` is the strike plan
+## the same exchange would run, so per-hit numbers match execution.
+static func forecast_notes(state: BattleState, attacker: UnitState, defender: UnitState, plan: Dictionary) -> Array:
+	var notes: Array = []
+	var p := params(attacker)
+	var first_damage := 0
+	for entry in plan.get("sequence", []):
+		if String(entry["side"]) == "attacker":
+			first_damage = int(entry["damage"])
+			break
+	match String(p.get("effect_type", "")):
+		"debuff_target_stat":
+			notes.append(_note("attacker", attacker, int(p.get("amount", 0)), {"stat": String(p.get("stat", "")), "turns": int(p.get("duration", 0))}))
+		"lifesteal":
+			notes.append(_note("attacker", attacker, int(floor(float(first_damage) * float(p.get("ratio", 0.0))))))
+		"force_double":
+			notes.append(_note("attacker", attacker, 2))
+		"ignore_defender_terrain":
+			if ignores_terrain(attacker, defender):
+				notes.append(_note("attacker", attacker, state.terrain_avoid_at(defender.pos)))
+		"burst_damage":
+			if burst_bonus(attacker) > 0:
+				notes.append(_note("attacker", attacker, burst_bonus(attacker)))
+		"suppress_retaliation":
+			if suppresses_retaliation(attacker, defender):
+				notes.append(_note("attacker", attacker, 0))
+		"flat_self_heal":
+			notes.append(_note("attacker", attacker, int(p.get("amount", 0))))
+	var q := params(defender)
+	if String(q.get("effect_type", "")) == "thorns_damage" \
+			and float(defender.hp) >= float(defender.max_hp) * float(q.get("min_hp_ratio", 1.0)):
+		notes.append(_note("defender", defender, int(q.get("damage", 0))))
+	# Effects either side can carry into this exchange.
+	for side in ["attacker", "defender"]:
+		var unit: UnitState = attacker if side == "attacker" else defender
+		if effect(unit) == "survive_once" and not unit.miracle_used:
+			notes.append(_note(side, unit, 1))
+		if extra_range(unit) > 0 and (side == "attacker" or bool(plan.get("can_counter", false))):
+			notes.append(_note(side, unit, extra_range(unit)))
+		var aura := aura_avoid(state, unit)
+		if aura > 0:
+			notes.append({"owner": side, "name": _catalog_name("adjacency_aura_avoid"), "effect_type": "adjacency_aura_avoid", "value": aura})
+		for field in unit.active_debuffs:
+			var entry: Dictionary = unit.active_debuffs[field]
+			notes.append({"owner": side, "name": "", "effect_type": "active_debuff", "value": int(entry.get("amount", 0)),
+					"stat": String(field), "turns": int(entry.get("turns_remaining", 0))})
+	return notes
+
+
+static func _note(owner: String, unit: UnitState, value: int, extra: Dictionary = {}) -> Dictionary:
+	var note := {"owner": owner, "name": String(params(unit).get("name", unit.passive_id)), "effect_type": effect(unit), "value": value}
+	note.merge(extra)
+	return note
+
+
+## Display name of the first catalog passive with this effect type (e.g. the Bard aura).
+static func _catalog_name(effect_type: String) -> String:
+	var catalog: Dictionary = DataRegistry.rule("passive_catalog", {})
+	for pid in catalog:
+		if String((catalog[pid] as Dictionary).get("effect_type", "")) == effect_type:
+			return String((catalog[pid] as Dictionary).get("name", pid))
+	return effect_type
+
+
 # ------------------------------------------------------------ action / phase hooks
 
 ## After the unit performed an Attack or a Heal ("attack" / "heal"): flat_self_heal on the actor,

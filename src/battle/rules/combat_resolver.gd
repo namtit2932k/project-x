@@ -7,7 +7,10 @@ class_name CombatResolver
 
 ## Dry-run forecast: expected strike sequence with hit/crit percentages and damage figures.
 static func forecast(state: BattleState, attacker: UnitState, defender: UnitState) -> Dictionary:
-	return _strike_plan(state, attacker, defender)
+	var plan := _strike_plan(state, attacker, defender)
+	# F-PAS preview: passive side effects of this exchange, as data for the forecast panel.
+	plan["notes"] = PassiveSystem.forecast_notes(state, attacker, defender, plan)
+	return plan
 
 
 ## Executes combat, mutating state; returns strikes for the combat screen to play back.

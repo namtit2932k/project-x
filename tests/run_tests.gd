@@ -15,6 +15,7 @@ func _ready() -> void:
 	await test_bard_encore()
 	await test_skill_target_selection()
 	await test_heal_formula()
+	await test_forecast_passive_notes()
 	await test_objectives()
 	await test_rewind()
 	await test_bond_and_reconcile()
@@ -1539,6 +1540,64 @@ func test_heal_formula() -> void:
 	assert_true(int(preview["raw"]) == 20 and int(preview["gain"]) == 3 and int(preview["hp_after"]) == nearly.max_hp, "heal: capped at max HP (raw 20, gain 3)")
 	var plain := _spawn(state, "plain", "faction_p", Vector2i(0, 2), false, false, "player")
 	assert_true(CombatResolver.heal_amount(plain, skill) == int(skill.power), "heal: no Heal weapon falls back to the skill's power")
+
+
+## F-PAS preview: forecast() lists the passive side effects of the exchange as notes, and the
+## forecast panel renders them under the owning side.
+func test_forecast_passive_notes() -> void:
+	await 0.0
+	var state: BattleState = _plain_map_enemy_state()
+	var jack := _spawn(state, "jack", "faction_p", Vector2i(0, 0), false, false, "player")
+	jack.passive_id = "battle_bloodlust"
+	jack.power = 20                     # 20 - 3 Def = 17 damage -> 5 HP per hit
+	var knight := _spawn(state, "knight", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	knight.passive_id = "iron_retaliation"
+	var fc: Dictionary = CombatResolver.forecast(state, jack, knight)
+	var steal := _note_of(fc, "lifesteal")
+	assert_true(String(steal.get("owner", "")) == "attacker" and int(steal.get("value", -1)) == 5, "preview: lifesteal 5 HP per hit on the attacker side")
+	assert_true(String(steal.get("name", "")) == "Hút Máu Chiến Trận", "preview: GDD display name from the catalog")
+	var thorns := _note_of(fc, "thorns_damage")
+	assert_true(String(thorns.get("owner", "")) == "defender" and int(thorns.get("value", -1)) == 4, "preview: thorns 4 on the defender side")
+	knight.hp = 9
+	assert_true(_note_of(CombatResolver.forecast(state, jack, knight), "thorns_damage").is_empty(), "preview: no thorns note below 50%% HP")
+	# Survive-once while unused; Bard aura on the side that gets it; an active debuff.
+	var s2: BattleState = _plain_map_enemy_state()
+	var shade := _spawn(s2, "shade", "faction_p", Vector2i(0, 0), false, false, "player")
+	shade.passive_id = "silent_assassination"
+	var wyvern := _spawn(s2, "wyvern", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	wyvern.passive_id = "survival_instinct"
+	wyvern.active_debuffs = {"defense": {"amount": 3, "turns_remaining": 1}}
+	var bard := _spawn(s2, "bard", "faction_e", Vector2i(2, 0), false, false, "enemy")
+	bard.passive_id = "inspiring_melody"
+	var fc2: Dictionary = CombatResolver.forecast(s2, shade, wyvern)
+	assert_true(not _note_of(fc2, "suppress_retaliation").is_empty(), "preview: no-counter note while the target is Ready")
+	assert_true(String(_note_of(fc2, "survive_once").get("owner", "")) == "defender", "preview: survive-once note while unused")
+	var aura := _note_of(fc2, "adjacency_aura_avoid")
+	assert_true(String(aura.get("owner", "")) == "defender" and int(aura.get("value", 0)) == 3, "preview: Bard aura +3 Avoid on the defender")
+	assert_true(int(_note_of(fc2, "active_debuff").get("turns", 0)) == 1, "preview: active debuff with turns left")
+	wyvern.miracle_used = true
+	assert_true(_note_of(CombatResolver.forecast(s2, shade, wyvern), "survive_once").is_empty(), "preview: no survive-once note once used")
+	# The panel renders the notes as text, under the right column.
+	assert_true(ForecastPanel.note_text(steal).contains("[Hút Máu Chiến Trận]") and ForecastPanel.note_text(steal).contains("5 HP per hit"), "preview text: %s" % ForecastPanel.note_text(steal))
+	var panel := ForecastPanel.build(fc, jack, knight)
+	assert_true(_has_label_containing(panel, "Hút Máu Chiến Trận"), "preview panel: lifesteal line rendered")
+	panel.free()
+
+
+func _note_of(forecast: Dictionary, effect_type: String) -> Dictionary:
+	for note in forecast.get("notes", []):
+		if String(note.get("effect_type", "")) == effect_type:
+			return note
+	return {}
+
+
+func _has_label_containing(root: Node, text: String) -> bool:
+	if root is Label and String((root as Label).text).contains(text):
+		return true
+	for child in root.get_children():
+		if _has_label_containing(child, text):
+			return true
+	return false
 
 
 func _sides(plan: Dictionary) -> Array:
