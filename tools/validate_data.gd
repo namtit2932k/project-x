@@ -405,6 +405,18 @@ func check_reconcile_keys() -> void:
 
 
 func check_items() -> void:
+	# F-ITEM: the shop only sells known consumables with a price; gold rewards are not negative.
+	# Only a campaign with a shop sells anything (the legacy base layer has no consumables).
+	var catalog: Array = DataRegistry.rule("shop_catalog", []) if bool(DataRegistry.rule("shop_enabled", false)) else []
+	for item_id in catalog:
+		var sold := DataRegistry.get_item(String(item_id))
+		if sold == null:
+			_err("rules: shop_catalog item '%s' is not in the catalog" % item_id)
+		elif not sold.is_consumable() or int(sold.price) <= 0:
+			_err("rules: shop_catalog item '%s' must be a consumable with a price > 0" % item_id)
+	for key in ["gold_per_victory", "gold_per_persuasion", "gold_retrieve_bonus"]:
+		if int(DataRegistry.rule(key, 0)) < 0:
+			_err("rules: %s < 0" % key)
 	_ids("items")
 	for id in DataRegistry.all_ids("items"):
 		var item := DataRegistry.get_data("items", id)

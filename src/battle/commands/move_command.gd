@@ -23,6 +23,11 @@ static func apply(state: BattleState, unit: UnitState, target: Vector2i) -> bool
 	unit.pos = target
 	unit.moved = true
 	EventBus.unit_moved.emit(unit.id, from, target)
+	# F-ITEM (GDD Battle/Map Core Rule 15): an enemy ending its move on an open village destroys it.
+	if unit.side == "enemy":
+		var village := state.open_village_at(target)
+		if not village.is_empty():
+			village["state"] = "destroyed"
 	# F-OBJ Retrieve (GDD Core Rule 13): a player unit ending its move on the item picks it up,
 	# and that move finishes its action.
 	var key := "%d,%d" % [target.x, target.y]

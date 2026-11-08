@@ -107,6 +107,12 @@ func _check(kind: String, payload: Dictionary) -> String:
 			return SkillCommand.check(state, unit, String(payload["skill_id"]), state.units[String(payload["target_id"])])
 		"wait":
 			return WaitCommand.check(state, unit)
+		"use_item":
+			return UseItemCommand.check(state, unit, String(payload.get("item_id", "")))
+		"trade":
+			return TradeCommand.check(state, unit, state.units.get(String(payload.get("partner_id", "")), null), String(payload.get("give_item", "")), String(payload.get("take_item", "")))
+		"visit":
+			return VisitCommand.check(state, unit)
 		"end_phase":
 			return ""
 		_:
@@ -132,6 +138,12 @@ func _apply(kind: String, payload: Dictionary) -> bool:
 			var unit5: UnitState = state.units[String(payload["unit_id"])]
 			WaitCommand.apply(state, unit5)
 			return true
+		"use_item":
+			return UseItemCommand.apply(state, state.units[String(payload["unit_id"])], String(payload["item_id"]))
+		"trade":
+			return TradeCommand.apply(state, state.units[String(payload["unit_id"])], state.units[String(payload["partner_id"])], String(payload.get("give_item", "")), String(payload.get("take_item", "")))
+		"visit":
+			return VisitCommand.apply(state, state.units[String(payload["unit_id"])])
 		"end_phase":
 			if state.phase == BattleState.PHASE_PLAYER:
 				dispatch_objective_event("player_phase_ended")
@@ -222,6 +234,7 @@ func clear_acted_flags() -> void:
 	for u in state.units.values():
 		u.acted = false
 		u.moved = false
+		u.has_traded = false   # F-ITEM: one Trade per phase
 
 
 func push_snapshot(label: String) -> void:
@@ -258,8 +271,10 @@ func _on_state_changed() -> void:
 		if won and not result.has("reconcile"):
 			ReconcileSystem.record_spared_units(state)
 			result["reconcile"] = ReconcileSystem.evaluate(state)
-		# F-BAD: a red faction at chapter end turns this victory into the bad ending.
-		result["bad_ending_factions"] = ReconcileSystem.unpersuadable_factions(state)
+			# F-BAD: a red faction at chapter end turns this victory into the bad ending.
+			result["bad_ending_factions"] = ReconcileSystem.unpersuadable_factions(state)
+			# F-ITEM: the gold this victory pays (merged into the campaign with the rest of it).
+			result["gold"] = GoldRewards.on_victory(state, result["reconcile"])
 		# F-DRS: lock the restraint result once; a victory hands the bonus EXP to the squad
 		# before the EXP lines below are read.
 		if not result.has("restraint"):

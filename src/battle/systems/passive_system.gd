@@ -203,6 +203,16 @@ static func on_action_performed(state: BattleState, unit: UnitState, action: Str
 
 ## The unit just went Ready -> Acted: its debuffs count down one turn (F-CC11).
 static func on_unit_acted(unit: UnitState) -> void:
+	# F-ITEM: item buffs count the unit's LATER actions only - the Use Item action that
+	# applied one is skipped once (GDD Core Rule 10b).
+	for field in unit.active_buffs.keys():
+		var buff: Dictionary = unit.active_buffs[field]
+		if bool(buff.get("fresh", false)):
+			buff["fresh"] = false
+			continue
+		buff["turns_remaining"] = int(buff.get("turns_remaining", 0)) - 1
+		if int(buff["turns_remaining"]) <= 0:
+			unit.active_buffs.erase(field)
 	for field in unit.active_debuffs.keys():
 		var entry: Dictionary = unit.active_debuffs[field]
 		entry["turns_remaining"] = int(entry.get("turns_remaining", 0)) - 1

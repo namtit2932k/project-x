@@ -25,6 +25,8 @@ var faction_kill_counts: Dictionary = {}
 ## F-FST GDD Faction Engagement State: faction_id -> "engaged" | "persuaded" | "unpersuadable"
 ## (missing = Unengaged). Written by victories only; persuaded/unpersuadable are terminal.
 var faction_states: Dictionary = {}
+## F-ITEM: campaign gold (never negative). Roster entries also carry "items" (max_item_slots).
+var gold: int = 0
 const TERMINAL_FACTION_STATES: Array[String] = ["persuaded", "unpersuadable"]
 ## Story branch id (work in progress: filled by event/dialogue choices; saved with the game).
 var story_branch: String = ""
@@ -76,6 +78,7 @@ func new_game() -> void:
 	completed_chapters.clear()
 	faction_kill_counts.clear()
 	faction_states.clear()
+	gold = 0
 	# The UI language is a player setting, it survives a new campaign.
 	options = {"volume": 0.8, "fullscreen": false, "language": language()}
 
@@ -88,8 +91,20 @@ func build_roster() -> void:
 		var ud := DataRegistry.get_unit(unit_id)
 		if ud == null or not _unit_in_campaign(ud):
 			continue
-		roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0}
+		roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0, "items": starting_items(String(unit_id))}
 	_apply_starting_bonds()
+
+
+## F-ITEM: a unit's data-authored items, trimmed to the slot limit.
+func starting_items(unit_id: String) -> Array:
+	var ud := DataRegistry.get_unit(unit_id)
+	var out: Array = []
+	if ud == null:
+		return out
+	for item_id in ud.carried_items:
+		if out.size() < int(DataRegistry.rule("max_item_slots", 2)):
+			out.append(String(item_id))
+	return out
 
 
 func _unit_in_campaign(ud: Resource) -> bool:
@@ -189,7 +204,7 @@ func merge_roster_with_data() -> void:
 	for unit_id in DataRegistry.all_ids("units"):
 		var ud := DataRegistry.get_unit(unit_id)
 		if ud != null and bool(ud.in_roster) and _unit_in_campaign(ud) and not roster.has(unit_id):
-			roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0}
+			roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0, "items": starting_items(String(unit_id))}
 
 
 ## P-11: pairs that start a campaign already bonded (BondData.start_rank / start_points),
@@ -230,6 +245,7 @@ func to_dict() -> Dictionary:
 		"completed_chapters": completed_chapters,
 		"faction_kill_counts": faction_kill_counts,
 		"faction_states": faction_states,
+		"gold": gold,
 		"story_branch": story_branch,
 		"story_flags": story_flags,
 		"options": options,
@@ -255,6 +271,11 @@ func from_dict(d: Dictionary) -> void:
 	faction_kill_counts = d.get("faction_kill_counts", {})
 	# Saves written before F-FST: every faction reads as Unengaged.
 	faction_states = d.get("faction_states", {})
+	gold = maxi(int(d.get("gold", 0)), 0)
+	# Saves written before F-ITEM: roster units start with their data-authored items.
+	for unit_id in roster:
+		if not (roster[unit_id] as Dictionary).has("items"):
+			roster[unit_id]["items"] = starting_items(String(unit_id))
 	story_branch = String(d.get("story_branch", ""))
 	story_flags = d.get("story_flags", {})
 	options = d.get("options", {"volume": 0.8, "fullscreen": false})

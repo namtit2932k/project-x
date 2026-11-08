@@ -38,3 +38,23 @@ static func vbox(parent: Control, separation: int = 8) -> VBoxContainer:
 	v.add_theme_constant_override("separation", separation)
 	parent.add_child(v)
 	return v
+
+
+## Full-screen dimmed layer that swallows clicks; put a panel inside it for a modal dialog.
+static func modal(parent: Control) -> Control:
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	parent.add_child(root)
+	# A screen whose own rect is empty (a Control under a plain Node) would give the layer no
+	# size: cover the viewport instead.
+	if parent.size.x < 1.0 or parent.size.y < 1.0:
+		root.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		root.position = -parent.global_position
+		root.size = parent.get_viewport_rect().size
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.8)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(dim)
+	return root

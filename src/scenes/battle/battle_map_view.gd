@@ -96,6 +96,15 @@ func _draw() -> void:
 				draw_rect(rect, ATTACK_COLOR, true)
 			if target_cells.has(cell):
 				draw_rect(rect, TARGET_COLOR, true)
+	# F-ITEM: claimed / destroyed villages are inert - dimmed and crossed out.
+	for key in state.villages:
+		if String(state.villages[key].get("state", "open")) == "open":
+			continue
+		var xy := String(key).split(",")
+		var vrect := Rect2(cell_to_global(Vector2i(int(xy[0]), int(xy[1]))) - Vector2(CELL, CELL) / 2.0, Vector2(CELL, CELL))
+		draw_rect(vrect, Color(0, 0, 0, 0.45))
+		draw_line(vrect.position + Vector2(8, 8), vrect.end - Vector2(8, 8), Color(0.9, 0.9, 0.9, 0.8), 2.0)
+		draw_line(Vector2(vrect.end.x - 8, vrect.position.y + 8), Vector2(vrect.position.x + 8, vrect.end.y - 8), Color(0.9, 0.9, 0.9, 0.8), 2.0)
 	var markers := current_markers()
 	_draw_area_markers(markers)
 	# Units

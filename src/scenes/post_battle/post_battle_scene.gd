@@ -39,7 +39,7 @@ func _ready() -> void:
 	for faction_id in result.get("reconcile", {}):
 		var f := DataRegistry.get_faction(String(faction_id))
 		var fo: Dictionary = result["reconcile"][faction_id]
-		UIBuilder.label(box, UIBuilder.t("- %s: %d kills -> %s") % [f.display_name if f != null else faction_id, int(fo.get("kills", 0)), UIBuilder.t("persuaded") if bool(fo.get(UIBuilder.t("persuaded"), false)) else UIBuilder.t("not persuaded")], 16)
+		UIBuilder.label(box, UIBuilder.t("- %s: %d kills -> %s") % [f.display_name if f != null else faction_id, int(fo.get("kills", 0)), UIBuilder.t("persuaded") if bool(fo.get("persuaded", false)) else UIBuilder.t("not persuaded")], 16)
 
 	# T11 remedial + D08: exp from the result (player side only), level-ups with stat gains.
 	UIBuilder.label(box, UIBuilder.t("EXP earned:"), 20)
@@ -54,6 +54,10 @@ func _ready() -> void:
 		UIBuilder.label(box, UIBuilder.t("LEVEL UP: %s -> Lv %d (%s)") % [lu_ud.display_name if lu_ud != null else String(lu["unit_id"]), int(lu["level"]), gains_text], 16)
 
 	_render_restraint(box, result.get("restraint", {}))
+	# F-ITEM: the gold this victory paid.
+	var gold: Dictionary = result.get("gold", {})
+	if not gold.is_empty():
+		UIBuilder.label(box, UIBuilder.t("Gold earned: +%d (victory %d, retrieve bonus %d, persuasion %d, villages %d)") % [int(gold.get("total", 0)), int(gold.get("victory", 0)), int(gold.get("retrieve", 0)), int(gold.get("persuasion", 0)), int(gold.get("villages", 0))], 18)
 
 	var post := UIBuilder.button(self, UIBuilder.t("Continue"), 24)
 	post.position = Vector2(60, 840)

@@ -29,6 +29,10 @@ var level_ups: Array = []                # [{unit_id, level, gains:{stat:+n}}] f
 
 var reconcile_state: Dictionary = {}     # faction_id -> {kills:int, events:Array[String], evaluated:bool, persuaded:bool}
 var npc_unit_ids: Array = []             # escort-style NPC actors of this map
+## F-ITEM: villages {"x,y": {gold, item_id, state: open|claimed|destroyed}} and the gold claimed
+## from them this battle (merged into the campaign on a victory only).
+var villages: Dictionary = {}
+var gold_earned: int = 0
 var item_ground: Dictionary = {}         # {unit_id? no, "x,y" -> item_id}
 
 var rng_seed: int = 0
@@ -97,6 +101,12 @@ func setup(p_map: Resource, deploy: Dictionary, seed_value: int = -1) -> void:
 			# F2.2: player units keep the template id as the instance id — every campaign
 		# reference (roster, bonds, prep) already speaks template ids for them.
 			units[String(unit_id)] = u
+	# F-ITEM villages (GDD Battle/Map Core Rule 15): one reward each, inert once claimed/destroyed.
+	villages.clear()
+	gold_earned = 0
+	for v in p_map.villages:
+		var vc: Vector2i = v.get("cell", Vector2i(-1, -1))
+		villages["%d,%d" % [vc.x, vc.y]] = {"gold": int(v.get("gold_amount", 0)), "item_id": String(v.get("item_id", "")), "state": "open"}
 	# Items on ground
 	for item in p_map.item_placements:
 		var cell2: Vector2i = item.cell
@@ -266,6 +276,8 @@ func to_dict() -> Dictionary:
 		"level_ups": _deep_copy(level_ups),
 		"reconcile_state": _deep_copy(reconcile_state),
 		"item_ground": _deep_copy(item_ground),
+		"villages": _deep_copy(villages),
+		"gold_earned": gold_earned,
 		"rng_seed": rng_seed,
 	}
 
@@ -280,6 +292,8 @@ func from_dict(d: Dictionary) -> void:
 	level_ups = _deep_copy(d.get("level_ups", []))
 	reconcile_state = _deep_copy(d.get("reconcile_state", {}))
 	item_ground = _deep_copy(d.get("item_ground", {}))
+	villages = _deep_copy(d.get("villages", villages))
+	gold_earned = int(d.get("gold_earned", gold_earned))
 	# RNG state is NOT snapshot-restored (D04/N04): a rewind continues the same random
 	# sequence, so replaying the same actions after a rewind gives different rolls.
 	var seeds := int(d.get("rng_seed", rng_seed))
@@ -288,3 +302,9 @@ func from_dict(d: Dictionary) -> void:
 	for unit_id in units_dict:
 		if units.has(unit_id):
 			units[unit_id].from_dict(units_dict[unit_id])
+
+
+## F-ITEM: the open (unclaimed, not destroyed) village at `cell`, or {} when there is none.
+func open_village_at(cell: Vector2i) -> Dictionary:
+	var v: Dictionary = villages.get("%d,%d" % [cell.x, cell.y], {})
+	return v if String(v.get("state", "")) == "open" else {}

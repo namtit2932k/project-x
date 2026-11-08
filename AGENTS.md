@@ -110,13 +110,13 @@ Track here. Remove an item once the designer confirms it.
 - D-B3 Hazard effect: none (like Plain)
 - D-B4 class Move: demo scenario values
 - D-B5 enemies attack allied NPC: yes (like demo)
-- D-B6 carrier Retrieve auto-Acted after moving: not yet implemented (W4)
+- ~~D-B6 carrier Retrieve auto-Acted after moving~~ — done by F-OBJ (pickup ends the action).
 - D-B7 `priority_target_id`: optional field honored by AI later (data carries it now)
-- D-B8 Visit with full bag: block only item-reward villages when usable (W4)
+- ~~D-B8 Visit with full bag~~ — done by F-ITEM (item villages blocked while the bag is full; gold villages always open).
 - D-B9 Protect(unit) params: `protect_unit_id` + `survive_enemy_phases` on MapData
 - D-B11 recruit order: not hardcoded; demo chapters deploy Swordsman + Knight only
 - D-B12 Civilian/unarmed units: kept (class_civilian, move 2/0 are scenario values, validator exempts non-controllable from move 4–7)
-- D-B13 faction states Unengaged/Engaged/Unpersuadable/Persuaded (+ demo Lost): W8
+- ~~D-B13 faction states~~ — done by F-FST (Unengaged/Engaged/Persuaded/Unpersuadable, campaign-wide).
 
 ## 7b. Decisions log (round-2 design document)
 
@@ -307,6 +307,15 @@ Overrides GDD `game-concept.md` "a failed persuasion carries forward into the st
 - **Designer-confirmed (08-11-2026, "keep it like that"):** (a) the bad ending ends the run like a Game Over — **nothing from that battle is merged** (EXP, kills, bonds, chapter completion) so Retry chapter replays it from the pre-battle state; (b) Retry chapter and Main menu are offered.
 - Validator warns about a remnant faction with `kill_threshold` 0 (always red → every victory would be a bad ending) and errors on an unknown `bad_ending_dialogue_id`.
 
+### F-ITEM — Items, gold, villages and the shop (08-11-2026, user request "A1"; `gold-shop-system.md` Core Rules 1-5 + Authored Balance, `core-combat-system.md` Core Rules 3/3a/9/10 + F-CC10/F-CC11, `battle-map-system.md` Core Rule 15, `weapon-item-system.md` item catalog)
+
+- **Carried items:** every roster unit carries up to `rules_config.max_item_slots` (2) items, `GameState.roster[unit].items` (starts from `UnitData.carried_items`, saved). In battle `UnitState.items` (rewindable). Enemies carry nothing.
+- **Use Item (Action, self only):** Heal type restores `heal_value` up to max HP (F-CC10, works at full HP and still consumes the item — GDD edge case; the designer's "no healing a full-HP ally" rule is about the Heal skill on allies); Buff type sets `active_buffs[stat] = {buff_amount, buff_duration}` (F-CC11: overwrite, never stack; counts down after each of the unit's **later** Ready→Acted transitions, not the one that used it; every formula reads it through `UnitState.eff()`, stacking with bond bonuses). Consumes the one chosen item, ends the action, pays no EXP (F-CC13). A Retrieve carrier may only move, so it cannot use items.
+- **Trade (free, once per phase):** a Ready player unit swaps or gives up to one item with an adjacent (cardinal) living player ally — swap, one-way gift (receiver must have a free slot) or no-op; does not end the action; `UnitState.has_traded` resets at each player phase. NPCs and enemies never trade.
+- **Visit (Action):** a player unit on an unclaimed village tile (`MapData.villages`) claims its reward — gold (into this battle's `gold_earned`), an item (blocked while the unit's slots are full, D-B8) or nothing but the visit — and the tile becomes inert. An enemy ending its move on an unclaimed village destroys it. Village state is in the battle snapshot (rewind restores it).
+- **Gold (`GameState.gold`, saved, never negative):** on a **victory** the result carries `gold = {victory 15, retrieve bonus 15 (Retrieve maps), persuasion 20 per faction persuaded this battle, villages (claimed this battle), total}` (`rules_config.gold_per_victory / gold_retrieve_bonus / gold_per_persuasion`); the merge adds the total. No gold from kills, no Difficulty scaling (AC-GS10). A persuaded faction is terminal (F-FST), so its 20 can only be earned once. **Override:** the GDD keeps village gold after a lost battle; the designer's game-over rule (nothing from a lost battle is kept) wins, so village gold and items also vanish on a defeat.
+- **Shop (camp, when `rules_config.shop_enabled`, on for the demo campaign):** catalog = `rules_config.shop_catalog` (potion 10, vulnerary 15, elixir 30, vigor tonic 20, focus tonic 20; prices from `ItemData.price`, = GDD values). Pick an item, then a living roster unit with a free slot; the purchase is immediate (no confirm step, no selling back). Unaffordable entries stay listed but disabled. `src/core/shop.gd` (`Shop`, static) holds the rules; the camp renders them.
+
 ### Demo maps are reference only (designer 08-11-2026)
 
 The six `demo_0N` maps/chapters are **reference material, not official content**: do not rebalance their layouts, enemy counts or faction thresholds from playtest results (e.g. demo_03's strict persuasion). Playtests on them are for checking rules and systems.
@@ -438,6 +447,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (24) — Claude (Opus) — done: items, gold, villages and the shop (new §7b **F-ITEM**; GDD Gold/Shop, Core Combat Rules 3/3a/9/10, F-CC10/11, Battle/Map Rule 15). Roster bags (`roster[unit].items`, max 2, from `UnitData.carried_items`) and `GameState.gold` (saved). New commands `UseItemCommand` (heal / buff, self, ends the action, no EXP), `TradeCommand` (free, once per phase, adjacent ally, swap / gift / take), `VisitCommand` (village gold or item, D-B8); enemies destroy villages they reach; item buffs in `UnitState.active_buffs` read by `eff()`, counted from later actions. `GoldRewards.on_victory` (15 + Retrieve 15 + persuasion 20/faction + village gold) in the victory result, merged with the bags on a win only (designer override of the GDD's keep-village-gold-on-defeat). `Shop` (`src/core/shop.gd`) + camp shop (catalog -> buyer, immediate purchase, unaffordable entries disabled). Battle action menu: Use / Visit / Trade buttons + trade dialog; hover shows bags; inert villages dimmed on the map; post-battle gold line; camp gold + roster bags. New `UIBuilder.modal()`; camp root now sizes itself to the viewport (its background never showed under the plain-Node main). Fixed post-battle 'persuaded' lookup that used a translated key. Validator: shop catalog (when the shop is on) and gold constants. Stale D-B6/D-B8/D-B13 open items struck. New `test_items_gold_and_shop`; screenshots checked. Verified: validation 0/0, run_tests **456/456**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: A2 enemy AI profiles (Raider -> villages, Protect/Persuade, priority targets). — issues: not pushed (no repo access); the bot playtest does not use items.
 
 - 2026-11-08 (23) — Claude (Opus) — done: designer answers to the playtest: (1) escort/NPC actors walk through the player's units (`MovementHandler._passable`; §6 movement rule updated); (2) difficulty = enemy levels: `rules_config.enemy_bonus_levels_by_difficulty` Story 0 / Normal 0 / Hard +2 / Nightmare +4, applied before the F-ELV level gains (capped at level_cap); stat multiplier now 1.0 on every tier (F-DIFF marked superseded); validator checks the new table; (3) demo maps recorded as reference-only (new §7b note) — no map rebalancing. Tests updated (difficulty, enemy levels, NPC pass-through). Playtest re-run: demo_02 100%, Hard now harder than Normal. Verified: validation 0/0, run_tests **421/421**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: content localization when the official story arrives; official maps when designed. — issues: not pushed (no repo access).
 

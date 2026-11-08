@@ -184,6 +184,11 @@ func get_battle_class(id: String) -> Resource:
 	return get_data("classes", id)
 
 
+## F-ITEM: item records (objective relics and consumables).
+func get_item(id: String) -> ItemData:
+	return get_data("items", id) as ItemData
+
+
 func get_unit(id: String) -> Resource:
 	return get_data("units", id)
 

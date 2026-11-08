@@ -64,6 +64,13 @@ var active_debuffs: Dictionary = {}
 ## survive_once used this battle (Wyvern Knight) and the Magician's phase-start burst flag.
 var miracle_used: bool = false
 var fragile_circle_ready: bool = false
+## F-ITEM: carried consumables (item ids, max rules max_item_slots), the once-per-phase Trade
+## flag, and item buffs {field: {amount, turns_remaining, fresh}} read through eff().
+var items: Array = []
+var has_traded: bool = false
+var active_buffs: Dictionary = {}
+## Item buff_stat keys (GDD names) -> stat() field names.
+const BUFF_FIELDS := {"str": "power", "mag": "magic", "skill": "skill", "speed": "speed", "luck": "luck", "def": "defense", "res": "resistance"}
 
 var alive: bool = true
 var acted: bool = false                  # used its action this phase
@@ -99,6 +106,10 @@ static func from_data(unit_res: Resource, cell: Vector2i, level_override: int = 
 	# A roster unit carries its half-earned exp into the battle; the merge writes the
 	# remainder back as the next starting exp.
 	u.exp = int(roster_entry.get("exp", 0))
+	# F-ITEM: roster units bring their campaign items; others their data-authored ones.
+	var item_source: Array = roster_entry.get("items", unit_res.carried_items) if not roster_entry.is_empty() else unit_res.carried_items
+	for item_id in item_source:
+		u.items.append(String(item_id))
 	# F-EXP: growth is per class in the GDD; the unit table is a legacy fallback.
 	var growth_source: Dictionary = c.growths if not c.growths.is_empty() else unit_res.growths
 	for stat_id in growth_source:
@@ -220,6 +231,11 @@ func eff(field: String) -> int:
 		var entry: Dictionary = active_debuffs[field]
 		if int(entry.get("turns_remaining", 0)) > 0:
 			value -= int(entry.get("amount", 0))
+	# F-ITEM / F-CC11: an item buff adds on top (and stacks with bond bonuses elsewhere).
+	if active_buffs.has(field):
+		var buff: Dictionary = active_buffs[field]
+		if int(buff.get("turns_remaining", 0)) > 0:
+			value += int(buff.get("amount", 0))
 	return value
 
 
@@ -282,6 +298,7 @@ func to_dict() -> Dictionary:
 		# F-PAS battle-scoped passive state (rewind restores it).
 		"active_debuffs": active_debuffs.duplicate(true), "miracle_used": miracle_used,
 		"fragile_circle_ready": fragile_circle_ready,
+		"items": items.duplicate(), "has_traded": has_traded, "active_buffs": active_buffs.duplicate(true),
 	}
 
 
@@ -304,6 +321,9 @@ func from_dict(d: Dictionary) -> void:
 	active_debuffs = (d.get("active_debuffs", {}) as Dictionary).duplicate(true)
 	miracle_used = bool(d.get("miracle_used", miracle_used))
 	fragile_circle_ready = bool(d.get("fragile_circle_ready", fragile_circle_ready))
+	items = (d.get("items", items) as Array).duplicate()
+	has_traded = bool(d.get("has_traded", has_traded))
+	active_buffs = (d.get("active_buffs", {}) as Dictionary).duplicate(true)
 	max_hp = int(d.get("max_hp", max_hp))
 	hp = int(d.get("hp", hp))
 	alive = bool(d.get("alive", alive))

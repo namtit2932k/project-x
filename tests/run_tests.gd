@@ -28,6 +28,7 @@ func _ready() -> void:
 	await test_enemy_levels()
 	await test_faction_state_across_chapters()
 	await test_ai_pathing_regressions()
+	await test_items_gold_and_shop()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2144,6 +2145,141 @@ func test_ai_pathing_regressions() -> void:
 	var through := NpcAI.plan_walk(d2.state, npc, goal)
 	assert_true(through["move_cell"] == Vector2i(7, 4), "ai: the escort NPC walks through our unit on its path (5,4) -> (7,4)")
 	assert_true(not MovementHandler._passable(d2.state, blocker, npc.pos, false), "ai: our units still cannot walk through the NPC")
+
+
+## F-ITEM: carried items, Use Item (heal / buff), Trade, Visit, villages destroyed by enemies,
+## victory gold, the shop, saves and rewind.
+func test_items_gold_and_shop() -> void:
+	GameState.new_game()
+	GameState.build_roster()   # demo campaign: the Swordsman starts with two tonics
+	assert_true(Array(GameState.roster["unit_demo_swordsman"]["items"]) == ["item_vigor_tonic", "item_focus_tonic"], "items: roster units start with their data items")
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var d := BattleDirector.new()
+	d.setup(map, {"unit_demo_swordsman": map.deploy_cells[0], "unit_demo_knight": map.deploy_cells[1]}, "normal")
+	var st := d.state
+	var sword: UnitState = st.units["unit_demo_swordsman"]
+	var knight: UnitState = st.units["unit_demo_knight"]
+	assert_true(sword.items.size() == 2, "items: the battle unit carries the roster items")
+	# Buff item: +5 Skill, applied now, counted from the unit's next actions (3 of them).
+	var skill_before := sword.eff("skill")
+	assert_true(d.commit("use_item", {"unit_id": sword.id, "item_id": "item_focus_tonic"}), "items: Use Item commits")
+	assert_true(sword.acted and not sword.items.has("item_focus_tonic") and sword.items.size() == 1, "items: the item is consumed and the action spent")
+	assert_true(sword.eff("skill") == skill_before + 5 and int(sword.active_buffs["skill"]["turns_remaining"]) == 3, "items: Skill +5 for 3 later actions (the using action does not count)")
+	assert_true(not d.commit("use_item", {"unit_id": sword.id, "item_id": "item_vigor_tonic"}), "items: one action per phase")
+	for i in 3:
+		PassiveSystem.on_unit_acted(sword)
+	assert_true(sword.eff("skill") == skill_before and not sword.active_buffs.has("skill"), "items: the buff ends after 3 more actions")
+	# Heal item: fixed amount, capped, and allowed at full HP (still consumed).
+	knight.items = ["item_potion", "item_potion"]
+	knight.hp = knight.max_hp - 4
+	assert_true(d.commit("use_item", {"unit_id": knight.id, "item_id": "item_potion"}) and knight.hp == knight.max_hp and knight.items == ["item_potion"], "items: a potion heals up to max HP and is consumed")
+	d.clear_acted_flags()
+	assert_true(d.commit("use_item", {"unit_id": knight.id, "item_id": "item_potion"}) and knight.items.is_empty(), "items: using a potion at full HP is allowed and still consumes it (GDD edge case)")
+	# Buffs overwrite, never stack.
+	d.clear_acted_flags()
+	sword.items = ["item_vigor_tonic", "item_vigor_tonic"]
+	var pow_before := sword.eff("power")
+	d.commit("use_item", {"unit_id": sword.id, "item_id": "item_vigor_tonic"})
+	d.clear_acted_flags()
+	d.commit("use_item", {"unit_id": sword.id, "item_id": "item_vigor_tonic"})
+	assert_true(sword.eff("power") == pow_before + 5, "items: a second tonic on the same stat overwrites, never stacks")
+	# Trade: free, once per phase, adjacent squad allies, capacity respected.
+	d.clear_acted_flags()
+	sword.active_buffs.clear()
+	sword.items = ["item_elixir"]
+	knight.items = ["item_potion"]
+	knight.pos = sword.pos + Vector2i(0, 1)
+	assert_true(d.commit("trade", {"unit_id": sword.id, "partner_id": knight.id, "give_item": "item_elixir", "take_item": "item_potion"}), "items: swap commits")
+	assert_true(sword.items == ["item_potion"] and knight.items == ["item_elixir"] and not sword.acted, "items: Trade swaps and does not end the action")
+	assert_true(not d.commit("trade", {"unit_id": sword.id, "partner_id": knight.id, "give_item": "item_potion", "take_item": ""}), "items: only one Trade per phase")
+	d.clear_acted_flags()
+	knight.items = ["item_elixir", "item_potion"]
+	assert_true(not d.commit("trade", {"unit_id": sword.id, "partner_id": knight.id, "give_item": "item_potion", "take_item": ""}), "items: no gift into a full bag")
+	assert_true(BattleScene.trade_options(st, sword, knight).size() == 4, "items: the trade menu lists only legal trades (2 takes + 2 swaps, no gift into a full bag)")
+	knight.pos = sword.pos + Vector2i(3, 0)
+	assert_true(not d.commit("trade", {"unit_id": sword.id, "partner_id": knight.id, "give_item": "item_potion", "take_item": "item_elixir"}), "items: Trade needs an adjacent ally")
+	# Visit: the demo_01 village at (3,2) gives 10 gold once; rewind restores it.
+	d.clear_acted_flags()
+	var vcell := Vector2i(3, 2)
+	assert_true(not st.open_village_at(vcell).is_empty(), "items: demo_01 has an open village")
+	sword.pos = vcell
+	var snap := st.to_dict()
+	assert_true(d.commit("visit", {"unit_id": sword.id}) and st.gold_earned == 10 and sword.acted, "items: Visit claims 10 gold and spends the action")
+	assert_true(st.open_village_at(vcell).is_empty(), "items: the village is inert after the visit")
+	st.from_dict(snap)
+	assert_true(not st.open_village_at(vcell).is_empty() and st.gold_earned == 0, "items: rewind restores the village and the gold")
+	# An enemy ending its move on an open village destroys it.
+	var raider: UnitState = null
+	for u in st.units.values():
+		if u.side == "enemy":
+			raider = u
+			break
+	sword.pos = Vector2i(1, 2)
+	raider.pos = vcell + Vector2i(1, 0)
+	MoveCommand.apply(st, raider, vcell)
+	assert_true(String(st.villages["3,2"]["state"]) == "destroyed", "items: an enemy destroys the village it reaches")
+	# An item village needs a free slot.
+	st.villages["3,2"] = {"gold": 0, "item_id": "item_potion", "state": "open"}
+	raider.pos = Vector2i(9, 7)
+	sword.pos = vcell
+	sword.acted = false
+	sword.items = ["item_potion", "item_elixir"]
+	assert_true(VisitCommand.check(st, sword) != "", "items: an item village is blocked while the bag is full (D-B8)")
+	# Victory gold: 15 + village gold; merged with the items as they ended the battle.
+	sword.items = ["item_elixir"]
+	st.villages["3,2"] = {"gold": 10, "item_id": "", "state": "open"}
+	d.commit("visit", {"unit_id": sword.id})
+	for u in st.units.values():
+		if u.side == "enemy":
+			u.alive = false
+	d.commit("wait", {"unit_id": knight.id})
+	var gold: Dictionary = st.battle_over.get("gold", {})
+	assert_true(String(st.battle_over.get("status", "")) == "win" and int(gold.get("victory", 0)) == 15 and int(gold.get("villages", 0)) == 10 and int(gold.get("total", 0)) == 25, "items: victory pays 15 + village 10 = 25")
+	CampaignMerge.merge(st, GameState.current_chapter(), {"status": "lose", "gold": gold})
+	assert_true(GameState.gold == 0, "items: a defeat keeps no gold (designer game-over rule)")
+	CampaignMerge.merge(st, GameState.current_chapter(), st.battle_over)
+	assert_true(GameState.gold == 25 and Array(GameState.roster["unit_demo_swordsman"]["items"]) == ["item_elixir"], "items: the victory merges 25 gold and the items left in the bag")
+	# Retrieve bonus and persuasion reward.
+	var fake := BattleState.new()
+	fake.objectives_config = [{"type": "retrieve", "params": {}}]
+	var g2 := GoldRewards.on_victory(fake, {"faction_x": {"persuaded": true}})
+	assert_true(int(g2["total"]) == 15 + 15 + 20, "items: Retrieve win + one persuasion = 15 + 15 + 20 = 50")
+	# Shop: catalog, affordability, free slot, dead units, never negative.
+	GameState.gold = 25
+	assert_true(Shop.catalog().size() == 5 and Shop.price_of("item_elixir") == 30, "shop: five items, elixir costs 30")
+	assert_true(not Shop.can_buy("item_elixir"), "shop: an unaffordable item cannot be bought")
+	GameState.roster["unit_demo_knight"]["items"] = []
+	assert_true(not Shop.buy("item_elixir", "unit_demo_knight") and GameState.gold == 25, "shop: a refused purchase changes nothing")
+	assert_true(Shop.buy("item_potion", "unit_demo_knight") and GameState.gold == 15 and Array(GameState.roster["unit_demo_knight"]["items"]).has("item_potion"), "shop: buying a potion pays 10 and fills a slot")
+	GameState.roster["unit_demo_knight"]["items"] = ["item_potion", "item_potion"]
+	assert_true(not ("unit_demo_knight" in Shop.eligible_units()), "shop: a unit with a full bag is not offered")
+	GameState.roster["unit_demo_swordsman"]["alive"] = false
+	assert_true(not ("unit_demo_swordsman" in Shop.eligible_units()), "shop: a fallen unit is not offered")
+	GameState.roster["unit_demo_swordsman"]["alive"] = true
+	# Save round trip.
+	var saved := GameState.to_dict().duplicate(true)
+	GameState.new_game()
+	assert_true(GameState.gold == 0, "items: New campaign resets gold")
+	GameState.from_dict(saved)
+	assert_true(GameState.gold == 15 and Array(GameState.roster["unit_demo_knight"]["items"]).size() == 2, "items: gold and bags are saved")
+	# Camp shop UI renders the catalog with prices.
+	var camp := CampScene.new()
+	add_child(camp)
+	await get_tree().process_frame
+	camp.open_shop()
+	await get_tree().process_frame
+	assert_true(_has_label_containing(camp, "10") or _find_button_containing(camp, "10"), "shop: the camp shop lists prices")
+	camp.queue_free()
+	GameState.new_game()
+
+
+func _find_button_containing(root: Node, text: String) -> bool:
+	if root is Button and String((root as Button).text).contains(text):
+		return true
+	for child in root.get_children():
+		if _find_button_containing(child, text):
+			return true
+	return false
 
 
 func _sides(plan: Dictionary) -> Array:

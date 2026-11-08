@@ -271,6 +271,7 @@ func _commit_move(cell: Vector2i) -> void:
 	mode = Mode.BUSY
 	if director.commit("move", {"unit_id": sel.id, "cell": cell}):
 		_enter_target_select()   # move xong: chỉ còn ô đỏ tầm đánh
+		_show_action_menu(sel)   # F-ITEM: Visit depends on the tile the unit ended on
 		_refresh_overlays()
 	else:
 		mode = Mode.IDLE
@@ -290,6 +291,7 @@ func _show_action_menu(unit: UnitState) -> void:
 		var label := String(skill.display_name) if String(skill.display_name) != "" else skill_id
 		var sk := UIBuilder.button(_action_menu, UIBuilder.t("Skill: %s") % UIBuilder.t(label), 16)
 		sk.pressed.connect(func() -> void: _use_skill(skill_id))
+	_add_item_actions(unit)
 	if _action_menu.get_child_count() == 0:
 		return
 	_action_menu.visible = true
@@ -651,6 +653,8 @@ func _update_hover_info() -> void:
 		_info_label.text = UIBuilder.t("%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid") % [
 			u.display_name, u.hp, u.max_hp, u.power, u.defense, u.resistance, u.speed,
 			int(terr.get("def_bonus", 0)), int(terr.get("avoid_bonus", 0))]
+		if not u.items.is_empty():
+			_info_label.text += "\n" + UIBuilder.t("Items: %s") % item_list_text(u.items)
 	else:
 		_info_label.text = UIBuilder.t("terrain: %s (+%d def, +%d avoid)") % [director.state.terrain_at(hover_cell), int(terr.get("def_bonus", 0)), int(terr.get("avoid_bonus", 0))]
 
@@ -807,3 +811,123 @@ func _play_feedback_dialogue(dialogue_id: String) -> void:
 	var layer := _forecast_layer()   # above the map, below nothing critical
 	var player := DialoguePlayer.build(dlg)
 	layer.add_child(player)
+
+
+# ------------------------------------------------------------ F-ITEM actions
+
+var _trade_panel: Control = null
+
+
+## Use Item (one button per carried item - picking the button is the GDD's item choice),
+## Visit on an open village, and Trade with each adjacent squad ally (free, once per phase).
+func _add_item_actions(unit: UnitState) -> void:
+	var state := director.state
+	for item_id in unit.items:
+		if UseItemCommand.check(state, unit, String(item_id)) == "":
+			var use_btn := UIBuilder.button(_action_menu, UIBuilder.t("Use: %s") % item_name(String(item_id)), 16)
+			var chosen := String(item_id)
+			use_btn.pressed.connect(func() -> void: _use_item(chosen))
+	if VisitCommand.check(state, unit) == "":
+		var visit_btn := UIBuilder.button(_action_menu, UIBuilder.t("Visit village"), 16)
+		visit_btn.pressed.connect(_do_visit)
+	for partner_id in trade_partners(state, unit):
+		var partner: UnitState = state.units[partner_id]
+		var trade_btn := UIBuilder.button(_action_menu, UIBuilder.t("Trade with %s") % partner.display_name, 16)
+		trade_btn.pressed.connect(func() -> void: _open_trade(partner_id))
+
+
+## Adjacent squad allies with at least one legal, non-empty trade.
+static func trade_partners(state: BattleState, unit: UnitState) -> Array[String]:
+	var out: Array[String] = []
+	for other in state.alive_units():
+		if other.id != unit.id and not trade_options(state, unit, other).is_empty():
+			out.append(other.id)
+	return out
+
+
+## Every legal non-empty trade: [{give, take, label}] (gifts, takes, swaps).
+static func trade_options(state: BattleState, unit: UnitState, partner: UnitState) -> Array:
+	var out: Array = []
+	var gives: Array = [""] + unit.items
+	var takes: Array = [""] + partner.items
+	for give in gives:
+		for take in takes:
+			if String(give) == "" and String(take) == "":
+				continue
+			if TradeCommand.check(state, unit, partner, String(give), String(take)) != "":
+				continue
+			var label := ""
+			if String(take) == "":
+				label = UIBuilder.t("Give %s") % item_name(String(give))
+			elif String(give) == "":
+				label = UIBuilder.t("Take %s") % item_name(String(take))
+			else:
+				label = UIBuilder.t("Swap %s for %s") % [item_name(String(give)), item_name(String(take))]
+			out.append({"give": String(give), "take": String(take), "label": label})
+	return out
+
+
+static func item_name(item_id: String) -> String:
+	var item := DataRegistry.get_item(item_id)
+	return String(item.display_name) if item != null and String(item.display_name) != "" else item_id
+
+
+static func item_list_text(items: Array) -> String:
+	var names: Array[String] = []
+	for item_id in items:
+		names.append(item_name(String(item_id)))
+	return ", ".join(names)
+
+
+func _use_item(item_id: String) -> void:
+	var sel := _selected()
+	if sel == null:
+		return
+	mode = Mode.BUSY
+	director.commit("use_item", {"unit_id": sel.id, "item_id": item_id})
+	_finish_action()
+
+
+func _do_visit() -> void:
+	var sel := _selected()
+	if sel == null:
+		return
+	mode = Mode.BUSY
+	director.commit("visit", {"unit_id": sel.id})
+	_finish_action()
+
+
+func _open_trade(partner_id: String) -> void:
+	var sel := _selected()
+	if sel == null:
+		return
+	_close_trade()
+	var partner: UnitState = director.state.units[partner_id]
+	_trade_panel = UIBuilder.modal(_ui_root())
+	var box := UIBuilder.vbox(UIBuilder.panel(_trade_panel, 700, 340, 520, 380), 8)
+	UIBuilder.label(box, UIBuilder.t("Trade with %s - choose:") % partner.display_name, 18)
+	for opt in trade_options(director.state, sel, partner):
+		var btn := UIBuilder.button(box, String(opt["label"]), 16)
+		var give := String(opt["give"])
+		var take := String(opt["take"])
+		btn.pressed.connect(func() -> void: _commit_trade(partner_id, give, take))
+	var cancel := UIBuilder.button(box, UIBuilder.t("Cancel"), 16)
+	cancel.pressed.connect(_close_trade)
+
+
+## Trade is free: the unit stays selected and can still act.
+func _commit_trade(partner_id: String, give: String, take: String) -> void:
+	var sel := _selected()
+	_close_trade()
+	if sel == null:
+		return
+	director.commit("trade", {"unit_id": sel.id, "partner_id": partner_id, "give_item": give, "take_item": take})
+	_show_action_menu(sel)
+	_update_hover_info()
+	_refresh_rewind_button()
+
+
+func _close_trade() -> void:
+	if _trade_panel != null and is_instance_valid(_trade_panel):
+		_trade_panel.queue_free()
+	_trade_panel = null

@@ -131,6 +131,12 @@ class_name RulesConfig
 @export var exp_enabled: bool = true
 ## Cửa hàng (P-03): bật cho campaign demo; chương legacy giữ stub.
 @export var shop_enabled: bool = false
+## F-ITEM (GDD Gold/Shop Authored Balance): victory-only gold rewards, never from kills or difficulty.
+@export var gold_per_victory: int = 15
+@export var gold_per_persuasion: int = 20
+@export var gold_retrieve_bonus: int = 15
+## F-ITEM: items the camp shop sells (price = ItemData.price; only listed ids are sold).
+@export var shop_catalog: Array[String] = ["item_potion", "item_vulnerary", "item_elixir", "item_vigor_tonic", "item_focus_tonic"]
 ## Fog of war (W6): tắt tới khi hệ thống fog hoàn tất.
 @export var fog_enabled: bool = false
 ## D-B2 placeholder: default base vision khi unit không khai báo (0 = inherit).

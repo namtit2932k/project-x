@@ -153,3 +153,23 @@ Restraint score: %d (not awarded - battle lost),Restraint score: %d (not awarded
 Bad Ending,Bad Ending,Kết cục xấu
 %s will never accept the peace.,%s will never accept the peace.,%s sẽ không bao giờ chấp nhận hòa bình.
 The campaign ends here. Retry the chapter to change the outcome.,The campaign ends here. Retry the chapter to change the outcome.,Chiến dịch kết thúc tại đây. Chơi lại chương để thay đổi kết cục.
+Use: %s,Use: %s,Dùng: %s
+Visit village,Visit village,Ghé làng
+Trade with %s,Trade with %s,Trao đổi với %s
+Trade with %s - choose:,Trade with %s - choose:,Trao đổi với %s - chọn:
+Give %s,Give %s,Đưa %s
+Take %s,Take %s,Lấy %s
+Swap %s for %s,Swap %s for %s,Đổi %s lấy %s
+Close,Close,Đóng
+Items: %s,Items: %s,Vật phẩm: %s
+"Gold earned: +%d (victory %d, retrieve bonus %d, persuasion %d, villages %d)","Gold earned: +%d (victory %d, retrieve bonus %d, persuasion %d, villages %d)","Vàng nhận được: +%d (thắng trận %d, thưởng thu hồi %d, thuyết phục %d, làng %d)"
+Gold: %d,Gold: %d,Vàng: %d
+Shop,Shop,Cửa hàng
+Shop - gold: %d,Shop - gold: %d,Cửa hàng - vàng: %d
+%s - %s - %d gold,%s - %s - %d gold,%s - %s - %d vàng
+Buy %s for whom?,Buy %s for whom?,Mua %s cho ai?
+No unit has a free item slot.,No unit has a free item slot.,Không còn quân nào có ô vật phẩm trống.
+%s (%d/%d items),%s (%d/%d items),%s (%d/%d vật phẩm)
+Bought %s for %s.,Bought %s for %s.,Đã mua %s cho %s.
+restores %d HP,restores %d HP,hồi %d HP
++%d %s for %d turns,+%d %s for %d turns,+%d %s trong %d lượt

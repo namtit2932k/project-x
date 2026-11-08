@@ -37,6 +37,11 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 	for pair_id in battle_state.bond_points:
 		GameState.bond_points[pair_id] = int(GameState.bond_points.get(pair_id, 0)) + int(battle_state.bond_points[pair_id])
 	GameState.completed_chapters[String(chapter.id)] = true
+	# F-ITEM: this victory's gold, and every deployed unit's items as they ended the battle.
+	GameState.gold = maxi(GameState.gold + int(result.get("gold", {}).get("total", 0)), 0)
+	for unit_id in GameState.roster:
+		if battle_state.units.has(String(unit_id)):
+			GameState.roster[unit_id]["items"] = (battle_state.units[String(unit_id)].items as Array).duplicate()
 	# F-PS3: this battle's kills join the faction's cumulative count (victory only, see F-PSI).
 	for faction_id in battle_state.reconcile_state:
 		var battle_kills := int(battle_state.reconcile_state[faction_id].get("kills", 0))

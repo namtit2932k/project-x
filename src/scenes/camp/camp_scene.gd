@@ -12,6 +12,8 @@ var _scene_box: VBoxContainer = null
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	if size.x < 1.0:   # under a plain Node the anchors give no rect: take the viewport's
+		size = get_viewport_rect().size
 	var bg := ColorRect.new()
 	bg.color = Color(0.07, 0.1, 0.09)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -28,7 +30,10 @@ func _ready() -> void:
 		var ud := DataRegistry.get_unit(String(unit_id))
 		var r: Dictionary = GameState.roster[unit_id]
 		var status := UIBuilder.t("alive") if bool(r.alive) else UIBuilder.t("fallen")
-		UIBuilder.label(roster_box, UIBuilder.t("%s | %s | Lv %d | exp %d | %s") % [ud.display_name, ud.class_id, int(r.level), int(r.exp), status], 16)
+		var line := UIBuilder.t("%s | %s | Lv %d | exp %d | %s") % [ud.display_name, ud.class_id, int(r.level), int(r.exp), status]
+		if not (r.get("items", []) as Array).is_empty():
+			line += " | " + UIBuilder.t("Items: %s") % BattleScene.item_list_text(r.get("items", []))
+		UIBuilder.label(roster_box, line, 16)
 
 	# Bond panel (eligible designer pairs only).
 	var bond_panel := UIBuilder.panel(self, 860, 130, 1000, 560)
@@ -44,6 +49,15 @@ func _ready() -> void:
 	save_btn.position = Vector2(60, 730)
 	save_btn.size = Vector2(180, 50)
 	save_btn.pressed.connect(_on_save)
+
+	# F-ITEM: campaign gold and the shop (when the campaign has one).
+	var gold_label := UIBuilder.label(self, UIBuilder.t("Gold: %d") % GameState.gold, 20)
+	gold_label.position = Vector2(880, 700)
+	if bool(DataRegistry.rule("shop_enabled", false)):
+		var shop_btn := UIBuilder.button(self, UIBuilder.t("Shop"), 22)
+		shop_btn.position = Vector2(880, 730)
+		shop_btn.size = Vector2(180, 50)
+		shop_btn.pressed.connect(open_shop)
 
 	var diff_btn := UIBuilder.button(self, UIBuilder.t("Difficulty: %s (switch)") % UIBuilder.t(GameState.difficulty.capitalize()), 20)
 	diff_btn.position = Vector2(280, 730)
@@ -204,3 +218,71 @@ func toast(text: String) -> void:
 	t.position = Vector2(60, 900)
 	var timer := get_tree().create_timer(2.5)
 	timer.timeout.connect(func() -> void: t.queue_free())
+
+
+# ------------------------------------------------------------ F-ITEM shop
+
+var _shop_panel: Control = null
+
+
+## Catalog browsing: every entry listed; the ones the squad cannot afford stay disabled.
+func open_shop() -> void:
+	close_shop()
+	_shop_panel = UIBuilder.modal(self)
+	var box := UIBuilder.vbox(UIBuilder.panel(_shop_panel, 560, 160, 800, 620), 8)
+	UIBuilder.label(box, UIBuilder.t("Shop - gold: %d") % GameState.gold, 26)
+	for entry in Shop.catalog():
+		var item_id := String(entry["item_id"])
+		var btn := UIBuilder.button(box, UIBuilder.t("%s - %s - %d gold") % [BattleScene.item_name(item_id), item_effect_text(entry["item"]), int(entry["price"])], 18)
+		btn.disabled = not Shop.can_buy(item_id)
+		btn.pressed.connect(func() -> void: _choose_buyer(item_id))
+	var close := UIBuilder.button(box, UIBuilder.t("Close"), 18)
+	close.pressed.connect(func() -> void: close_shop(); _refresh_after_shop())
+
+
+## Target selection: living roster units with a free slot; picking one buys at once.
+func _choose_buyer(item_id: String) -> void:
+	close_shop()
+	_shop_panel = UIBuilder.modal(self)
+	var box := UIBuilder.vbox(UIBuilder.panel(_shop_panel, 560, 160, 800, 620), 8)
+	UIBuilder.label(box, UIBuilder.t("Buy %s for whom?") % BattleScene.item_name(item_id), 24)
+	var units := Shop.eligible_units()
+	if units.is_empty():
+		UIBuilder.label(box, UIBuilder.t("No unit has a free item slot."), 18)
+	for unit_id in units:
+		var ud := DataRegistry.get_unit(unit_id)
+		var count := (GameState.roster[unit_id].get("items", []) as Array).size()
+		var btn := UIBuilder.button(box, UIBuilder.t("%s (%d/%d items)") % [ud.display_name if ud != null else unit_id, count, int(DataRegistry.rule("max_item_slots", 2))], 18)
+		btn.pressed.connect(func() -> void: _buy(item_id, unit_id))
+	var back := UIBuilder.button(box, UIBuilder.t("Cancel"), 18)
+	back.pressed.connect(open_shop)
+
+
+func _buy(item_id: String, unit_id: String) -> void:
+	if Shop.buy(item_id, unit_id):
+		var ud := DataRegistry.get_unit(unit_id)
+		toast(UIBuilder.t("Bought %s for %s.") % [BattleScene.item_name(item_id), ud.display_name if ud != null else unit_id])
+	open_shop()
+
+
+func close_shop() -> void:
+	if _shop_panel != null and is_instance_valid(_shop_panel):
+		_shop_panel.queue_free()
+	_shop_panel = null
+
+
+## The roster and gold labels were built in _ready: rebuild the camp to show purchases.
+func _refresh_after_shop() -> void:
+	for child in get_children():
+		child.queue_free()
+	_ready()
+
+
+static func item_effect_text(item: ItemData) -> String:
+	if item == null:
+		return ""
+	if item.is_heal_item():
+		return UIBuilder.t("restores %d HP") % int(item.heal_value)
+	if item.is_buff_item():
+		return UIBuilder.t("+%d %s for %d turns") % [int(item.buff_amount), String(item.buff_stat), int(item.buff_duration)]
+	return ""
