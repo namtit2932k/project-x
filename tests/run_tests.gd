@@ -25,6 +25,7 @@ func _ready() -> void:
 	await test_persistent_faction_kills()
 	await test_bad_ending()
 	await test_demo_starting_bond()
+	await test_enemy_levels()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -1975,6 +1976,56 @@ func test_demo_starting_bond() -> void:
 	GameState.campaign_tag = "legacy"
 	GameState.build_roster()
 	assert_true(GameState.bond_rank_for(pid) == "" and not GameState.bond_points.has(pid), "demo bond: the legacy campaign has no demo starting bond")
+	GameState.new_game()
+
+
+## F-ELV: demo enemies are level-1 templates plus fixed level gains from their class growths,
+## applied before the difficulty multiplier; level-1 enemies (legacy ch01) are unchanged.
+func test_enemy_levels() -> void:
+	await 0.0
+	GameState.new_game()
+	GameState.build_roster()   # demo campaign
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_demo_swordsman": map.deploy_cells[0], "unit_demo_knight": map.deploy_cells[1]}, "normal")
+	var guard: UnitState = null
+	for u in director.state.units.values():
+		if u.side == "enemy" and u.class_id == "class_guard":
+			guard = u
+			break
+	assert_true(guard != null and guard.level == 5, "enemy level: demo guard is level 5")
+	if guard != null:
+		assert_true(guard.max_hp == 22 and guard.hp == 22 and guard.power == 8 and guard.skill == 5 and guard.speed == 6 and guard.luck == 3 and guard.defense == 5 and guard.resistance == 2, "enemy level: guard L5 = HP 22 Str 8 Skill 5 Spd 6 Luck 3 Def 5 Res 2 (F-ELV table)")
+	var sword: UnitState = director.state.units["unit_demo_swordsman"]
+	assert_true(sword.skill == 10 and director.state.units["unit_demo_knight"].skill == 6, "enemy level: demo Swordsman / Knight Skill on the roster scale (10 / 6)")
+	assert_true(sword.level == 1 and sword.max_hp == 28, "enemy level: player units are never auto-levelled")
+	# Commander: level 6 from its own template.
+	var cmd := UnitState.from_data(DataRegistry.get_unit("unit_demo_commander"), Vector2i.ZERO)
+	cmd.side = "enemy"
+	cmd.apply_enemy_levels()
+	assert_true(cmd.max_hp == 25 and cmd.power == 8 and cmd.skill == 7 and cmd.speed == 7 and cmd.luck == 6 and cmd.defense == 5 and cmd.resistance == 4, "enemy level: commander L6 = HP 25 Str 8 Skill 7 Spd 7 Luck 6 Def 5 Res 4")
+	# A placement level overrides the template, and the result is deterministic.
+	var lv9 := UnitState.from_data(DataRegistry.get_unit("unit_demo_guard"), Vector2i.ZERO, 9)
+	lv9.apply_enemy_levels()
+	assert_true(lv9.max_hp == 25 and lv9.power == 10 and lv9.skill == 6, "enemy level: placement level 9 -> HP 25 Str 10 Skill 6, same every time")
+	# Difficulty multiplier applies on top of the levelled stats (Hard x1.08: Str 8 -> 8, Def 5 -> 5).
+	var hard := BattleDirector.new()
+	hard.setup(map, {"unit_demo_swordsman": map.deploy_cells[0], "unit_demo_knight": map.deploy_cells[1]}, "nightmare")
+	for u in hard.state.units.values():
+		if u.id == guard.id:
+			assert_true(u.power == int(floor(8 * float(DataRegistry.rule("enemy_stat_multiplier_by_difficulty", {}).get("nightmare", 1.0)))) and u.max_hp == 22, "enemy level: difficulty scales the levelled stats, HP untouched")
+	# Hit chances land in the approved band (plain-ground numbers checked by formula).
+	assert_true(CombatResolver._hit_pct(director.state, sword, guard) < 100 and CombatResolver._hit_pct(director.state, guard, sword) <= 75, "enemy level: no more near-certain hits both ways")
+	# Legacy ch01 rebels are level 1: unchanged.
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var ch01 := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var legacy := BattleDirector.new()
+	legacy.setup(ch01, {"unit_swordsman": ch01.deploy_cells[0]}, "normal")
+	var rebel: UnitState = legacy.state.units["unit_rebel_soldier_1"]
+	var fresh := UnitState.from_data(DataRegistry.get_unit("unit_rebel_soldier_1"), Vector2i.ZERO)
+	assert_true(rebel.power == fresh.power and rebel.max_hp == fresh.max_hp and rebel.skill == fresh.skill, "enemy level: level-1 legacy enemies keep their stats")
 	GameState.new_game()
 
 

@@ -287,6 +287,9 @@ func check_units() -> void:
 		var unit_class := DataRegistry.get_battle_class(String(u.class_id))
 		if unit_class == null:
 			_err("unit %s: unknown class %s" % [id, u.class_id])
+		elif not bool(u.in_roster) and int(u.level) > 1 and unit_class.growths.is_empty() and u.growths.is_empty():
+			# F-ELV: a levelled enemy needs a growth table, or its level silently does nothing.
+			_err("unit %s: level %d but class %s has no growth rates" % [id, int(u.level), u.class_id])
 		elif bool(u.in_roster) and unit_class.growths.is_empty() and u.growths.is_empty():
 			# F-EXP: without a class table (or unit fallback) level-ups raise nothing.
 			_warn("unit %s: no growth rates (class %s has no table)" % [id, u.class_id])

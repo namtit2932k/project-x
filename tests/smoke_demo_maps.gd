@@ -109,16 +109,16 @@ func _check_map(number: int, scenario_map: Dictionary, catalog: Dictionary) -> v
 	# F1 acceptance: the demo Swordsman/Knights carry the exact scenario stats.
 	var swordsman: UnitState = state.units.get("unit_demo_swordsman", null)
 	if swordsman != null:
-		ok(swordsman.max_hp == 28 and swordsman.power == 10 and swordsman.skill == 28
+		ok(swordsman.max_hp == 28 and swordsman.power == 10 and swordsman.skill == 10
 				and swordsman.speed == 12 and swordsman.luck == 8 and swordsman.defense == 7
 				and swordsman.resistance == 4 and swordsman.move_range == 5,
-				"%s: demo swordsman stats (hp 28 / str 10 / skill 28 / speed 12 / luck 8 / def 7 / res 4 / move 5)" % chapter_id)
+				"%s: demo swordsman stats (hp 28 / str 10 / skill 10 (F-ELV) / speed 12 / luck 8 / def 7 / res 4 / move 5)" % chapter_id)
 		ok(swordsman.is_protagonist, "%s: demo swordsman is the protagonist (P-07)" % chapter_id)
 	var knight: UnitState = state.units.get("unit_demo_knight", null)
 	if knight != null:
-		ok(knight.max_hp == 34 and knight.power == 11 and knight.skill == 26 and knight.speed == 9
+		ok(knight.max_hp == 34 and knight.power == 11 and knight.skill == 6 and knight.speed == 9
 				and knight.luck == 6 and knight.defense == 10 and knight.resistance == 3
-				and knight.move_range == 5, "%s: demo knight stats (hp 34 / str 11 / skill 26 ...)" % chapter_id)
+				and knight.move_range == 5, "%s: demo knight stats (hp 34 / str 11 / skill 6 (F-ELV) ...)" % chapter_id)
 	# F1 acceptance: the alias still feeds legacy rebels through the same accessors.
 	if number == 1:
 		var rebel := DataRegistry.get_unit("unit_rebel_soldier_1")

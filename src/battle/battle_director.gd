@@ -30,6 +30,10 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: 
 	player_sides = ["player"]
 	# F-PAS: turn 1 opens on the player phase (Magician burst readiness etc.).
 	PassiveSystem.on_phase_started(state, "player")
+	# F-ELV first (level gains on the base stats), then F-DIFF's multiplier on the result.
+	for u in state.units.values():
+		if u.side == "enemy":
+			u.apply_enemy_levels()
 	_scale_enemies(difficulty)
 
 

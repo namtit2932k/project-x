@@ -243,7 +243,7 @@ The GDD formula gave ~9% average hit (R1). Designer: "follow Fire Emblem, no 2RN
 - **No 2RN:** one roll against the displayed Hit%, so the shown number is the true chance (keeps GDD Pillar 2).
 - Unchanged from F-CC: Hit% clamp 0–100, Damage = Str/Mag + might − Def/Res + bond, double attack at Speed gap ≥ 4.
 - **Designer-confirmed (08-11-2026, later the same day):** no weapon triangle; keep `hit_base = 70` (one value for every weapon, no per-weapon Hit table). FE's Attack Speed (weight vs Con) not adopted.
-- **Still open:** demo-layer enemies (raider/guard, Skill 23) use a different stat scale and now hit almost always.
+- **Resolved by F-ELV (08-11-2026):** the demo layer is on the roster scale now (enemy levels + roster-scale Skill); hits went from 98–100% on every pair to 61–94%.
 - Result with current data: roster vs roster 73% average on plain (41–100%), 61% in forest +12; roster → ch01 rebels 88%; rebels → roster 54%.
 
 ### F-PAS — Class passives + Bard Encore from the GDD (08-11-2026, `core-combat-system.md` Core Rule 3b, Core Rule 11, F-CC7/F-CC11/F-CC15, Authored Passive Catalog)
@@ -306,6 +306,30 @@ Overrides GDD `game-concept.md` "a failed persuasion carries forward into the st
 - **Flow:** instead of post-battle → camp, `Main` plays the bad-ending dialogue (`FactionData.bad_ending_dialogue_id`, fallback `rules_config.bad_ending_dialogue_id` = `dlg_bad_ending`, placeholder text) and then `BadEndingScene` (`src/scenes/bad_ending/`): title "Bad Ending", one line per red faction, then **Retry chapter** / **Main menu**.
 - **Designer-confirmed (08-11-2026, "keep it like that"):** (a) the bad ending ends the run like a Game Over — **nothing from that battle is merged** (EXP, kills, bonds, chapter completion) so Retry chapter replays it from the pre-battle state; (b) Retry chapter and Main menu are offered.
 - Validator warns about a remnant faction with `kill_threshold` 0 (always red → every victory would be a bad ending) and errors on an unknown `bad_ending_dialogue_id`.
+
+### F-ELV — Enemy levels, Fire Emblem style (designer chose the approach and approved the mechanism + numbers below, 08-11-2026)
+
+Approach approved ("làm C"): put the demo layer on the roster's stat scale the Fire Emblem way — enemies are ordinary class units on the same scale as the player, and difficulty per map comes from the enemy's **level**, not hand-tuned stats.
+
+Mechanism:
+- An enemy's stats = its template's level-1 `base_stats` + `floor((level − 1) × class growth / 100)` per stat, growths from the class table (`BattleClassData.growths`). **Fixed average gains, no dice**, so the same placement always gives the same stats (forecast stays true; FE GBA rolls dice for enemies, later FE games often do not).
+- Level per placement (`enemy_placements[].level`), falling back to `UnitData.level`. Applied once at deploy, **before** F-DIFF's difficulty multiplier. Enemy side only; player units keep their roster levels; NPCs unchanged.
+
+Numbers (data):
+
+| Item | Value |
+|---|---|
+| `class_guard` growths (raider, guard, river guard, messenger raider, pursuer) | HP 70, Str 40, Mag 0, Skill 35, Speed 35, Luck 20, Def 30, Res 15 |
+| `class_commander` growths | HP 75, Str 45, Mag 0, Skill 40, Speed 30, Luck 30, Def 35, Res 20 |
+| Guard-class templates, level-1 base | HP 20, Str 7, Mag 0, Skill 4 (pursuer 6), Speed 5, Luck 3, Def 4, Res 2, Move 4 |
+| Commander, level-1 base | HP 22, Str 6, Mag 0, Skill 5, Speed 6, Luck 5, Def 4, Res 3, Move 4 |
+| Levels in the 6 demo maps | guards / pursuer 5, commander 6 → guard L5 = HP 22 Str 8 Skill 5 Spd 6 Def 5 (≈ today's HP/Str/Def) |
+| Demo player units | Skill only: Swordsman 28 → 10, Knight 26 → 6 (their GDD Appendix C Skill); other stats unchanged |
+| Demo NPC civilians (evacuee, messenger) | Skill 12 → 4 (no level system, they are not enemies) |
+
+- Implemented: `UnitState.apply_enemy_levels()` (called by `BattleDirector.setup` for enemy-side units, before `_scale_enemies`), placement `level` read by `BattleState._deploy_map_units`; data in `data/balance/demo/{classes,units}`; `tools/import_demo_data.gd` re-applies these numbers (and the F-EXP class growths) on every rerun, since the scenario JSON is still on the old scale; validator errors on a levelled enemy whose class has no growth table.
+
+Expected on plain ground (hit_base 70): Swordsman → guard 94% / 10 dmg, guard → Swordsman 61% / 7, Knight → guard 82% / 12, guard → Knight 69% / 4, pursuer → Swordsman 65%, Swordsman → commander 89%, commander → Swordsman 70% (today: 98–100% on every pair).
 
 ### F-OBJ — The five GDD objective types (08-11-2026, `battle-map-system.md` Core Rules 4, 6, 10–14)
 
@@ -400,6 +424,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (20) — Claude (Opus) — done: enemy levels, Fire Emblem style (new §7b **F-ELV**; approach + numbers approved by the designer after a proposal). Enemy stats = level-1 template + floor((level − 1) × class growth / 100), fixed gains, before the difficulty multiplier; placement `level` override. Demo data: guard-class templates level 5 (L1 HP 20 Str 7 Skill 4 Spd 5 Luck 3 Def 4 Res 2; pursuer Skill 6), commander level 6, growth rows for class_guard / class_commander, demo Swordsman / Knight Skill 10 / 6, NPC civilians Skill 4. Importer re-applies the approved numbers (and the F-EXP class growths it used to drop). Validator check for levelled enemies without growths. smoke_demo_maps expectations updated (still needs the gitignored JSON to run). New `test_enemy_levels`. Hits now 61–94% instead of 98–100%. Verified: validation 0/0, run_tests **399/399**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: campaign-level faction state, content localization; a playtest of the 6 demo maps with the new numbers. — issues: not pushed (no repo access).
 
 - 2026-11-08 (19) — Claude (Opus) — done: F-BAD defaults confirmed by the designer (no merge, Retry chapter + Main menu). Demo bond data (P-11, F-BOND "Demo campaign pair" bullet): `bond_demo_swordsman_knight` in the demo layer, C/B/A at 2/5/9, reuses the Swordsman–Knight placeholder scenes, S-eligible; new `BondData.start_rank` / `start_points` applied by `GameState.build_roster()` (new demo campaign starts at rank C with 2 points, C counted as seen); validator checks the start rank/points. Fixed: the demo roster units had no campaign_tag and leaked into the legacy roster (data + importer now tag them `demo`). New `test_demo_starting_bond`. Verified: validation 0/0, run_tests **390/390**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: demo-layer enemy stats (needs GDD numbers), campaign-level faction state, content localization. — issues: not pushed (no repo access).
 

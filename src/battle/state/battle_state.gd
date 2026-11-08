@@ -155,7 +155,8 @@ func _deploy_map_units(p_map: Resource, side: String, placements: Array) -> void
 			continue
 		var cell: Vector2i = placement.cell
 		if can_place(cell):
-			var u := UnitState.from_data(ud, cell, -1, _instance_id_from_placement(placement))
+			# F-ELV: a placement may set the enemy's level; otherwise the template's level.
+			var u := UnitState.from_data(ud, cell, int(placement.get("level", -1)), _instance_id_from_placement(placement))
 			u.side = side
 			# faction_override lets a map place a unit on a different lore faction (e.g. an
 			# empire defector fighting for the rebels) without a duplicate unit entry.

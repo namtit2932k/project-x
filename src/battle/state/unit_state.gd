@@ -225,6 +225,25 @@ func eff(field: String) -> int:
 
 ## F-DIFF (GDD F-DS2): enemy stat block scaled once at deploy — floor(stat * multiplier) on
 ## Str/Mag/Skill/Speed/Def/Res; HP and Luck are never scaled.
+## F-ELV (Fire Emblem style): an enemy above level 1 gains floor((level - 1) x growth / 100)
+## per stat from its class growth table - fixed average gains, no dice. HP raises max and current.
+func apply_enemy_levels() -> void:
+	if level <= 1:
+		return
+	var gains := {}
+	for key in growths:
+		gains[String(key)] = int(floor((level - 1) * int(growths[key]) / 100.0))
+	max_hp += int(gains.get("hp", 0))
+	hp = max_hp
+	power += int(gains.get("str", gains.get("atk", 0)))
+	magic += int(gains.get("mag", 0))
+	skill += int(gains.get("skill", gains.get("skl", 0)))
+	speed += int(gains.get("speed", gains.get("spd", 0)))
+	luck += int(gains.get("luck", 0))
+	defense += int(gains.get("def", 0))
+	resistance += int(gains.get("res", 0))
+
+
 func apply_enemy_scaling(multiplier: float) -> void:
 	power = int(floor(power * multiplier))
 	magic = int(floor(magic * multiplier))

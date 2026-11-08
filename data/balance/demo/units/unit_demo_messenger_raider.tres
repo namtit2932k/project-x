@@ -9,15 +9,16 @@ display_name = "Tập kích"
 class_id = "class_guard"
 faction_id = "faction_neutral"
 controllable = true
+level = 5
 base_stats = {
-"hp": 22,
-"str": 8,
+"hp": 20,
+"str": 7,
 "mag": 0,
-"skill": 23,
-"speed": 7,
-"luck": 4,
-"def": 5,
-"res": 3,
+"skill": 4,
+"speed": 5,
+"luck": 3,
+"def": 4,
+"res": 2,
 "move": 4
 }
 carried_items = Array[String]([])

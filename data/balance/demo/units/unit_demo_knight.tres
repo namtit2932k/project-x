@@ -13,7 +13,7 @@ base_stats = {
 "hp": 34,
 "str": 11,
 "mag": 0,
-"skill": 26,
+"skill": 6,
 "speed": 9,
 "luck": 6,
 "def": 10,
