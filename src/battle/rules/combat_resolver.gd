@@ -28,7 +28,7 @@ static func execute(state: BattleState, attacker: UnitState, defender: UnitState
 		var crit := state.rng().randi_range(1, 100) <= int(entry["crit_pct"])
 		var damage := int(entry["damage"])
 		if crit:
-			damage = _round_value(int(damage * float(DataRegistry.rule("crit_multiplier", 2.5))))
+			damage = _round_value(int(damage * float(DataRegistry.rule("crit_multiplier", 3.0))))
 		damage += state.rng().randi_range(0, int(DataRegistry.rule("damage_flat", 0)))
 		d.take_damage(damage)
 		strikes.append({
@@ -91,7 +91,7 @@ static func _round_damage(value: float) -> int:
 	return _round_value(int(value))
 
 
-## F-CC1/F-CC2/F-CC3 (approved GDD): Hit% = clamp(Accuracy - Avoid, 0, 100). No base-100 term,
+## F-CC1/F-CC2/F-CC3 + F-CC-FE: Hit% = clamp(Accuracy - Avoid, 0, 100), Accuracy includes hit_base (FE weapon Hit stand-in),
 ## no variance spread — a direct subtraction. P-02: bond bonus feeds both sides (accuracy/avoid).
 static func _hit_pct(state: BattleState, a: UnitState, d: UnitState) -> int:
 	var accuracy := _accuracy(state, a)
@@ -105,20 +105,22 @@ static func _accuracy(state: BattleState, a: UnitState) -> float:
 	var weapon: Resource = DataRegistry.get_weapon(a.weapon_id)
 	var weapon_accuracy_mod := int(weapon.weapon_accuracy_mod) if weapon != null else 0
 	var support := BondSystem.stat_bonus(state, a, "hit")
-	return a.skill * skill_mult + a.luck * luck_mult + a.hit_bonus + weapon_accuracy_mod + support
+	# F-CC-FE: hit_base plays the role of Fire Emblem's weapon Hit stat (provisional 70).
+	var hit_base := int(DataRegistry.rule("hit_base", 70))
+	return hit_base + a.skill * skill_mult + a.luck * luck_mult + a.hit_bonus + weapon_accuracy_mod + support
 
 
 static func _avoid(state: BattleState, d: UnitState) -> float:
 	var speed_mult := float(DataRegistry.rule("avoid_speed_mult", 2.0))
-	var luck_mult := float(DataRegistry.rule("avoid_luck_mult", 0.5))
+	var luck_mult := float(DataRegistry.rule("avoid_luck_mult", 1.0))
 	var support := BondSystem.stat_bonus(state, d, "avoid")
 	return d.speed * speed_mult + d.luck * luck_mult + state.terrain_avoid_at(d.pos) + support
 
 
-## F-CC4 (approved GDD): Crit% = clamp(skill*0.5 + weapon_crit_mod - defender.luck*0.5 + bond, 0, 100).
+## F-CC4 + F-CC-FE: Crit% = clamp(skill*0.5 + weapon_crit_mod - defender.luck*1 + bond, 0, 100).
 static func _crit_pct(state: BattleState, a: UnitState, d: UnitState) -> int:
 	var skill_mult := float(DataRegistry.rule("crit_skill_mult", 0.5))
-	var luck_mult := float(DataRegistry.rule("crit_luck_mult", 0.5))
+	var luck_mult := float(DataRegistry.rule("crit_luck_mult", 1.0))
 	var weapon: Resource = DataRegistry.get_weapon(a.weapon_id)
 	var weapon_crit_mod := int(weapon.weapon_crit_mod) if weapon != null else 0
 	var support := BondSystem.stat_bonus(state, a, "crit")

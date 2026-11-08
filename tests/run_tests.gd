@@ -10,6 +10,7 @@ func _ready() -> void:
 	await test_movement()
 	await test_critical_units_down()
 	await test_combat_and_forecast()
+	await test_fe_formula()
 	await test_objectives()
 	await test_rewind()
 	await test_bond_and_reconcile()
@@ -122,9 +123,9 @@ func test_bond_rules_d05() -> void:
 	# crit, damage). Damage grows by the rank bonus and accuracy now benefits too — the old
 	# D05 "never feeds accuracy" expectation was superseded by P-02 (AGENTS.md (censored)).
 	var base_dmg := CombatResolver._damage(state, attacker, foe)
-	# F-CC1/F-CC3: Accuracy=skill*2+hit_bonus, Avoid=foe.speed*2=12 (defaults). Push hit_bonus so
-	# raw Accuracy-Avoid sits mid-range (clear of the 0/100 clamp) and the bond bonus stays visible.
-	attacker.hit_bonus = 52
+	# F-CC-FE: Accuracy = hit_base(70) + skill*2(10) + hit_bonus, Avoid = foe.speed*2 = 12 (defaults).
+	# hit_bonus -18 puts raw Hit at 50, clear of the 0/100 clamp, so the bond bonus stays visible.
+	attacker.hit_bonus = -18
 	var hit_base_no_pair := CombatResolver._hit_pct(state, attacker, foe)
 	var dmg_pair := BondData.new()
 	dmg_pair.id = "test_pair_dmg"
@@ -1214,6 +1215,33 @@ func director_commit_attack(state: BattleState, unit: UnitState, target_id: Stri
 
 func director_commit_ai(state: BattleState, plan: Dictionary) -> void:
 	director_for(state).commit_ai_plan(plan)
+
+
+## F-CC-FE: Fire Emblem tuning — hit_base 70, full Luck in Avoid and crit evade, crit ×3, one roll.
+func test_fe_formula() -> void:
+	await 0.0
+	assert_true(int(DataRegistry.rule("hit_base", 0)) == 70, "FE formula: provisional hit_base is 70")
+	var state: BattleState = _plain_map_enemy_state()
+	var a := _spawn(state, "fe_a", "faction_p", Vector2i(0, 0), false, false, "player")
+	a.skill = 10
+	a.luck = 8
+	var d := _spawn(state, "fe_d", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	d.speed = 9
+	d.luck = 2
+	# Accuracy = 70 + 10*2 + 8*0.5 = 94; Avoid = 9*2 + 2*1 = 20 -> Hit 74.
+	assert_true(CombatResolver._hit_pct(state, a, d) == 74, "FE formula: Hit = 70 + Skill*2 + Luck/2 - (Speed*2 + Luck) (got %d)" % CombatResolver._hit_pct(state, a, d))
+	# Crit = 10*0.5 - 2*1 = 3.
+	assert_true(CombatResolver._crit_pct(state, a, d) == 3, "FE formula: Crit = Skill/2 - defender Luck (got %d)" % CombatResolver._crit_pct(state, a, d))
+	# Crit damage x3: certain hit + certain crit, damage 10 - 3 = 7 -> 21.
+	var b := _spawn(state, "fe_b", "faction_p", Vector2i(0, 2), false, false, "player")
+	b.power = 10
+	b.skill = 60
+	b.crit_bonus = 500
+	var t := _spawn(state, "fe_t", "faction_e", Vector2i(1, 2), false, false, "enemy")
+	t.max_hp = 50
+	t.hp = 50
+	var strikes: Array = CombatResolver.execute(state, b, t)
+	assert_true(bool(strikes[0]["crit"]) and int(strikes[0]["damage"]) == 21, "FE formula: crit damage is x3 (got %d)" % int(strikes[0]["damage"]))
 
 
 func test_combat_and_forecast() -> void:

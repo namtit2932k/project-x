@@ -6,8 +6,9 @@
   `Hit% = clamp(Accuracy − Avoid, 0, 100)` with Accuracy = Skill×2 + Luck×0.5 + weapon
   accuracy mod + bond, Avoid = Speed×2 + Luck×0.5 + terrain + bond; Crit% = Skill×0.5 +
   weapon crit mod − defender Luck×0.5 + bond; Damage = Str/Mag + weapon might − Def/Res +
-  bond; crit ×2.5 (floor); double attack at Speed gap ≥ 4. With the current stat tables
-  hit chances are low (often 5–25%) — a balance question for the designer, not a code bug.
+  bond; double attack at Speed gap ≥ 4. **Fire Emblem tuning (F-CC-FE, designer):** Accuracy
+  also adds `hit_base` = 70 (provisional stand-in for FE weapon Hit), Avoid and crit evade use
+  full Luck, crit damage ×3, one roll (no 2RN). Roster vs roster ≈ 73% hit on average.
 - **EXP (F-EXP):** new `src/battle/systems/exp_system.gd` (`ExpSystem`). F-CC13: a flat
   `exp_per_action` (25) for every Attack/Heal by a player unit, hit or miss, kill or not;
   F-CC14: one level-up loop (100 EXP/level, cap 20, per-class growth table in

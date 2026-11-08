@@ -11,18 +11,22 @@ class_name RulesConfig
 
 @export var damage_flat: int = 0                          # sai số ngẫu nhiên trên damage
 @export var min_damage: int = 0
-## F-CC1…F-CC5 (approved GDD core-combat-system.md, 08-11-2026): Accuracy = skill*accuracy_skill_mult
-## + luck*accuracy_luck_mult + hit_bonus + weapon_accuracy_mod + bond; Avoid = speed*avoid_speed_mult
-## + luck*avoid_luck_mult + terrain_avoid + bond; Hit% = clamp(Accuracy - Avoid, 0, 100) (no base-100 term).
+## F-CC + F-CC-FE (AGENTS.md): Accuracy = hit_base + skill*accuracy_skill_mult + luck*accuracy_luck_mult
+## + hit_bonus + weapon_accuracy_mod + bond; Avoid = speed*avoid_speed_mult + luck*avoid_luck_mult
+## + terrain_avoid + bond; Hit% = clamp(Accuracy - Avoid, 0, 100). One roll, no 2RN.
+## hit_base stands in for Fire Emblem's per-weapon Hit (70–95); 70 is the designer's provisional value.
+@export var hit_base: int = 70
 @export var accuracy_skill_mult: float = 2.0
 @export var accuracy_luck_mult: float = 0.5
 @export var avoid_speed_mult: float = 2.0
-@export var avoid_luck_mult: float = 0.5
-## Crit% = clamp(skill*crit_skill_mult + weapon_crit_mod - defender.luck*crit_luck_mult + bond, 0, 100).
+## Fire Emblem: full Luck in Avoid (GDD had 0.5).
+@export var avoid_luck_mult: float = 1.0
+## Crit% = clamp(skill*crit_skill_mult + weapon_crit_mod + crit_bonus - defender.luck*crit_luck_mult + bond, 0, 100).
 @export var crit_skill_mult: float = 0.5
-@export var crit_luck_mult: float = 0.5
-## CritDamage = floor(Damage * crit_multiplier); GDD fixes this at 2.5 (was 2.0 pre-GDD).
-@export var crit_multiplier: float = 2.5
+## Fire Emblem: crit evade = full Luck (GDD had 0.5).
+@export var crit_luck_mult: float = 1.0
+## CritDamage = floor(Damage * crit_multiplier); Fire Emblem ×3 (GDD had 2.5).
+@export var crit_multiplier: float = 3.0
 
 ## EXP (F-EXP, GDD core-combat Core Rule 12 / F-CC13): a player unit performing an Attack
 ## or a Heal earns this flat amount, hit or miss, kill or not. Nothing else pays EXP.

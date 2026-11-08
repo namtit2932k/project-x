@@ -79,7 +79,7 @@ Track here. Remove an item once the designer confirms it.
 - Story content and the true-ending scene
 - Final bond pair list and S routes (current list is a placeholder incl. two pairs for Swordsman)
 - Casualty *effects* for non-permadeath difficulties ("wounded" is recorded, no other mechanic yet)
-- **R1 — low hit chances under the GDD formula.** The formula itself is settled (F-CC, implemented 08-11-2026 on the user's instruction), but with the current stat and weapon tables `Hit% = Accuracy − Avoid` is usually about 5–25% for the player and near 0% for the ch01 rebels (weapon accuracy mods are only ±15). Needs a designer balance pass/playtest; the GDD itself calls these numbers a first pass. Do not "fix" it in code.
+- **R1 — hit chances.** Addressed provisionally by F-CC-FE (FE-style tuning, `hit_base = 70` temporary). Still open: final `hit_base` or a per-weapon Hit table, weapon triangle, playtest.
 
 ### From the DEMO_PARITY_PLAN (v2) — technical decisions D-A, applied defaults
 
@@ -239,6 +239,19 @@ Supersedes D-B10's formula question (the low hit chances it warned about stay op
 - `rules_config.tres`/`data/balance/demo/rules/rules_config.tres` do not override any of these numeric fields today (only `terrain_defs`), so no `.tres` data edit was needed beyond the `.gd` default change; profile `"demo"` and `"gdd"` now share one correct formula.
 - Existing rule tests that encoded the old formula's implicit "100 base" hit assumption (`test_forecast_matches_execution`) were updated to set enough `skill` for a deterministic 100% hit under the new formula instead of relying on the removed base-100 term.
 
+### F-CC-FE — Fire Emblem tuning of the combat formula (designer decision 08-11-2026, overrides parts of F-CC)
+
+The GDD formula gave ~9% average hit (R1). Designer: "follow Fire Emblem, no 2RN, hit base 70 for now". Changes on top of F-CC (all numbers in `rules_config`):
+
+- **Accuracy** `= hit_base (70, provisional) + skill*2 + luck*0.5 + hit_bonus + weapon_accuracy_mod + bond`. `hit_base` stands in for FE's per-weapon Hit stat (70–95); weapon mods stay ±15 for now. Moving to a per-weapon Hit table later = set `hit_base` to 0 and author weapon Hit values.
+- **Avoid** `= speed*2 + luck*1 + terrain + bond` (FE uses full Luck; was ×0.5).
+- **Crit%** `= skill*0.5 + weapon_crit_mod + crit_bonus − defender.luck*1 + bond` (FE crit evade = full Luck; was ×0.5).
+- **CritDamage** `= floor(Damage * 3)` (FE ×3; was ×2.5).
+- **No 2RN:** one roll against the displayed Hit%, so the shown number is the true chance (keeps GDD Pillar 2).
+- Unchanged from F-CC: Hit% clamp 0–100, Damage = Str/Mag + might − Def/Res + bond, double attack at Speed gap ≥ 4.
+- **Still open:** weapon triangle (FE: ±15 Hit, ±1 damage, sword > axe > lance > sword) needs a weapon-type tag per weapon — waiting on the designer; FE's Attack Speed (weight vs Con) not adopted; demo-layer enemies (raider/guard, Skill 23) use a different stat scale and now hit almost always.
+- Result with current data: roster vs roster 73% average on plain (41–100%), 61% in forest +12; roster → ch01 rebels 88%; rebels → roster 54%.
+
 ### F-EXP — EXP & level-up from the GDD (08-11-2026, `core-combat-system.md` Core Rule 12 / F-CC13 / F-CC14 / AC-CC78–84 + `dual-restraint-scoring.md` Edge Cases)
 
 Supersedes **D08** and **P-04** outright. D06/P-09 stay as they were (see "No defeat, only game over" below). Source: Core Combat is still "In Review" in the GDD index, but the user asked to follow it for EXP; the defeat rule comes from Dual Restraint Scoring, which is Approved.
@@ -291,6 +304,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (4) — Claude (Opus) — done: designer chose Fire Emblem tuning (new §7b **F-CC-FE**): `hit_base = 70` (provisional) added to Accuracy, Luck ×1 in Avoid and crit evade, crit damage ×3, single roll (no 2RN). R1 marked provisionally addressed. New `test_fe_formula` locks the numbers; bond accuracy test re-tuned (hit_bonus −18). Hit rates now: roster vs roster 73% avg (41–100), rebels → roster 54%. Verified: validation 0/0, run_tests **217/217**, smoke_full_battle 21/21 (×8), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: designer input on weapon triangle (needs a weapon-type tag per weapon), final hit_base vs per-weapon Hit table, demo-layer enemy stat scale (Skill 23); Game Over flow; rest of the GDD backlog. — issues: not pushed (cached account `kame-gamedesign` has no write access).
 
 - 2026-11-08 (3) — Claude (Opus) — done: applied three designer answers to F-EXP: (1) no defeat, only game over → `action_exp_commits_on_defeat = false` by default (a lost battle keeps nothing, EXP included; D06/P-09 back to unchanged; code fallbacks flipped to false); (2) a unit that dies earns no EXP (confirmed, new test); (3) a full-HP ally cannot be healed (confirmed, overrides GDD AC-CC78; new test). Fixed a flaky `smoke_full_battle` "spared" scenario (random seed; the commander could die to counters under the new hit chances, ~1 run in 7) by giving the commander +500 HP in that scenario — 10/10 runs pass after. Verified: validation 0/0, run_tests **213/213**, smoke_full_battle 21/21 (×10), smoke_test_maps 10/10, negative 25/25. Gave the user rebalancing options for R1 (base hit constant / lower Speed weight in Avoid) — proposal only, nothing changed in formulas or data. — in progress: none. — next: designer picks an R1 option, then write it into F-CC and rules_config; Game Over flow to replace "Retry chapter" (UI decision needed); rest of the GDD backlog. — issues: not pushed (cached account `kame-gamedesign` has no write access).
 
