@@ -54,7 +54,6 @@ class_name RulesConfig
 ## F-AFTER: placeholder aftermath scenes when neither the faction, the map nor the chapter has one.
 @export var aftermath_dialogue_ids: Dictionary = {
 	"victory": "dlg_aftermath_victory", "persuaded": "dlg_aftermath_persuaded", "engaged": "dlg_aftermath_engaged",
-	"loss_fallen": "dlg_aftermath_loss_fallen", "loss_clean": "dlg_aftermath_loss_clean",
 }
 
 ## ------------------------------------------------------------ class passives (F-PAS)

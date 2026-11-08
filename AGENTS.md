@@ -371,10 +371,10 @@ Supersedes the permadeath part of D06 and of `casualty_by_difficulty`.
 Right after a battle ends (before the results / Game Over screen), `Aftermath.scenes()` (`src/core/aftermath.gd`) picks the scenes and `Main` plays them one after the other (each finishes before the next):
 
 - **6a severance scenes:** none can happen now — permadeath is gone (F-CAS) and the checkpoint-driven voluntary bond end is not built (needs story data).
-- **6b loss:** a player unit fell (`zero_ally_deaths` false) → the death loss scene, else the "clean defeat" scene. Then the Game Over screen.
+- **6b loss: dropped by the designer (08-11-2026, "no narrative on a loss")** — a lost battle goes straight to the Game Over screen; the GDD's death-loss / clean-defeat scenes are not played (their placeholder dialogues were removed).
 - **6c victory with a holdout faction engaged:** Persuaded → that faction's persuasion scene; still Engaged → its "pressure continues" beat, chosen per faction **and per encounter** by `GameState.pressure_continues_count[faction]` (saved, +1 after each such beat, victory merge only). Unpersuadable never reaches this point: it is the bad ending (F-BAD).
 - **6d plain victory:** the standard victory scene.
-- **Content lookup, first found wins:** faction data (`FactionData.persuaded_dialogue_id`, `FactionData.engaged_dialogue_ids[count]`, last one reused when the list runs out) → the map's `aftermath_lines` (`Persuaded` / `Engaged` / `Victory` / `LostFallen` / `LostClean` / `Lost`, played as a narrator scene) → for 6d the chapter's `post_dialogue_id` → `rules_config.aftermath_dialogue_ids` placeholder scenes (writer content pending). On a victory the chapter's `post_dialogue_id` story scene also plays after a 6c scene.
+- **Content lookup, first found wins:** faction data (`FactionData.persuaded_dialogue_id`, `FactionData.engaged_dialogue_ids[count]`, last one reused when the list runs out) → the map's `aftermath_lines` (`Persuaded` / `Engaged` / `Victory` / played as a narrator scene; the demo maps' `Lost` lines are unused since losses have no scene) → for 6d the chapter's `post_dialogue_id` → `rules_config.aftermath_dialogue_ids` placeholder scenes (writer content pending). On a victory the chapter's `post_dialogue_id` story scene also plays after a 6c scene.
 
 ### F-AUTOSAVE — Autosave after the aftermath (08-11-2026, user request "D4"; `save-progression-system.md` Core Rules 1-2, `narrative-bond-scene-system.md` Core Rule 1)
 
@@ -517,6 +517,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (35) — Claude (Opus) — done: designer dropped the loss narrative (F-AFTER 6b): `Aftermath.scenes()` returns nothing on a loss, so a lost battle goes straight to Game Over; removed the two loss placeholder dialogues (created earlier today) and their `aftermath_dialogue_ids` / validator keys; tests updated. Verified: validation 0/0, run_tests **546/546**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: C clean-up (test runner timeout); content waits for the designer. — issues: not pushed (no repo access).
 
 - 2026-11-08 (34) — Claude (Opus) — done: camp roster menu (new §7b **F-ROSTER**, GDD Roster Progression Menu Rules 1-3, AC-RPM1/8/11/12). Roster panel rows = active units only (name, class, level, EXP n/100, items), resting units on a "Resting this map" line, "No active units" when empty; clicking a row opens a read-only Unit Detail (level, EXP bar + n/100, next-battle stats, items, bond ranks). Also: the camp bond panel now lists only pairs of the current roster (the demo camp was listing the legacy pairs). New `test_camp_roster_menu`; screenshots checked. Verified: validation 0/0, run_tests **548/548**, smoke_full_battle 21/21 (×2), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: list D done (D3/D5 wait for story content); C clean-up (test runner timeout); push when access is granted. — issues: not pushed (no repo access).
 

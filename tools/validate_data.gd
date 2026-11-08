@@ -168,7 +168,7 @@ func check_rules() -> void:
 			_err("rules: enemy_bonus_levels '%s' < 0" % difficulty)
 	# F-AFTER: the placeholder aftermath scenes exist.
 	var aftermath: Dictionary = DataRegistry.rule("aftermath_dialogue_ids", {})
-	for key in ["victory", "persuaded", "engaged", "loss_fallen", "loss_clean"]:
+	for key in ["victory", "persuaded", "engaged"]:
 		if DataRegistry.get_dialogue(String(aftermath.get(key, ""))) == null:
 			_err("rules: aftermath_dialogue_ids '%s' names no dialogue" % key)
 	# F-EXP: EXP/level numbers must keep the level-up loop meaningful; caps use GDD stat keys.

@@ -319,10 +319,7 @@ func test_game_over_screen() -> void:
 	ResultStore.last_result = {"status": "lose", "reason": "critical_unit_down", "unit_id": "unit_swordsman"}
 	main._show_post_battle(false)
 	await get_tree().process_frame
-	# F-AFTER: the clean-defeat scene plays first, then the Game Over screen.
-	assert_true(main._current is DialoguePlayer, "game over: the aftermath scene plays before the Game Over screen")
-	(main._current as DialoguePlayer).finished.emit(true)
-	await get_tree().process_frame
+	# Designer: no aftermath scene on a loss - straight to the Game Over screen.
 	var over: GameOverScene = main._current as GameOverScene
 	assert_true(over != null, "game over: a defeat opens the Game Over screen")
 	assert_true(over != null and _find_button(over, "Retry chapter") != null and _find_button(over, "Main menu") != null, "game over: Retry chapter and Main menu offered")
@@ -2668,12 +2665,8 @@ func test_aftermath_scenes() -> void:
 	# 6d plain victory: no chapter post scene, no map "Victory" lines -> generic victory.
 	var s := Aftermath.scenes({"status": "win"}, chapters[0], map1)
 	assert_true(s.size() == 1 and String(s[0].id) == String(gen["victory"]), "aftermath: a plain victory plays the victory scene")
-	# 6b losses: fallen vs clean; demo_01 has "Lost" lines on the map, legacy-style maps use the generic scenes.
-	var fallen := Aftermath.scenes({"status": "lose", "restraint": {"zero_ally_deaths": false}}, chapters[0], map1)
-	assert_true(fallen.size() == 1 and not fallen[0].lines.is_empty(), "aftermath: a loss with a fallen ally plays one loss scene")
-	var clean_generic := Aftermath.scenes({"status": "lose", "restraint": {"zero_ally_deaths": true}}, null, null)
-	var fallen_generic := Aftermath.scenes({"status": "lose", "restraint": {"zero_ally_deaths": false}}, null, null)
-	assert_true(String(clean_generic[0].id) == String(gen["loss_clean"]) and String(fallen_generic[0].id) == String(gen["loss_fallen"]), "aftermath: clean defeat and fallen-ally defeat are different scenes")
+	# 6b dropped by the designer: no scene on a loss, with or without a fallen ally, even with map "Lost" lines.
+	assert_true(Aftermath.scenes({"status": "lose", "restraint": {"zero_ally_deaths": false}}, chapters[0], map1).is_empty() and Aftermath.scenes({"status": "lose", "restraint": {"zero_ally_deaths": true}}, null, null).is_empty(), "aftermath: a loss plays no scene (designer)")
 	# 6c: demo_03 river guard persuaded -> the map's "Persuaded" lines; engaged -> "Engaged".
 	var persuaded := Aftermath.scenes({"status": "win", "reconcile": {"faction_river_guard": {"persuaded": true}}}, chapters[2], map3)
 	assert_true(persuaded.size() >= 1 and String(persuaded[0].lines[0]["text"]) == String(map3.aftermath_lines["Persuaded"][0]), "aftermath: a persuaded faction plays its persuasion scene (map lines)")
@@ -2739,11 +2732,9 @@ func test_autosave_after_aftermath() -> void:
 	add_child(main)
 	await get_tree().process_frame
 	main._battle_director = d
-	# Defeat: aftermath, Game Over, no save.
+	# Defeat: straight to Game Over, no save.
 	ResultStore.last_result = {"status": "lose", "restraint": {"zero_ally_deaths": true}}
 	main._show_post_battle(false)
-	await get_tree().process_frame
-	(main._current as DialoguePlayer).finished.emit(true)
 	await get_tree().process_frame
 	assert_true(main._current is GameOverScene and not SaveService.has_save(), "autosave: a defeat does not save")
 	# Victory: nothing is written while the aftermath scene is still playing...

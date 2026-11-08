@@ -12,10 +12,8 @@ static func scenes(result: Dictionary, chapter: Resource, map: Resource) -> Arra
 	if won and not Array(result.get("bad_ending_factions", [])).is_empty():
 		return out
 	# 6a severance: impossible without permadeath (F-CAS); nothing to queue.
+	# 6b loss: dropped by the designer - a lost battle goes straight to Game Over.
 	if not won:
-		var fallen := not bool(result.get("restraint", {}).get("zero_ally_deaths", true))
-		var keys: Array = ["LostFallen", "Lost"] if fallen else ["LostClean", "Lost"]
-		_append(out, _from_map(map, keys), "loss_fallen" if fallen else "loss_clean")
 		return out
 	var reconcile: Dictionary = result.get("reconcile", {})
 	if reconcile.is_empty():
