@@ -32,3 +32,4 @@ growths = {
 "def": 55,
 "res": 25
 }
+passive_id = "iron_retaliation"

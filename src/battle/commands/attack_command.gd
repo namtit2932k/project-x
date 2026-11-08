@@ -10,9 +10,11 @@ static func check(state: BattleState, unit: UnitState, target_id: String) -> Str
 		return "No valid target."
 	if target.side == unit.side:
 		return "Cannot attack an ally."
+	if not unit.can_attack:
+		return "This unit cannot attack."
 	# Attack must be done from inside the weapon range measured at the CURRENT position.
 	var dist := RangeHandler.manhattan(unit.pos, target.pos)
-	if dist < unit.attack_range_min or dist > unit.attack_range_max:
+	if dist < unit.attack_range_min or dist > unit.attack_max():
 		return "Target out of weapon range."
 	# Retrieve objective: while carrying, the unit may only move (no attack/skill).
 	if _is_move_only(state, unit):

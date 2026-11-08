@@ -32,3 +32,4 @@ growths = {
 "def": 15,
 "res": 15
 }
+passive_id = "silent_assassination"

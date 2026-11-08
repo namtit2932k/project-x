@@ -32,3 +32,4 @@ growths = {
 "def": 20,
 "res": 25
 }
+passive_id = "cover_piercing_shot"

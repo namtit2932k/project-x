@@ -17,6 +17,10 @@ var profile_active: bool = false
 const OLD_UNIT_STAT_KEYS := ["hp", "atk", "def", "res", "skl", "spd", "mov", "crit", "hit"]
 const GDD_UNIT_STAT_KEYS := ["hp", "str", "mag", "skill", "speed", "luck", "def", "res", "move", "base_vision"]
 ## Stats a level-up can raise (F-EXP): the 8 GDD growth stats plus the legacy aliases.
+## F-PAS: effect types PassiveSystem implements (GDD Core Rule 11b).
+const PASSIVE_EFFECT_TYPES := ["debuff_target_stat", "burst_damage", "thorns_damage", "lifesteal", "force_double",
+		"ignore_defender_terrain", "survive_once", "flat_self_heal", "grant_target_exp", "adjacency_aura_avoid",
+		"extended_range", "suppress_retaliation"]
 const GROWTH_STAT_KEYS := ["hp", "str", "mag", "skill", "speed", "luck", "def", "res", "atk", "skl", "spd"]
 const OBJECTIVE_TYPES := ["eliminate", "escort", "escort_turns", "defend", "retrieve", "capture", "evacuate"]
 const EVENT_TRIGGERS := ["enter_zone", "leave_zone", "pickup", "unit_dead", "turn_start", "turn_end", "talk", "faction_change"]
@@ -164,6 +168,12 @@ func check_rules() -> void:
 	for stat_key in stat_caps:
 		if str(stat_key) not in GROWTH_STAT_KEYS:
 			_err("rules: stat_caps unknown stat '%s'" % str(stat_key))
+	# F-PAS: every catalog entry names an effect type the code implements.
+	var catalog: Dictionary = DataRegistry.rule("passive_catalog", {})
+	for passive_id in catalog:
+		var effect := String((catalog[passive_id] as Dictionary).get("effect_type", ""))
+		if effect not in PASSIVE_EFFECT_TYPES:
+			_err("rules: passive '%s' has unknown effect_type '%s'" % [passive_id, effect])
 	# Bond bonus constraint from the deck: total adjacent bonus caps at +16.
 	var bonuses: Dictionary = DataRegistry.rule("bond_bonus_by_rank", {})
 	var cap := int(DataRegistry.rule("max_adjacent_bond_bonus", 16))
@@ -192,6 +202,9 @@ func check_classes() -> void:
 		for skill_id in c.skill_ids:
 			if DataRegistry.get_data("skills", String(skill_id)) == null:
 				_err("class %s: unknown skill %s" % [id, skill_id])
+		# F-PAS: the class passive must exist in rules_config.passive_catalog.
+		if String(c.passive_id) != "" and not (DataRegistry.rule("passive_catalog", {}) as Dictionary).has(String(c.passive_id)):
+			_err("class %s: unknown passive_id '%s'" % [id, c.passive_id])
 		# F-EXP: class growth table (GDD Authored Growth Rate Table) — known stats, 0–100%.
 		for key in c.growths:
 			if str(key) not in GROWTH_STAT_KEYS:

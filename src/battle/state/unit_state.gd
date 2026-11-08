@@ -54,6 +54,17 @@ var growths: Dictionary = {}
 ## campaign total (replayed into the live stats by from_data); CampaignMerge adds this delta.
 var stat_bonus: Dictionary = {}
 
+## F-PAS: class passive (key of rules_config.passive_catalog) and whether the unit may Attack
+## or counterattack at all (false for the GDD Bard and for Heal/None weapons).
+var passive_id: String = ""
+var can_attack: bool = true
+## F-CC11 debuffs on this unit: {field: {"amount": int, "turns_remaining": int}}, field names
+## as in stat() ("defense"...). Read through eff(); counted down per own Ready->Acted.
+var active_debuffs: Dictionary = {}
+## survive_once used this battle (Wyvern Knight) and the Magician's phase-start burst flag.
+var miracle_used: bool = false
+var fragile_circle_ready: bool = false
+
 var alive: bool = true
 var acted: bool = false                  # used its action this phase
 var moved: bool = false                  # already moved this phase — one move per unit per phase (FE rule)
@@ -117,6 +128,11 @@ static func from_data(unit_res: Resource, cell: Vector2i, level_override: int = 
 	u.attack_range_max = c.attack_range_max
 	u.move_type = String(c.move_type)
 	u.damage_type = String(c.damage_type)
+	u.passive_id = String(c.passive_id)
+	# GDD: Bard-like classes never attack; a Heal/None weapon cannot attack either. No weapon
+	# record (legacy enemy classes) keeps the old behaviour: attacks with its stats.
+	var weapon: Resource = DataRegistry.get_weapon(u.weapon_id) if u.weapon_id != "" else null
+	u.can_attack = bool(c.can_attack) and (weapon == null or weapon.can_attack())
 	for skill_id in c.skill_ids:
 		if skill_id not in u.skill_ids:
 			u.skill_ids.append(String(skill_id))
@@ -197,6 +213,21 @@ func stat(id: String) -> int:
 	return 0
 
 
+## Effective value of a combat stat (F-CC11): stat() minus an active debuff on it.
+func eff(field: String) -> int:
+	var value := stat(field)
+	if active_debuffs.has(field):
+		var entry: Dictionary = active_debuffs[field]
+		if int(entry.get("turns_remaining", 0)) > 0:
+			value -= int(entry.get("amount", 0))
+	return value
+
+
+## Max weapon range right now: catalog value plus extended_range when its condition holds.
+func attack_max() -> int:
+	return attack_range_max + PassiveSystem.extra_range(self)
+
+
 func take_damage(amount: int) -> void:
 	hp = clampi(hp - amount, 0, max_hp)
 	if hp == 0:
@@ -218,6 +249,9 @@ func to_dict() -> Dictionary:
 		# F-EXP: live combat stats too, so rewinding past a level-up undoes its stat gains.
 		"power": power, "magic": magic, "defense": defense, "resistance": resistance,
 		"skill": skill, "speed": speed, "luck": luck,
+		# F-PAS battle-scoped passive state (rewind restores it).
+		"active_debuffs": active_debuffs.duplicate(true), "miracle_used": miracle_used,
+		"fragile_circle_ready": fragile_circle_ready,
 	}
 
 
@@ -237,6 +271,9 @@ func from_dict(d: Dictionary) -> void:
 	skill = int(d.get("skill", skill))
 	speed = int(d.get("speed", speed))
 	luck = int(d.get("luck", luck))
+	active_debuffs = (d.get("active_debuffs", {}) as Dictionary).duplicate(true)
+	miracle_used = bool(d.get("miracle_used", miracle_used))
+	fragile_circle_ready = bool(d.get("fragile_circle_ready", fragile_circle_ready))
 	max_hp = int(d.get("max_hp", max_hp))
 	hp = int(d.get("hp", hp))
 	alive = bool(d.get("alive", alive))

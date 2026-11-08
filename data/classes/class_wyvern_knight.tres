@@ -32,3 +32,4 @@ growths = {
 "def": 40,
 "res": 25
 }
+passive_id = "survival_instinct"

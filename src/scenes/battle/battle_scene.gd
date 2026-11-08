@@ -273,7 +273,8 @@ func _show_action_menu(unit: UnitState) -> void:
 		var skill := DataRegistry.get_data("skills", skill_id)
 		if skill == null or _find_skill_target(unit, skill) == null:
 			continue
-		var sk := UIBuilder.button(_action_menu, "skill: " + skill_id, 16)
+		var label := String(skill.display_name) if String(skill.display_name) != "" else skill_id
+		var sk := UIBuilder.button(_action_menu, "skill: " + label, 16)
 		sk.pressed.connect(func() -> void: _use_skill(skill_id))
 	if _action_menu.get_child_count() == 0:
 		return
@@ -322,7 +323,11 @@ func _use_skill(skill_id: String) -> void:
 		return
 	mode = Mode.BUSY
 	director.commit("skill", {"unit_id": _selected().id, "skill_id": skill_id, "target_id": target.id})
-	_last_strikes = [{"side": "skill", "attacker_id": _selected().id, "target_id": target.id, "hit": true, "crit": false, "damage": -int(skill.power), "target_hp_after": target.hp, "slain": ""}]
+	# Only a heal has a number to show on the combat screen; Encore just refreshes the ally.
+	if String(skill.effect_type) == "heal":
+		_last_strikes = [{"side": "skill", "attacker_id": _selected().id, "target_id": target.id, "hit": true, "crit": false, "damage": -int(skill.power), "target_hp_after": target.hp, "slain": ""}]
+	else:
+		_last_strikes = []
 	_finish_action()
 
 
@@ -338,6 +343,11 @@ func _find_skill_target(unit: UnitState, skill: Resource) -> UnitState:
 				continue
 			if best == null or (best.max_hp - best.hp) < (u.max_hp - u.hp):
 				best = u
+	elif String(skill.effect_type) == "encore":
+		# F-PAS Bard Encore: first adjacent ally the command itself accepts (auto-pick, like heal).
+		for u in director.state.alive_units():
+			if SkillCommand.check(director.state, unit, String(skill.id), u) == "":
+				return u
 	return best
 
 

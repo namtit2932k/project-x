@@ -11,6 +11,8 @@ func _ready() -> void:
 	await test_critical_units_down()
 	await test_combat_and_forecast()
 	await test_fe_formula()
+	await test_class_passives()
+	await test_bard_encore()
 	await test_objectives()
 	await test_rewind()
 	await test_bond_and_reconcile()
@@ -1243,6 +1245,208 @@ func director_commit_attack(state: BattleState, unit: UnitState, target_id: Stri
 
 func director_commit_ai(state: BattleState, plan: Dictionary) -> void:
 	director_for(state).commit_ai_plan(plan)
+
+
+## F-PAS: the 12 class passives from the GDD catalog, each at its trigger point.
+func test_class_passives() -> void:
+	await 0.0
+	# Swordsman disarming_strike: a landed hit puts Def -3 on the target for 2 of its turns.
+	var s1: BattleState = _plain_map_enemy_state()
+	var sword := _spawn(s1, "sword", "faction_p", Vector2i(0, 0), false, false, "player")
+	sword.passive_id = "disarming_strike"
+	sword.skill = 60
+	sword.crit_bonus = -500
+	var dummy := _spawn(s1, "dummy", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	dummy.can_attack = false
+	CombatResolver.execute(s1, sword, dummy)
+	assert_true(dummy.active_debuffs.has("defense") and int(dummy.active_debuffs["defense"]["amount"]) == 3 and int(dummy.active_debuffs["defense"]["turns_remaining"]) == 2, "passive swordsman: Def -3 for 2 turns on hit")
+	assert_true(dummy.eff("defense") == dummy.defense - 3, "passive swordsman: formulas read the debuffed Def")
+	PassiveSystem.on_unit_acted(dummy)
+	assert_true(dummy.active_debuffs.has("defense"), "passive swordsman: 1 turn left after the target's first action")
+	PassiveSystem.on_unit_acted(dummy)
+	assert_true(not dummy.active_debuffs.has("defense"), "passive swordsman: debuff gone after 2 of the target's turns")
+
+	# Knight iron_retaliation: healthy and survives -> 4 damage back; under 50% HP -> nothing.
+	var s2: BattleState = _plain_map_enemy_state()
+	var striker := _spawn(s2, "striker", "faction_p", Vector2i(0, 0), false, false, "player")
+	striker.hit_bonus = -999
+	var knight := _spawn(s2, "knight", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	knight.passive_id = "iron_retaliation"
+	knight.can_attack = false
+	var strikes: Array = CombatResolver.execute(s2, striker, knight)
+	assert_true(striker.hp == 16 and String(strikes[-1].get("effect", "")) == "thorns", "passive knight: 4 thorns damage to the attacker")
+	knight.hp = 9
+	CombatResolver.execute(s2, striker, knight)
+	assert_true(striker.hp == 16, "passive knight: no thorns below 50%% HP")
+
+	# Lumberjack battle_bloodlust: heal floor(damage * 0.3) on a landed hit.
+	var s3: BattleState = _plain_map_enemy_state()
+	var jack := _spawn(s3, "jack", "faction_p", Vector2i(0, 0), false, false, "player")
+	jack.passive_id = "battle_bloodlust"
+	jack.skill = 60
+	jack.crit_bonus = -500
+	jack.power = 20
+	jack.hp = 10
+	var log := _spawn(s3, "log", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	log.can_attack = false
+	log.max_hp = 50
+	log.hp = 50
+	CombatResolver.execute(s3, jack, log)
+	assert_true(jack.hp == 15, "passive lumberjack: 17 damage heals 5 (hp %d)" % jack.hp)
+
+	# Lancer twin_lance_strike: equal Speed still strikes twice.
+	var s4: BattleState = _plain_map_enemy_state()
+	var lance := _spawn(s4, "lance", "faction_p", Vector2i(0, 0), false, false, "player")
+	var foe4 := _spawn(s4, "foe4", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	assert_true(_attacker_strikes(CombatResolver.forecast(s4, lance, foe4)) == 1, "passive lancer: setup, equal Speed normally strikes once")
+	lance.passive_id = "twin_lance_strike"
+	assert_true(_attacker_strikes(CombatResolver.forecast(s4, lance, foe4)) == 2, "passive lancer: force_double strikes twice")
+
+	# Gunner cover_piercing_shot: from exactly max range the defender's forest Avoid is ignored.
+	var s5: BattleState = _plain_map_enemy_state()
+	var gunner := _spawn(s5, "gunner", "faction_p", Vector2i(2, 0), false, false, "player")
+	gunner.attack_range_max = 2
+	var hidden := _spawn(s5, "hidden", "faction_e", Vector2i(2, 2), false, false, "enemy")   # forest tile
+	var hit_plain := CombatResolver._hit_pct(s5, gunner, hidden)
+	gunner.passive_id = "cover_piercing_shot"
+	var hit_pierce := CombatResolver._hit_pct(s5, gunner, hidden)
+	assert_true(hit_pierce - hit_plain == s5.terrain_avoid_at(hidden.pos) and hit_pierce > hit_plain, "passive gunner: forest Avoid ignored at max range (%d -> %d)" % [hit_plain, hit_pierce])
+	gunner.pos = Vector2i(2, 1)
+	assert_true(not PassiveSystem.ignores_terrain(gunner, hidden) and CombatResolver._hit_pct(s5, gunner, hidden) == hit_plain, "passive gunner: an adjacent shot keeps the defender's terrain Avoid")
+
+	# Wyvern Knight survival_instinct: first lethal hit leaves 1 HP, the second one kills.
+	var s6: BattleState = _plain_map_enemy_state()
+	var slayer := _spawn(s6, "slayer", "faction_p", Vector2i(0, 0), false, false, "player")
+	slayer.skill = 60
+	slayer.power = 50
+	slayer.crit_bonus = -500
+	var wyvern := _spawn(s6, "wyvern", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	wyvern.passive_id = "survival_instinct"
+	wyvern.can_attack = false
+	CombatResolver.execute(s6, slayer, wyvern)
+	assert_true(wyvern.alive and wyvern.hp == 1 and wyvern.miracle_used, "passive wyvern: survives the first lethal hit at 1 HP")
+	CombatResolver.execute(s6, slayer, wyvern)
+	assert_true(not wyvern.alive, "passive wyvern: only once per battle")
+
+	# Beastwoman feral_regeneration: +5 HP after its own Attack, hit or miss.
+	var s7: BattleState = _plain_map_enemy_state()
+	var beast := _spawn(s7, "beast", "faction_p", Vector2i(0, 0), false, false, "player")
+	beast.passive_id = "feral_regeneration"
+	beast.hit_bonus = -999
+	beast.hp = 10
+	var prey := _spawn(s7, "prey", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	prey.can_attack = false
+	CombatResolver.execute(s7, beast, prey)
+	assert_true(beast.hp == 15, "passive beastwoman: heals 5 after attacking (hp %d)" % beast.hp)
+
+	# Magician fragile_magic_circle: full HP at phase start -> +5 on the first strike only.
+	var s8: BattleState = _plain_map_enemy_state()
+	var mage := _spawn(s8, "mage", "faction_p", Vector2i(0, 0), false, false, "player")
+	mage.passive_id = "fragile_magic_circle"
+	mage.speed = 20
+	var target8 := _spawn(s8, "target8", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	target8.can_attack = false
+	PassiveSystem.on_phase_started(s8, "player")
+	var plan8: Dictionary = CombatResolver.forecast(s8, mage, target8)
+	assert_true(mage.fragile_circle_ready and int(plan8["sequence"][0]["damage"]) == int(plan8["sequence"][1]["damage"]) + 5, "passive magician: +5 on the first strike only (forecast shows it)")
+	CombatResolver.execute(s8, mage, target8)
+	assert_true(not mage.fragile_circle_ready, "passive magician: flag spent by the Attack")
+	mage.hp = 10
+	PassiveSystem.on_phase_started(s8, "player")
+	assert_true(not mage.fragile_circle_ready, "passive magician: no burst when the phase starts below full HP")
+
+	# Bard inspiring_melody: +3 Avoid to each adjacent ally, bond not needed.
+	var s9: BattleState = _plain_map_enemy_state()
+	var bard := _spawn(s9, "bard", "faction_p", Vector2i(0, 0), false, false, "player")
+	bard.passive_id = "inspiring_melody"
+	var buddy := _spawn(s9, "buddy", "faction_p", Vector2i(1, 0), false, false, "player")
+	var foe9 := _spawn(s9, "foe9", "faction_e", Vector2i(2, 0), false, false, "enemy")
+	var avoid_near := CombatResolver._avoid(s9, foe9, buddy)
+	bard.pos = Vector2i(0, 4)
+	assert_true(avoid_near - CombatResolver._avoid(s9, foe9, buddy) == 3, "passive bard: adjacent ally gets +3 Avoid")
+
+	# Healer devoted_mentor: healing another ally gives that ally +10 EXP.
+	var s10: BattleState = _plain_map_enemy_state()
+	var mentor := _spawn(s10, "mentor", "faction_p", Vector2i(0, 0), false, false, "player")
+	mentor.passive_id = "devoted_mentor"
+	var pupil := _spawn(s10, "pupil", "faction_p", Vector2i(1, 0), false, false, "player")
+	pupil.hp = 5
+	SkillCommand.apply(s10, mentor, "skill_heal", pupil)
+	assert_true(int(pupil.exp) == 10 and int(mentor.exp) == int(DataRegistry.rule("exp_per_action", 25)), "passive healer: healed ally +10 EXP, healer its own 25")
+
+	# Magic Swordsman extended_reach: +1 max range at >= 75% HP.
+	var s11: BattleState = _plain_map_enemy_state()
+	var reach := _spawn(s11, "reach", "faction_p", Vector2i(0, 0), false, false, "player")
+	reach.passive_id = "extended_reach"
+	_spawn(s11, "far2", "faction_e", Vector2i(2, 0), false, false, "enemy")
+	assert_true(reach.attack_max() == 2 and RangeHandler.compute_targets_from_position(s11, reach).has("far2"), "passive magic swordsman: range 2 at full HP")
+	reach.hp = 14
+	assert_true(reach.attack_max() == 1 and not RangeHandler.compute_targets_from_position(s11, reach).has("far2"), "passive magic swordsman: back to range 1 below 75%% HP")
+
+	# Assassin silent_assassination: no counter from a target that has not acted yet.
+	var s12: BattleState = _plain_map_enemy_state()
+	var shade := _spawn(s12, "shade", "faction_p", Vector2i(0, 0), false, false, "player")
+	shade.passive_id = "silent_assassination"
+	var mark := _spawn(s12, "mark", "faction_e", Vector2i(1, 0), false, false, "enemy")
+	assert_true(not bool(CombatResolver.forecast(s12, shade, mark)["can_counter"]), "passive assassin: Ready target cannot counter")
+	mark.acted = true
+	assert_true(bool(CombatResolver.forecast(s12, shade, mark)["can_counter"]), "passive assassin: a target that already acted counters normally")
+
+	# Rewind carries the passive state.
+	var snap := s6.to_dict()
+	wyvern.miracle_used = false
+	dummy.active_debuffs = {"defense": {"amount": 3, "turns_remaining": 2}}
+	var snap1 := s1.to_dict()
+	dummy.active_debuffs = {}
+	s1.from_dict(snap1)
+	s6.from_dict(snap)
+	assert_true(wyvern.miracle_used and dummy.active_debuffs.has("defense"), "passive rewind: debuffs and the once-per-battle flag are restored")
+
+
+## F-PAS: Bard has no weapon and no Attack/counter; Diễn Tấu (Encore) refreshes an adjacent ally
+## that already acted. Healer cannot Attack either (Heal weapon).
+func test_bard_encore() -> void:
+	await 0.0
+	var bard_unit := UnitState.from_data(DataRegistry.get_unit("unit_bard"), Vector2i(0, 0))
+	assert_true(bard_unit.weapon_id == "" and not bard_unit.can_attack and bard_unit.passive_id == "inspiring_melody" and bard_unit.skill_ids.has("skill_encore"), "bard data: no weapon, cannot attack, aura passive, Encore skill")
+	assert_true(not UnitState.from_data(DataRegistry.get_unit("unit_healer"), Vector2i(0, 0)).can_attack, "healer data: a Heal weapon cannot attack")
+	var sword_unit := UnitState.from_data(DataRegistry.get_unit("unit_swordsman"), Vector2i(0, 0))
+	assert_true(sword_unit.can_attack and sword_unit.passive_id == "disarming_strike", "swordsman data: attacks, carries disarming_strike")
+	var state: BattleState = _plain_map_enemy_state()
+	var bard := _spawn(state, "bard", "faction_p", Vector2i(2, 2), false, false, "player")
+	bard.can_attack = false
+	bard.passive_id = "inspiring_melody"
+	bard.skill_ids.append("skill_encore")
+	var tired := _spawn(state, "tired", "faction_p", Vector2i(3, 2), false, false, "player")
+	tired.acted = true
+	tired.moved = true
+	var fresh := _spawn(state, "fresh", "faction_p", Vector2i(1, 2), false, false, "player")
+	var bard2 := _spawn(state, "bard2", "faction_p", Vector2i(2, 1), false, false, "player")
+	bard2.skill_ids.append("skill_encore")
+	bard2.acted = true
+	var foe := _spawn(state, "foe", "faction_e", Vector2i(2, 3), false, false, "enemy")
+	assert_true(RangeHandler.compute_targets_from_position(state, bard).is_empty(), "bard: threatens nothing")
+	assert_true(AttackCommand.check(state, bard, "foe") == "This unit cannot attack.", "bard: Attack refused")
+	assert_true(not RangeHandler.can_counter(state, bard, foe.pos), "bard: never counterattacks")
+	assert_true(SkillCommand.check(state, bard, "skill_encore", fresh) == "Target has not acted yet.", "encore: not on a Ready ally")
+	assert_true(SkillCommand.check(state, bard, "skill_encore", bard2) == "Encore cannot target another Encore user.", "encore: no Bard chains")
+	assert_true(SkillCommand.check(state, bard, "skill_encore", foe) != "", "encore: not on an enemy")
+	var director := director_for(state)
+	assert_true(director.commit("skill", {"unit_id": "bard", "skill_id": "skill_encore", "target_id": "tired"}), "encore: commit through the director")
+	assert_true(not tired.acted and not tired.moved and bard.acted, "encore: target gets Move + Action back, Bard is spent")
+	assert_true(int(bard.exp) == int(DataRegistry.rule("exp_per_action", 25)), "encore: Bard earns the flat action EXP")
+	# Debuff countdown runs on the director's Ready -> Acted hook.
+	fresh.active_debuffs = {"defense": {"amount": 3, "turns_remaining": 2}}
+	director.commit("wait", {"unit_id": "fresh"})
+	assert_true(int(fresh.active_debuffs["defense"]["turns_remaining"]) == 1, "debuff: counts down when its unit acts")
+
+
+func _attacker_strikes(plan: Dictionary) -> int:
+	var n := 0
+	for entry in plan["sequence"]:
+		if String(entry["side"]) == "attacker":
+			n += 1
+	return n
 
 
 ## F-CC-FE: Fire Emblem tuning — hit_base 70, full Luck in Avoid and crit evade, crit ×3, one roll.

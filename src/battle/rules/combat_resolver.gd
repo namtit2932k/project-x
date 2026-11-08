@@ -2,6 +2,8 @@ extends RefCounted
 class_name CombatResolver
 ## The one and only combat calculation. Forecast is a dry-run of the same math execute() uses;
 ## the combat screen, post-battle HP and AI all consume the same numbers. Never duplicate this math.
+## Class passives (F-PAS) enter here through PassiveSystem: formula terms in the plan (so the
+## forecast shows them), side effects in execute().
 
 ## Dry-run forecast: expected strike sequence with hit/crit percentages and damage figures.
 static func forecast(state: BattleState, attacker: UnitState, defender: UnitState) -> Dictionary:
@@ -12,9 +14,13 @@ static func forecast(state: BattleState, attacker: UnitState, defender: UnitStat
 static func execute(state: BattleState, attacker: UnitState, defender: UnitState) -> Array:
 	var plan := _strike_plan(state, attacker, defender)
 	var strikes: Array = []
+	var defender_hp_at_start: int = defender.hp
+	# F-PAS burst_damage: the Magician's phase flag is spent by committing the Attack, hit or miss.
+	PassiveSystem.on_attack_committed(attacker)
 	for entry in plan["sequence"]:
-		var a: UnitState = attacker if entry["side"] == "attacker" else defender
-		var d: UnitState = defender if entry["side"] == "attacker" else attacker
+		var attacker_side: bool = entry["side"] == "attacker"
+		var a: UnitState = attacker if attacker_side else defender
+		var d: UnitState = defender if attacker_side else attacker
 		if not a.alive or not d.alive:
 			continue
 		var chance := int(entry["hit_pct"])
@@ -30,17 +36,28 @@ static func execute(state: BattleState, attacker: UnitState, defender: UnitState
 		if crit:
 			damage = _round_value(int(damage * float(DataRegistry.rule("crit_multiplier", 3.0))))
 		damage += state.rng().randi_range(0, int(DataRegistry.rule("damage_flat", 0)))
-		d.take_damage(damage)
+		# F-PAS survive_once: only the exchange's defender (role "defender") can be saved.
+		var applied := PassiveSystem.guard_lethal(d, attacker_side, damage)
+		d.take_damage(applied)
 		strikes.append({
 			"side": entry["side"], "attacker_id": a.id, "target_id": d.id,
-			"hit": true, "crit": crit, "damage": damage, "target_hp_after": d.hp, "slain": "",
+			"hit": true, "crit": crit, "damage": applied, "target_hp_after": d.hp, "slain": "",
+			"survived": applied < damage,
 		})
 		if d.hp == 0:
 			strikes[-1]["slain"] = d.id
+		if attacker_side:
+			# F-PAS debuff_target_stat / lifesteal: the attacker's landed strikes.
+			PassiveSystem.on_attacker_hit(a, d, damage)
+	# F-PAS thorns_damage: a healthy defender that survived hits back for a flat amount.
+	var thorn := PassiveSystem.thorns(defender, attacker, defender_hp_at_start)
+	if not thorn.is_empty():
+		strikes.append(thorn)
 	# F-CC13 (F-EXP): performing the Attack pays the acting unit a flat EXP — hit, miss, crit
 	# or kill alike. The defender earns nothing for being attacked; enemies never earn.
 	if not strikes.is_empty():
 		ExpSystem.grant_action_exp(state, attacker)
+		PassiveSystem.on_action_performed(state, attacker, "attack", defender)
 	EventBus.combat_resolved.emit(strikes)
 	return strikes
 
@@ -48,32 +65,40 @@ static func execute(state: BattleState, attacker: UnitState, defender: UnitState
 ## Sequence plan (no rng): sides, hit/crit percentages, deterministic damage for each strike.
 static func _strike_plan(state: BattleState, attacker: UnitState, defender: UnitState) -> Dictionary:
 	var sequence: Array = []
-	sequence.append({"side": "attacker", "hit_pct": _hit_pct(state, attacker, defender), "crit_pct": _crit_pct(state, attacker, defender), "damage": _damage(state, attacker, defender)})
-	var counter_ok := defender.alive and RangeHandler.can_counter(state, defender, attacker.pos)
+	# F-PAS burst_damage: first strike of the exchange only.
+	sequence.append(_entry(state, "attacker", attacker, defender, PassiveSystem.burst_bonus(attacker)))
+	# F-PAS suppress_retaliation: no counter against an Assassin while the target is still Ready.
+	var counter_ok := defender.alive and RangeHandler.can_counter(state, defender, attacker.pos) \
+			and not PassiveSystem.suppresses_retaliation(attacker, defender)
 	if counter_ok:
-		sequence.append({"side": "counter", "hit_pct": _hit_pct(state, defender, attacker), "crit_pct": _crit_pct(state, defender, attacker), "damage": _damage(state, defender, attacker)})
+		sequence.append(_entry(state, "counter", defender, attacker))
 	var gap := int(DataRegistry.rule("double_threshold", 4))
-	if attacker.speed - defender.speed >= gap:
-		sequence.append({"side": "attacker", "hit_pct": _hit_pct(state, attacker, defender), "crit_pct": _crit_pct(state, attacker, defender), "damage": _damage(state, attacker, defender)})
-	elif counter_ok and defender.speed - attacker.speed >= gap:
-		sequence.append({"side": "counter", "hit_pct": _hit_pct(state, defender, attacker), "crit_pct": _crit_pct(state, defender, attacker), "damage": _damage(state, defender, attacker)})
+	# F-CC7: each side's doubling check is independent; Lancer's force_double overrides its own.
+	if attacker.eff("speed") - defender.eff("speed") >= gap or PassiveSystem.forces_double(attacker):
+		sequence.append(_entry(state, "attacker", attacker, defender))
+	if counter_ok and defender.eff("speed") - attacker.eff("speed") >= gap:
+		sequence.append(_entry(state, "counter", defender, attacker))
 	return {
 		"sequence": sequence,
 		"can_counter": counter_ok,
 	}
 
 
-## F-CC5 (approved GDD): Damage = offense_stat + weapon_might - defense_stat + bond bonus,
-## floored at min_damage. Physical uses Str/Def, magic uses Mag/Res. Terrain no longer feeds
-## damage (terrain only feeds Avoid, F-CC2) — terrain_defs.def_bonus is legacy/unused here.
-static func _damage(state: BattleState, attacker: UnitState, defender: UnitState) -> int:
+static func _entry(state: BattleState, side: String, a: UnitState, d: UnitState, extra_damage: int = 0) -> Dictionary:
+	return {"side": side, "hit_pct": _hit_pct(state, a, d), "crit_pct": _crit_pct(state, a, d), "damage": _damage(state, a, d, extra_damage)}
+
+
+## F-CC5 (approved GDD): Damage = offense_stat + weapon_might - defense_stat + bond bonus
+## (+ Magician burst), floored at min_damage. Physical uses Str/Def, magic uses Mag/Res; stats
+## are read through eff() so a passive debuff counts. Terrain does not feed damage.
+static func _damage(state: BattleState, attacker: UnitState, defender: UnitState, extra: int = 0) -> int:
 	var is_magic := attacker.damage_type == "magic"
-	var offense := int(attacker.magic) if is_magic else int(attacker.power)
-	var defense_stat := int(defender.resistance) if is_magic else int(defender.defense)
+	var offense := attacker.eff("magic") if is_magic else attacker.eff("power")
+	var defense_stat := defender.eff("resistance") if is_magic else defender.eff("defense")
 	var weapon: Resource = DataRegistry.get_weapon(attacker.weapon_id)
 	var weapon_might := int(weapon.weapon_might) if weapon != null else 0
 	var bonus := BondSystem.stat_bonus(state, attacker, "power")
-	var raw := offense + weapon_might - defense_stat + bonus
+	var raw := offense + weapon_might - defense_stat + bonus + extra
 	return maxi(_round_value(raw), int(DataRegistry.rule("min_damage", 0)))
 
 
@@ -95,7 +120,7 @@ static func _round_damage(value: float) -> int:
 ## no variance spread — a direct subtraction. P-02: bond bonus feeds both sides (accuracy/avoid).
 static func _hit_pct(state: BattleState, a: UnitState, d: UnitState) -> int:
 	var accuracy := _accuracy(state, a)
-	var avoid := _avoid(state, d)
+	var avoid := _avoid(state, a, d)
 	return clampi(int(round(accuracy - avoid)), 0, 100)
 
 
@@ -105,16 +130,19 @@ static func _accuracy(state: BattleState, a: UnitState) -> float:
 	var weapon: Resource = DataRegistry.get_weapon(a.weapon_id)
 	var weapon_accuracy_mod := int(weapon.weapon_accuracy_mod) if weapon != null else 0
 	var support := BondSystem.stat_bonus(state, a, "hit")
-	# F-CC-FE: hit_base plays the role of Fire Emblem's weapon Hit stat (provisional 70).
+	# F-CC-FE: hit_base plays the role of Fire Emblem's weapon Hit stat (70 for every weapon).
 	var hit_base := int(DataRegistry.rule("hit_base", 70))
-	return hit_base + a.skill * skill_mult + a.luck * luck_mult + a.hit_bonus + weapon_accuracy_mod + support
+	return hit_base + a.eff("skill") * skill_mult + a.eff("luck") * luck_mult + a.hit_bonus + weapon_accuracy_mod + support
 
 
-static func _avoid(state: BattleState, d: UnitState) -> float:
+## Avoid of `d` against attacker `a`: terrain drops out for a Gunner shooting from max range,
+## and an adjacent Bard's aura adds to it (F-PAS).
+static func _avoid(state: BattleState, a: UnitState, d: UnitState) -> float:
 	var speed_mult := float(DataRegistry.rule("avoid_speed_mult", 2.0))
 	var luck_mult := float(DataRegistry.rule("avoid_luck_mult", 1.0))
 	var support := BondSystem.stat_bonus(state, d, "avoid")
-	return d.speed * speed_mult + d.luck * luck_mult + state.terrain_avoid_at(d.pos) + support
+	var terrain := 0 if PassiveSystem.ignores_terrain(a, d) else state.terrain_avoid_at(d.pos)
+	return d.eff("speed") * speed_mult + d.eff("luck") * luck_mult + terrain + support + PassiveSystem.aura_avoid(state, d)
 
 
 ## F-CC4 + F-CC-FE: Crit% = clamp(skill*0.5 + weapon_crit_mod - defender.luck*1 + bond, 0, 100).
@@ -124,5 +152,5 @@ static func _crit_pct(state: BattleState, a: UnitState, d: UnitState) -> int:
 	var weapon: Resource = DataRegistry.get_weapon(a.weapon_id)
 	var weapon_crit_mod := int(weapon.weapon_crit_mod) if weapon != null else 0
 	var support := BondSystem.stat_bonus(state, a, "crit")
-	var raw := a.skill * skill_mult + a.crit_bonus + weapon_crit_mod - d.luck * luck_mult + support
+	var raw := a.eff("skill") * skill_mult + a.crit_bonus + weapon_crit_mod - d.eff("luck") * luck_mult + support
 	return clampi(int(round(raw)), 0, 100)

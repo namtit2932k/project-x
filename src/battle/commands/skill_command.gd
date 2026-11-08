@@ -1,6 +1,6 @@
 extends RefCounted
 class_name SkillCommand
-## Skill command pipeline: effect types are data-driven from SkillData (heal first).
+## Skill command pipeline: effect types are data-driven from SkillData ("heal", "encore").
 ## Split out of WaitCommand per the proposed command architecture.
 
 
@@ -17,13 +17,23 @@ static func check(state: BattleState, unit: UnitState, skill_id: String, target:
 		for cfg in state.objectives_config:
 			if String(cfg.get("type", "")) == "retrieve" and String(cfg.get("params", {}).get("item_id", "")) == unit.carried_item:
 				return "Carrier may only move."
+	var dist := RangeHandler.manhattan(unit.pos, target.pos)
 	match String(skill.effect_type):
 		"heal":
 			if target.side != unit.side:
 				return "Heal targets an ally."
 			if target.hp >= target.max_hp:
 				return "Target already at full HP."
-			var dist := RangeHandler.manhattan(unit.pos, target.pos)
+			if dist < int(skill.range_min) or dist > int(skill.range_max):
+				return "Target out of skill range."
+		"encore":
+			# F-PAS / GDD Core Rule 3b (Bard Diễn Tấu): an adjacent ally that already acted.
+			if target.id == unit.id or target.side != unit.side:
+				return "Encore targets another ally."
+			if not target.acted:
+				return "Target has not acted yet."
+			if has_encore(target):
+				return "Encore cannot target another Encore user."
 			if dist < int(skill.range_min) or dist > int(skill.range_max):
 				return "Target out of skill range."
 		_:
@@ -42,6 +52,25 @@ static func apply(state: BattleState, unit: UnitState, skill_id: String, target:
 			BondSystem.reward_heal(state, unit, target)
 			# F-CC13 (F-EXP): a Heal pays the healer the same flat EXP as an Attack.
 			ExpSystem.grant_action_exp(state, unit)
+			# F-PAS: Beastwoman-style self heal, Healer's mentor EXP to the healed ally.
+			PassiveSystem.on_action_performed(state, unit, "heal", target)
+			return true
+		"encore":
+			# Only the target's Move + Action come back; its position, HP, items, debuffs and
+			# phase allowances (Trade, Magician burst) stay as they are.
+			target.acted = false
+			target.moved = false
+			# GDD F-CC13: Encore pays the Bard the flat action EXP.
+			ExpSystem.grant_action_exp(state, unit)
 			return true
 		_:
 			return false
+
+
+## True when the unit carries a skill with the "encore" effect (no Encore chains).
+static func has_encore(unit: UnitState) -> bool:
+	for skill_id in unit.skill_ids:
+		var skill := DataRegistry.get_data("skills", String(skill_id))
+		if skill != null and String(skill.effect_type) == "encore":
+			return true
+	return false

@@ -66,6 +66,7 @@ Put new code in the matching folder. If a new top-level folder seems needed, ask
 - Bond: pairs earn points from valid adjacent or support actions; points unlock C/B/A scenes; rank rises after the scene is viewed or skipped; only unlocked ranks give adjacency bonus (C +3, B +5, A +8, S +10; max total adjacent bonus +16). S unlocks after A plus a story milestone, both alive; one S pair per character. Eligible pairs come from a designer-provided list, never inferred from gender.
 - Reconciliation: separate from map victory. Each faction has its own conditions; low damage alone is not enough. Player gets feedback by dialogue or attitude color; the threshold is hidden. Store which conditions happened and the outcome so post-battle story can read them.
 - Rewind: snapshot includes positions, HP, turn, AI, items, objectives, bond points, reconcile state, and EXP/level/live combat stats (F-EXP). Per battle: Story unlimited, Normal 5, Hard 3, Nightmare 0. Permadeath: off for Story/Normal, on for Hard (verify with designer).
+- Class passives (F-PAS): every class has one fixed conditional passive (catalog in `rules_config.passive_catalog`); Bard has no weapon, cannot attack or counter, and uses Encore to give an adjacent ally that already acted another Move + Action; Healer cannot attack.
 - EXP (F-EXP): a player unit gets a flat 25 EXP for each Attack or Heal it performs (hit or miss, kill or not); nothing else pays. 100 EXP = level up (cap 20), each stat rolls its class growth rate. A unit that dies earns no EXP; a full-HP ally cannot be healed. Losing is a game over: nothing from that battle is kept.
 - Save: manual, between battles only, never mid-turn. Stores roster, stats, casualties, chapter progress, bond points/ranks/scenes/S locks, story branch, difficulty, outcomes. Options: volume, windowed/fullscreen. Difficulty can change between battles.
 
@@ -253,6 +254,33 @@ The GDD formula gave ~9% average hit (R1). Designer: "follow Fire Emblem, no 2RN
 - **Still open:** demo-layer enemies (raider/guard, Skill 23) use a different stat scale and now hit almost always.
 - Result with current data: roster vs roster 73% average on plain (41–100%), 61% in forest +12; roster → ch01 rebels 88%; rebels → roster 54%.
 
+### F-PAS — Class passives + Bard Encore from the GDD (08-11-2026, `core-combat-system.md` Core Rule 3b, Core Rule 11, F-CC7/F-CC11/F-CC15, Authored Passive Catalog)
+
+Replaces the flat `crit_bonus`/`hit_bonus` idea of a passive (GDD retired it). Each class has one fixed `passive_id` (`BattleClassData.passive_id`, enemies of that class too); the catalog — effect type + numbers — lives in `rules_config.passive_catalog`, the effect logic in `src/battle/systems/passive_system.gd` (`PassiveSystem`), dispatched on `effect_type` so a number change is data-only.
+
+| Class | passive_id | Effect (GDD numbers) |
+|---|---|---|
+| Swordsman | `disarming_strike` | Attack hit → target Def −3 for 2 of the target's turns |
+| Knight | `iron_retaliation` | Defending, HP ≥ 50% at the start of the exchange and survives → 4 damage to the attacker |
+| Lumberjack | `battle_bloodlust` | Attack hit → heal floor(damage × 0.3) |
+| Lancer | `twin_lance_strike` | Attacking and would not double → strikes twice anyway |
+| Gunner | `cover_piercing_shot` | Attacking from exactly its max weapon range → defender's terrain Avoid = 0 |
+| Wyvern Knight | `survival_instinct` | Defending, first lethal hit of the battle → HP stays at 1 (once per battle) |
+| Beastwoman | `feral_regeneration` | After its own Attack or Heal → heal 5 |
+| Magician | `fragile_magic_circle` | Phase began at full HP → +5 damage on the first strike of its first Attack that phase (flag consumed even on a miss) |
+| Bard | `inspiring_melody` | Every other ally cardinally adjacent to the Bard gets +3 Avoid |
+| Healer | `devoted_mentor` | Heals another ally → that ally gets +10 EXP (F-CC14) |
+| Magic Swordsman | `extended_reach` | HP ≥ 75% → max weapon range +1 (attack legality and threat range) |
+| Assassin | `silent_assassination` | Target has not acted yet this phase → no counterattack |
+
+- **Debuff (F-CC11):** `UnitState.active_debuffs {stat: {amount, turns_remaining}}`, re-applying overwrites; every combat formula reads stats through `UnitState.eff()`. It counts down on each of the debuffed unit's own Ready→Acted transitions (director, after a command flips `acted`) and disappears at 0.
+- **Lancer force double (F-CC7 override):** the attacker's second strike is forced; the defender still doubles if its own Speed check passes (each side's check is independent).
+- **Bard (Core Rule 3b):** no weapon (`weapon_id = ""`), `can_attack = false` — cannot Attack or counterattack. Active action **Diễn Tấu / Encore** = skill `skill_encore` (effect `encore`, range 1): target an adjacent `Acted`, alive ally that is not itself an Encore user (no chains); Bard becomes Acted, the target gets a fresh Move + Action this phase (its Trade / Magician flags are not reset); Bard earns 25 EXP (F-CC13). `weapon_light_rapier` stays in data but is no longer used by any class.
+- **Healer cannot Attack** (GDD Core Rule 3: a Heal-category weapon has no Attack) — same `can_attack` check, from the weapon's `action_category` (Heal/None weapons cannot attack or counter). Classes with no weapon record keep attacking as before (legacy enemies).
+- **Rewind:** `active_debuffs`, `miracle_used`, `fragile_circle_ready` are in `UnitState.to_dict()`.
+- **Implementation choices where the GDD is silent:** (a) an exchange is fully planned before it runs (forecast = execution), so a debuff or lifesteal from strike 1 does not change strike 2's numbers — the debuff applies from the next exchange; (b) Knight's 50% check reads HP at the start of the exchange; thorns damage can kill the attacker; (c) Wyvern Knight's save works only while defending (role `defender`); (d) the battle UI auto-picks the Encore target (first legal adjacent ally), the same way it already auto-picks the Heal target.
+- **Preview:** debuff, aura, extended range, burst, terrain-ignore, force double and no-counter all show in the forecast because it is the same `CombatResolver` plan; lifesteal / thorns / survive-once / regen / mentor EXP are not previewed (GDD Core Rule 11f lists this as an open UI gap).
+
 ### F-EXP — EXP & level-up from the GDD (08-11-2026, `core-combat-system.md` Core Rule 12 / F-CC13 / F-CC14 / AC-CC78–84 + `dual-restraint-scoring.md` Edge Cases)
 
 Supersedes **D08** and **P-04** outright. D06/P-09 stay as they were (see "No defeat, only game over" below). Source: Core Combat is still "In Review" in the GDD index, but the user asked to follow it for EXP; the defeat rule comes from Dual Restraint Scoring, which is Approved.
@@ -305,6 +333,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (6) — Claude (Opus) — done: class passives + Bard fix (new §7b **F-PAS**). `BattleClassData.passive_id` / `can_attack`; GDD catalog in `rules_config.passive_catalog`; new `src/battle/systems/passive_system.gd` implements all 12 effect types; hooks in CombatResolver (aura/terrain-ignore in Avoid, burst on first strike, force double, no-counter, survive-once, debuff + lifesteal on hit, thorns), RangeHandler/AttackCommand/EnemyAI (can_attack, `UnitState.attack_max()` for extended range), director (phase start → Magician flag; Ready→Acted → debuff countdown), SkillCommand (Healer mentor EXP, Beastwoman regen on Heal, new `encore` effect). `UnitState`: `eff()` stat reads, `active_debuffs`, `miracle_used`, `fragile_circle_ready` (all in rewind snapshots). Bard: `weapon_id = ""`, `can_attack = false`, `skill_ids = ["skill_encore"]` (new `data/skills/skill_encore.tres`); battle UI auto-picks the Encore target and shows skill display names. Healer can no longer attack (Heal weapon, GDD Core Rule 3). Validator checks passive ids and effect types. New tests `test_class_passives` (all 12 + rewind) and `test_bard_encore`. Verified: validation 0/0, run_tests **260/260**, smoke_full_battle 21/21 (×8), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: UI preview for side-effect passives (GDD open gap), Encore manual target choice if wanted, rest of the GDD backlog (heal formula, bond S-routes, objectives W5, Dual Restraint, persuasion UI, enemy stat multiplier, demo enemy stat scale). — issues: not pushed (cached account `kame-gamedesign` has no write access). `weapon_light_rapier` is now unused data (kept, ids are not deleted without approval).
 
 - 2026-11-08 (5) — Claude (Opus) — done: designer answers: no weapon triangle, keep `hit_base = 70` (recorded in F-CC-FE, R1 closed except playtest); "game over together with Retry chapter" → new `src/scenes/game_over/game_over_scene.gd` (`GameOverScene`: Game Over title, defeat reason, Retry chapter + Main menu); `main._show_post_battle(false)` now opens it instead of post-battle + camp. New `test_game_over_screen`. Verified: boot clean, validation 0/0, run_tests **223/223**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: demo-layer enemy stat scale; GDD backlog (heal formula F-CC9, class passives + Bard fix, bond S-routes/thresholds, objective renames/rules W5, Dual Restraint + bonus EXP, persuasion color UI, enemy stat multiplier). — issues: not pushed (cached account `kame-gamedesign` has no write access). The camp still has its old "Retry chapter" button logic (unreachable after a defeat now; left as is).
 

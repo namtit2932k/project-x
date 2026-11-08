@@ -35,7 +35,7 @@ static func plan_unit(state: BattleState, unit: UnitState, target_sides: Array) 
 				continue
 			# Target must actually be in [min..max] range from the standing cell.
 			var dist: int = RangeHandler.manhattan(cell, e.pos)
-			if dist < unit.attack_range_min or dist > unit.attack_range_max:
+			if dist < unit.attack_range_min or dist > unit.attack_max():
 				continue
 			attack_options.append({"cell": cell, "target_id": e.id})
 	if not attack_options.is_empty():

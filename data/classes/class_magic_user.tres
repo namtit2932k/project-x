@@ -32,3 +32,4 @@ growths = {
 "def": 15,
 "res": 45
 }
+passive_id = "fragile_magic_circle"

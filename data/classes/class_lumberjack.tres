@@ -32,3 +32,4 @@ growths = {
 "def": 35,
 "res": 20
 }
+passive_id = "battle_bloodlust"

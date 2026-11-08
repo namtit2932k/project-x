@@ -5,7 +5,7 @@ class_name SkillData
 
 @export var id: String = ""
 @export var display_name: String = ""
-## effect types: "heal" | "damage_strike" (more effect types TBD)
+## effect types: "heal" | "encore" (Bard: refresh an adjacent ally that acted) | "damage_strike" (not live)
 @export var effect_type: String = "heal"
 @export var power: int = 10          # heal amount or strike bonus
 @export var range_min: int = 1

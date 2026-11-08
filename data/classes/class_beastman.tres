@@ -32,3 +32,4 @@ growths = {
 "def": 25,
 "res": 15
 }
+passive_id = "feral_regeneration"

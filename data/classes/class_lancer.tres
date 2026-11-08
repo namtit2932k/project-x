@@ -32,3 +32,4 @@ growths = {
 "def": 30,
 "res": 20
 }
+passive_id = "twin_lance_strike"

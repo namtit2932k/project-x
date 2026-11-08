@@ -40,6 +40,24 @@ class_name RulesConfig
 @export var stat_caps: Dictionary = {
 	"hp": 60, "str": 30, "mag": 30, "skill": 30, "speed": 30, "luck": 30, "def": 30, "res": 30,
 }
+## ------------------------------------------------------------ class passives (F-PAS)
+## GDD Authored Passive Catalog: passive_id -> {effect_type, numbers}. Effect types are code
+## (PassiveSystem); numbers and which class uses which passive are data.
+@export var passive_catalog: Dictionary = {
+	"disarming_strike": {"effect_type": "debuff_target_stat", "stat": "defense", "amount": 3, "duration": 2},
+	"iron_retaliation": {"effect_type": "thorns_damage", "damage": 4, "min_hp_ratio": 0.5},
+	"battle_bloodlust": {"effect_type": "lifesteal", "ratio": 0.3},
+	"twin_lance_strike": {"effect_type": "force_double"},
+	"cover_piercing_shot": {"effect_type": "ignore_defender_terrain"},
+	"survival_instinct": {"effect_type": "survive_once"},
+	"feral_regeneration": {"effect_type": "flat_self_heal", "amount": 5},
+	"fragile_magic_circle": {"effect_type": "burst_damage", "bonus": 5},
+	"inspiring_melody": {"effect_type": "adjacency_aura_avoid", "bonus": 3},
+	"devoted_mentor": {"effect_type": "grant_target_exp", "exp": 10},
+	"extended_reach": {"effect_type": "extended_range", "bonus": 1, "min_hp_ratio": 0.75},
+	"silent_assassination": {"effect_type": "suppress_retaliation"},
+}
+
 ## Designer (08-11-2026): losing is a game over, so a lost battle keeps nothing, EXP included
 ## (false). true = the GDD Dual Restraint edge case (action EXP survives a defeat).
 @export var action_exp_commits_on_defeat: bool = false

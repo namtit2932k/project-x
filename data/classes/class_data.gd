@@ -25,6 +25,11 @@ class_name BattleClassData
 @export var damage_type: String = "physical"   # physical | magic
 ## Default weapon resolved from data/weapons (T2.2); empty = no weapon (unarmed).
 @export var weapon_id: String = ""
+## F-PAS: false = this class can never Attack or counterattack (GDD Bard). A Heal/None weapon
+## (action_category) also blocks attacking; classes without a weapon record still attack.
+@export var can_attack: bool = true
+## F-PAS: the class's one fixed passive, a key of rules_config.passive_catalog ("" = none).
+@export var passive_id: String = ""
 
 ## Placeholder skill ids the class can use (empty = none yet; skills data-only too).
 @export var skill_ids: Array[String] = []

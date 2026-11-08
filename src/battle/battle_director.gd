@@ -26,6 +26,8 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: 
 	rewind_budget = SnapshotStack.budget_for_difficulty(difficulty)
 	rewind_uses_left = rewind_budget
 	player_sides = ["player"]
+	# F-PAS: turn 1 opens on the player phase (Magician burst readiness etc.).
+	PassiveSystem.on_phase_started(state, "player")
 
 
 ## Applies one player/AI command: the command's check() runs first (no snapshot and no
@@ -37,10 +39,15 @@ func commit(kind: String, payload: Dictionary) -> bool:
 	if err != "":
 		return false
 	push_snapshot(kind)
+	var actor: UnitState = state.units.get(String(payload.get("unit_id", "")), null)
+	var was_acted: bool = actor != null and actor.acted
 	var ok := _apply(kind, payload)
 	if not ok:
 		rewind.frames.pop_back()
 		return false
+	# F-PAS / F-CC11: debuffs count down on each of the unit's own Ready -> Acted transitions.
+	if actor != null and not was_acted and actor.acted:
+		PassiveSystem.on_unit_acted(actor)
 	_on_state_changed()
 	return true
 
@@ -275,6 +282,7 @@ func active_objectives_progress() -> Array:
 func _advance_phase() -> bool:
 	if state.phase == BattleState.PHASE_PLAYER:
 		state.phase = BattleState.PHASE_ENEMY
+		PassiveSystem.on_phase_started(state, "enemy")
 	EventBus.phase_changed.emit(state.phase, state.turn)
 	return true
 
@@ -297,6 +305,7 @@ func advance_to_player_phase() -> void:
 	state.turn += 1
 	state.phase = BattleState.PHASE_PLAYER
 	clear_acted_flags()
+	PassiveSystem.on_phase_started(state, "player")
 	# Turn-start snapshot: rewinding right at the start of a player turn is always valid.
 	push_snapshot("turn_start")
 	EventBus.phase_changed.emit(state.phase, state.turn)
