@@ -28,6 +28,10 @@ func describe() -> String:
 	return _t("Seize: hold the marked point through %s consecutive enemy phases.") % [required_phases()]
 
 
+func markers(state: BattleState) -> Array:
+	return [{"kind": "point", "cell": control_point(), "text": "%d/%d" % [int(state.objective_counters.get("seize_hold", 0)), required_phases()]}]
+
+
 func evaluate(state: BattleState) -> Dictionary:
 	var held := int(state.objective_counters.get("seize_hold", 0))
 	if held >= required_phases():

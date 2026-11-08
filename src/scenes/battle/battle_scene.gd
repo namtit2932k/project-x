@@ -47,6 +47,7 @@ func setup(p_director: BattleDirector) -> void:
 func _ready() -> void:
 	map_view = BattleMapView.new()
 	map_view.set_state(director.state, director.player_sides)
+	map_view.set_objectives(director.objectives)   # F-OBJ markers drawn live
 	add_child(map_view)
 	_build_ui()
 	EventBus.combat_resolved.connect(_on_combat_resolved)

@@ -30,6 +30,19 @@ func exit_zone() -> Rect2i:
 		int(_params.get("exit_zone_w", 1)), int(_params.get("exit_zone_h", 1)))
 
 
+## Exit area, the item still on the ground, and the carrier once it is taken.
+func markers(state: BattleState) -> Array:
+	var out: Array = [{"kind": "exit", "rect": exit_zone(), "text": "E"}]
+	for key in state.item_ground:
+		if String(state.item_ground[key]) == item_id():
+			var parts := String(key).split(",")
+			out.append({"kind": "item", "cell": Vector2i(int(parts[0]), int(parts[1])), "text": ""})
+	for u in state.alive_units():
+		if u.carried_item == item_id():
+			out.append({"kind": "unit", "unit_id": u.id, "text": "carrier"})
+	return out
+
+
 func evaluate(state: BattleState) -> Dictionary:
 	for u in state.units.values():
 		if u.carried_item != item_id():

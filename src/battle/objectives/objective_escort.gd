@@ -40,6 +40,15 @@ func describe() -> String:
 	return _t("Escort (turns): keep %s alive through %s enemy phases.") % [npc_id(), required_turns()]
 
 
+func markers(state: BattleState) -> Array:
+	var out: Array = [{"kind": "unit", "unit_id": npc_id(), "text": "escort"}]
+	if is_destination():
+		out.append({"kind": "goal", "cell": target_cell(), "text": "G"})
+	else:
+		out[0]["text"] = "%d/%d" % [int(state.objective_counters.get("escort_turns", 0)), required_turns()]
+	return out
+
+
 func evaluate(state: BattleState) -> Dictionary:
 	var npc: UnitState = state.units.get(npc_id(), null)
 	if npc == null or not npc.alive:

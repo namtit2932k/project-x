@@ -18,6 +18,16 @@ func describe() -> String:
 	return _t("Rout: defeat all enemies (or the marked targets).")
 
 
+## Named targets (a boss) get a ring; an "every enemy" map needs no marker.
+func markers(state: BattleState) -> Array:
+	var out: Array = []
+	for target_id in _params.get("target_unit_ids", []):
+		var u: UnitState = state.units.get(String(target_id), null)
+		if u != null and u.alive:
+			out.append({"kind": "unit", "unit_id": u.id, "text": "target"})
+	return out
+
+
 func evaluate(state: BattleState) -> Dictionary:
 	var targets: Array = (_params.get("target_unit_ids", []) as Array).duplicate()
 	if targets.is_empty():

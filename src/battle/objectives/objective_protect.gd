@@ -35,6 +35,13 @@ func describe() -> String:
 	return _t("Protect: keep %s alive for %s enemy phases.") % [String(_params.get("unit_id", "")), required_phases()]
 
 
+func markers(state: BattleState) -> Array:
+	var progress := "%d/%d" % [int(state.objective_counters.get("protect_phases", 0)), required_phases()]
+	if is_zone():
+		return [{"kind": "zone", "rect": zone(), "text": "P " + progress}]
+	return [{"kind": "unit", "unit_id": String(_params.get("unit_id", "")), "text": progress}]
+
+
 func evaluate(state: BattleState) -> Dictionary:
 	if _lost(state):
 		return {"status": "lose", "progress": "Zone breached" if is_zone() else "Protect target defeated"}

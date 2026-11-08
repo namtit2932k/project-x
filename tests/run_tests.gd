@@ -20,6 +20,7 @@ func _ready() -> void:
 	await test_enemy_difficulty_scaling()
 	await test_objectives()
 	await test_retrieve_rules()
+	await test_objective_markers()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -1700,6 +1701,53 @@ func test_enemy_difficulty_scaling() -> void:
 	assert_true(foe_x.power == int(floor(foe_n.power * 1.15)) and foe_x.defense == int(floor(foe_n.defense * 1.15)), "difficulty: Nightmare enemy stats x1.15, floored")
 	assert_true(foe_x.max_hp == foe_n.max_hp and foe_x.luck == foe_n.luck, "difficulty: enemy HP and Luck unscaled on Nightmare")
 	assert_true(nightmare.state.units["unit_swordsman"].power == normal.state.units["unit_swordsman"].power, "difficulty: player units never scaled")
+
+
+## F-OBJ markers: each objective reports what the map must show (zones, tiles, units, progress)
+## and the map view draws them live.
+func test_objective_markers() -> void:
+	await 0.0
+	var state: BattleState = _plain_map_enemy_state()
+	_spawn(state, "boss", "faction_e", Vector2i(5, 5), false, false, "enemy")
+	_spawn(state, "npc", "faction_npc", Vector2i(1, 1), false, false, "npc")
+	var zone := ObjectiveBase.create({"type": "protect", "params": {"zone_x": 2, "zone_y": 2, "zone_w": 2, "zone_h": 1, "survive_enemy_phases": 2}})
+	var zm: Array = zone.markers(state)
+	assert_true(zm.size() == 1 and String(zm[0]["kind"]) == "zone" and zm[0]["rect"] == Rect2i(2, 2, 2, 1) and String(zm[0]["text"]) == "P 0/2", "markers: protect zone rect and progress")
+	zone.on_event(state, "enemy_phase_ended", {})
+	assert_true(String(zone.markers(state)[0]["text"]) == "P 1/2", "markers: progress updates live")
+	var dest: Array = ObjectiveBase.create({"type": "escort", "params": {"npc_unit_id": "npc", "target_cell_x": 4, "target_cell_y": 0}}).markers(state)
+	assert_true(dest.size() == 2 and String(dest[0]["unit_id"]) == "npc" and String(dest[1]["kind"]) == "goal" and dest[1]["cell"] == Vector2i(4, 0), "markers: escort NPC ring + goal tile")
+	var timed: Array = ObjectiveBase.create({"type": "escort", "params": {"npc_unit_id": "npc", "turns_required": 3}}).markers(state)
+	assert_true(timed.size() == 1 and String(timed[0]["text"]) == "0/3", "markers: timed escort shows the countdown on the NPC")
+	var seize: Array = ObjectiveBase.create({"type": "seize", "params": {"control_x": 3, "control_y": 3, "hold_enemy_phases": 2}}).markers(state)
+	assert_true(String(seize[0]["kind"]) == "point" and seize[0]["cell"] == Vector2i(3, 3) and String(seize[0]["text"]) == "0/2", "markers: seize point and hold progress")
+	assert_true(ObjectiveBase.create({"type": "elimination", "params": {}}).markers(state).is_empty(), "markers: rout-all needs no marker")
+	var boss_m: Array = ObjectiveBase.create({"type": "elimination", "params": {"target_unit_ids": ["boss"]}}).markers(state)
+	assert_true(boss_m.size() == 1 and String(boss_m[0]["unit_id"]) == "boss", "markers: a named target gets a ring")
+	var retrieve := ObjectiveBase.create({"type": "retrieve", "params": {"item_id": "item_border_relic", "exit_zone_x": 0, "exit_zone_y": 5}})
+	state.item_ground["4,4"] = "item_border_relic"
+	var rm: Array = retrieve.markers(state)
+	assert_true(rm.size() == 2 and String(rm[0]["kind"]) == "exit" and String(rm[1]["kind"]) == "item" and rm[1]["cell"] == Vector2i(4, 4), "markers: retrieve exit + item on the ground")
+	state.item_ground.clear()
+	var hauler := _spawn(state, "hauler", "faction_p", Vector2i(4, 4), false, false, "player")
+	hauler.carried_item = "item_border_relic"
+	var rm2: Array = retrieve.markers(state)
+	assert_true(rm2.size() == 2 and String(rm2[1]["unit_id"]) == "hauler", "markers: the carrier is marked once the item is taken")
+	# The map view draws the markers of a real battle without errors.
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var map := DataRegistry.get_map("map_test_defend")
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "normal")
+	var view := BattleMapView.new()
+	view.set_state(director.state, director.player_sides)
+	view.set_objectives(director.objectives)
+	add_child(view)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_true(view.current_markers().size() == 1 and String(view.current_markers()[0]["kind"]) == "zone", "map view: the test map's protect zone is drawn")
+	view.queue_free()
 
 
 func _sides(plan: Dictionary) -> Array:

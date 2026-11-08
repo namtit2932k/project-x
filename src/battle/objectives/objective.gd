@@ -31,6 +31,12 @@ func identify() -> String:
 func on_event(_state: BattleState, _event_type: String, _data: Dictionary) -> void:
 	pass
 
+
+## F-OBJ map markers: what the map view should show for this objective, as plain data —
+## [{kind: "zone"|"exit"|"goal"|"point"|"unit", rect: Rect2i | cell: Vector2i | unit_id, text}].
+func markers(_state: BattleState) -> Array:
+	return []
+
 static func create(config: Dictionary) -> ObjectiveBase:
 	var type := String(config.get("type", ""))
 	var params: Dictionary = config.get("params", {})
