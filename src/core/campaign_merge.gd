@@ -59,6 +59,10 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 			var fo: Dictionary = result["reconcile"][faction_id]
 			outcomes[faction_id] = {"persuaded": bool(fo.get("persuaded", false)), "kills": int(fo.get("kills", 0)), "events": fo.get("events", [])}
 		GameState.reconcile_outcomes[String(chapter.id)] = outcomes
+	# F-AFTER: each faction that stayed Engaged just had its next "pressure continues" beat.
+	for faction_id in result.get("reconcile", {}):
+		if not bool(result["reconcile"][faction_id].get("persuaded", false)):
+			GameState.pressure_continues_count[String(faction_id)] = int(GameState.pressure_continues_count.get(String(faction_id), 0)) + 1
 	# F-FST: every faction tracked this battle is now Engaged, or Persuaded if evaluate() said so.
 	for faction_id in battle_state.reconcile_state:
 		if GameState.is_faction_terminal(String(faction_id)):

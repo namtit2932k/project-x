@@ -166,6 +166,11 @@ func check_rules() -> void:
 			_err("rules: enemy_bonus_levels_by_difficulty missing '%s'" % difficulty)
 		elif int(bonus_levels[difficulty]) < 0:
 			_err("rules: enemy_bonus_levels '%s' < 0" % difficulty)
+	# F-AFTER: the placeholder aftermath scenes exist.
+	var aftermath: Dictionary = DataRegistry.rule("aftermath_dialogue_ids", {})
+	for key in ["victory", "persuaded", "engaged", "loss_fallen", "loss_clean"]:
+		if DataRegistry.get_dialogue(String(aftermath.get(key, ""))) == null:
+			_err("rules: aftermath_dialogue_ids '%s' names no dialogue" % key)
 	# F-EXP: EXP/level numbers must keep the level-up loop meaningful; caps use GDD stat keys.
 	if int(DataRegistry.rule("exp_per_action", 25)) < 0:
 		_err("rules: exp_per_action < 0")
@@ -402,6 +407,11 @@ func check_reconcile_keys() -> void:
 			_warn("faction %s: kill_threshold 0 - any victory on its maps triggers the bad ending" % faction_id)
 		if String(f.bad_ending_dialogue_id) != "" and DataRegistry.get_dialogue(String(f.bad_ending_dialogue_id)) == null:
 			_err("faction %s: unknown bad_ending_dialogue_id %s" % [faction_id, f.bad_ending_dialogue_id])
+		# F-AFTER: the faction's aftermath scenes must exist.
+		var scene_ids: Array = [String(f.persuaded_dialogue_id)] + Array(f.engaged_dialogue_ids)
+		for scene_id in scene_ids:
+			if String(scene_id) != "" and DataRegistry.get_dialogue(String(scene_id)) == null:
+				_err("faction %s: unknown aftermath dialogue %s" % [faction_id, scene_id])
 		# F-PCOND (AC-PS9b): a valid condition record, naming a real unit of this faction.
 		_check_persuasion_condition("faction %s" % faction_id, faction_id, f.reconcile.get("persuasion_condition", {}))
 		var known: Array = keys_by_faction.get(faction_id, [])

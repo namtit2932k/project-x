@@ -35,6 +35,7 @@ func _ready() -> void:
 	await test_save_migration_v3()
 	await test_no_permadeath_sit_out()
 	await test_nightmare_lock()
+	await test_aftermath_scenes()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -315,6 +316,10 @@ func test_game_over_screen() -> void:
 	await get_tree().process_frame
 	ResultStore.last_result = {"status": "lose", "reason": "critical_unit_down", "unit_id": "unit_swordsman"}
 	main._show_post_battle(false)
+	await get_tree().process_frame
+	# F-AFTER: the clean-defeat scene plays first, then the Game Over screen.
+	assert_true(main._current is DialoguePlayer, "game over: the aftermath scene plays before the Game Over screen")
+	(main._current as DialoguePlayer).finished.emit(true)
 	await get_tree().process_frame
 	var over: GameOverScene = main._current as GameOverScene
 	assert_true(over != null, "game over: a defeat opens the Game Over screen")
@@ -2646,6 +2651,74 @@ func test_nightmare_lock() -> void:
 	assert_true(GameState.difficulty == "nightmare", "difficulty: the main menu can pick Nightmare")
 	menu.queue_free()
 	GameState.difficulty = "normal"
+	GameState.new_game()
+
+
+## F-AFTER: aftermath scene selection (GDD Narrative Rule 6) and the per-faction, per-encounter
+## pressure-continues beat; Main plays the queue before the results screen.
+func test_aftermath_scenes() -> void:
+	GameState.new_game()
+	GameState.build_roster()
+	var chapters := DataRegistry.chapters_sorted("demo")
+	var map1 := DataRegistry.get_map(String(chapters[0].map_id))
+	var map3 := DataRegistry.get_map(String(chapters[2].map_id))
+	var gen: Dictionary = DataRegistry.rule("aftermath_dialogue_ids", {})
+	# 6d plain victory: no chapter post scene, no map "Victory" lines -> generic victory.
+	var s := Aftermath.scenes({"status": "win"}, chapters[0], map1)
+	assert_true(s.size() == 1 and String(s[0].id) == String(gen["victory"]), "aftermath: a plain victory plays the victory scene")
+	# 6b losses: fallen vs clean; demo_01 has "Lost" lines on the map, legacy-style maps use the generic scenes.
+	var fallen := Aftermath.scenes({"status": "lose", "restraint": {"zero_ally_deaths": false}}, chapters[0], map1)
+	assert_true(fallen.size() == 1 and not fallen[0].lines.is_empty(), "aftermath: a loss with a fallen ally plays one loss scene")
+	var clean_generic := Aftermath.scenes({"status": "lose", "restraint": {"zero_ally_deaths": true}}, null, null)
+	var fallen_generic := Aftermath.scenes({"status": "lose", "restraint": {"zero_ally_deaths": false}}, null, null)
+	assert_true(String(clean_generic[0].id) == String(gen["loss_clean"]) and String(fallen_generic[0].id) == String(gen["loss_fallen"]), "aftermath: clean defeat and fallen-ally defeat are different scenes")
+	# 6c: demo_03 river guard persuaded -> the map's "Persuaded" lines; engaged -> "Engaged".
+	var persuaded := Aftermath.scenes({"status": "win", "reconcile": {"faction_river_guard": {"persuaded": true}}}, chapters[2], map3)
+	assert_true(persuaded.size() >= 1 and String(persuaded[0].lines[0]["text"]) == String(map3.aftermath_lines["Persuaded"][0]), "aftermath: a persuaded faction plays its persuasion scene (map lines)")
+	var engaged := Aftermath.scenes({"status": "win", "reconcile": {"faction_river_guard": {"persuaded": false}}}, chapters[2], map3)
+	assert_true(String(engaged[0].lines[0]["text"]) == String(map3.aftermath_lines["Engaged"][0]), "aftermath: a still-engaged faction plays the pressure-continues beat")
+	# Per-encounter beats: authored ids on the faction win, indexed by the saved counter.
+	var f := DataRegistry.get_faction("faction_river_guard")
+	f.engaged_dialogue_ids.assign(["dlg_aftermath_engaged", "dlg_aftermath_victory"])
+	var first := Aftermath.scenes({"status": "win", "reconcile": {"faction_river_guard": {"persuaded": false}}}, chapters[2], map3)
+	GameState.pressure_continues_count["faction_river_guard"] = 1
+	var second := Aftermath.scenes({"status": "win", "reconcile": {"faction_river_guard": {"persuaded": false}}}, chapters[2], map3)
+	GameState.pressure_continues_count["faction_river_guard"] = 7
+	var later := Aftermath.scenes({"status": "win", "reconcile": {"faction_river_guard": {"persuaded": false}}}, chapters[2], map3)
+	assert_true(String(first[0].id) == "dlg_aftermath_engaged" and String(second[0].id) == "dlg_aftermath_victory" and String(later[0].id) == "dlg_aftermath_victory", "aftermath: beat 1, beat 2, then the last one is reused")
+	f.engaged_dialogue_ids.clear()
+	# The victory merge counts the beat; a persuaded faction does not.
+	GameState.pressure_continues_count.clear()
+	var d := BattleDirector.new()
+	d.setup(map3, {"unit_demo_swordsman": map3.deploy_cells[0], "unit_demo_knight": map3.deploy_cells[1]}, "normal")
+	CampaignMerge.merge(d.state, chapters[2], {"status": "win", "reconcile": {"faction_river_guard": {"persuaded": false}}})
+	assert_true(int(GameState.pressure_continues_count.get("faction_river_guard", 0)) == 1, "aftermath: an engaged victory advances the faction's beat counter")
+	# Bad ending: no aftermath scene (it has its own).
+	assert_true(Aftermath.scenes({"status": "win", "bad_ending_factions": ["faction_river_guard"], "reconcile": {}}, chapters[2], map3).is_empty(), "aftermath: the bad ending replaces the aftermath")
+	# Legacy ch01 victory with its faction: faction scene, then the chapter's post-battle story scene.
+	var ch01 := DataRegistry.get_chapter("chapter_ch01")
+	var both := Aftermath.scenes({"status": "win", "reconcile": {"faction_rebel_ch01": {"persuaded": true}}}, ch01, DataRegistry.get_map(String(ch01.map_id)))
+	assert_true(both.size() == 2 and String(both[0].id) == String(gen["persuaded"]) and String(both[1].id) == "dlg_ch01_post", "aftermath: faction scene, then the chapter's post-battle scene")
+	# Main plays the queue, then the results screen.
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	await get_tree().process_frame
+	main._battle_director = d
+	ResultStore.last_result = {"status": "win", "results": [], "reconcile": {}}
+	main._show_post_battle(true)
+	await get_tree().process_frame
+	assert_true(main._current is DialoguePlayer, "aftermath: Main plays the victory scene first")
+	(main._current as DialoguePlayer).finished.emit(true)
+	await get_tree().process_frame
+	assert_true(main._current is PostBattleScene, "aftermath: then the results screen")
+	main.queue_free()
+	await get_tree().process_frame
+	# Saved with the campaign.
+	GameState.pressure_continues_count = {"faction_river_guard": 2}
+	var saved := GameState.to_dict().duplicate(true)
+	GameState.new_game()
+	GameState.from_dict(saved)
+	assert_true(int(GameState.pressure_continues_count.get("faction_river_guard", 0)) == 2, "aftermath: the beat counter is saved")
 	GameState.new_game()
 
 

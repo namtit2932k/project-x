@@ -21,3 +21,7 @@ class_name FactionData
 @export var feedback: Dictionary = {}
 ## F-BAD: dialogue for the bad ending this faction causes (empty = rules_config default).
 @export var bad_ending_dialogue_id: String = ""
+## F-AFTER (GDD Narrative Rule 6c): persuasion-success scene, and the "pressure continues" beats
+## in encounter order (index = GameState.pressure_continues_count; the last one is reused).
+@export var persuaded_dialogue_id: String = ""
+@export var engaged_dialogue_ids: Array[String] = []

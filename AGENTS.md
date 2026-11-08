@@ -366,6 +366,16 @@ Supersedes the permadeath part of D06 and of `casualty_by_difficulty`.
 - **Camp (between battles):** a non-Nightmare campaign cycles Story → Normal → Hard only; a Nightmare campaign shows "Difficulty: Nightmare (locked)" and the button is disabled. Rules live in `GameState.camp_difficulty_choices()` / `next_camp_difficulty()`.
 - Loading a save keeps the saved tier (a Nightmare save stays Nightmare). The camp switch now also refreshes its own label, and its notice is translated (it was a bare string).
 
+### F-AFTER — Post-battle aftermath scenes (08-11-2026, user request "D2"; `narrative-bond-scene-system.md` Core Rules 6-7)
+
+Right after a battle ends (before the results / Game Over screen), `Aftermath.scenes()` (`src/core/aftermath.gd`) picks the scenes and `Main` plays them one after the other (each finishes before the next):
+
+- **6a severance scenes:** none can happen now — permadeath is gone (F-CAS) and the checkpoint-driven voluntary bond end is not built (needs story data).
+- **6b loss:** a player unit fell (`zero_ally_deaths` false) → the death loss scene, else the "clean defeat" scene. Then the Game Over screen.
+- **6c victory with a holdout faction engaged:** Persuaded → that faction's persuasion scene; still Engaged → its "pressure continues" beat, chosen per faction **and per encounter** by `GameState.pressure_continues_count[faction]` (saved, +1 after each such beat, victory merge only). Unpersuadable never reaches this point: it is the bad ending (F-BAD).
+- **6d plain victory:** the standard victory scene.
+- **Content lookup, first found wins:** faction data (`FactionData.persuaded_dialogue_id`, `FactionData.engaged_dialogue_ids[count]`, last one reused when the list runs out) → the map's `aftermath_lines` (`Persuaded` / `Engaged` / `Victory` / `LostFallen` / `LostClean` / `Lost`, played as a narrator scene) → for 6d the chapter's `post_dialogue_id` → `rules_config.aftermath_dialogue_ids` placeholder scenes (writer content pending). On a victory the chapter's `post_dialogue_id` story scene also plays after a 6c scene.
+
 ### Demo maps are reference only (designer 08-11-2026)
 
 The six `demo_0N` maps/chapters are **reference material, not official content**: do not rebalance their layouts, enemy counts or faction thresholds from playtest results (e.g. demo_03's strict persuasion). Playtests on them are for checking rules and systems.
@@ -497,6 +507,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (32) — Claude (Opus) — done: post-battle aftermath scenes (new §7b **F-AFTER**, GDD Narrative Rules 6-7). New `Aftermath.scenes()` picks, before the merge: loss with a fallen ally / clean defeat; victory with a holdout faction -> persuasion scene or the per-faction, per-encounter "pressure continues" beat (`GameState.pressure_continues_count`, saved, advanced by the victory merge); plain victory -> chapter post scene / map lines / generic; bad ending -> none. Content lookup: `FactionData.persuaded_dialogue_id` / `engaged_dialogue_ids` -> map `aftermath_lines` (the demo maps' lines now play) -> chapter `post_dialogue_id` -> `rules_config.aftermath_dialogue_ids` (5 new placeholder dialogues). `Main._play_scene_queue` plays them one by one before the results / Game Over screen. 6a severance cannot happen (no permadeath). Validator checks the scene ids. `test_game_over_screen` now steps through the clean-defeat scene; new `test_aftermath_scenes`. Verified: validation 0/0, run_tests **536/536**, smoke_full_battle 21/21 (×2), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: D4 autosave after the aftermath, D6 roster detail screen. — issues: not pushed (no repo access).
 
 - 2026-11-08 (31) — Claude (Opus) — done: Nightmare lock (new §7b **F-DLOCK**, GDD Difficulty Rule 2). `GameState.camp_difficulty_choices()` / `next_camp_difficulty()`: the camp cycles Story / Normal / Hard only and is locked on a Nightmare campaign ("Difficulty: Nightmare (locked)"); the main menu (before New campaign) still offers all four. The camp difficulty label now refreshes and its notice is translated (was a bare string). Fixed two camp issues the new test exposed: the toast timer freed a label after the camp closed, and the camp's viewport sizing raised an anchor warning. New `test_nightmare_lock`. Verified: validation 0/0, run_tests **523/523**, smoke_full_battle 21/21 (×2), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: D2 post-battle aftermath scenes, D4 autosave, D6 roster detail. — issues: not pushed (no repo access).
 

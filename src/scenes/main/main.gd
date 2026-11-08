@@ -128,8 +128,26 @@ func _show_post_battle(win: bool) -> void:
 	if win and not Array(ResultStore.last_result.get("bad_ending_factions", [])).is_empty():
 		_show_bad_ending(chapter)
 		return
+	# F-AFTER: pick the aftermath scenes before the merge moves the pressure-continues count.
+	var map := DataRegistry.get_map(String(chapter.map_id)) if chapter != null else null
+	var scenes := Aftermath.scenes(ResultStore.last_result, chapter, map)
 	# D06: the merge itself decides win/lose from the stored result; defeat touches nothing.
 	CampaignMerge.merge(_battle_director.state if _battle_director != null else null, chapter, ResultStore.last_result)
+	_play_scene_queue(scenes, func() -> void: _after_aftermath(win, chapter))
+
+
+## F-AFTER Rule 7: each scene finishes before the next; then the results / Game Over screen.
+func _play_scene_queue(scenes: Array, done: Callable) -> void:
+	if scenes.is_empty():
+		done.call()
+		return
+	var player := DialoguePlayer.build(scenes[0])
+	var rest := scenes.slice(1)
+	player.finished.connect(func(_skipped: bool) -> void: _play_scene_queue(rest, done))
+	_swap_to(player)
+
+
+func _after_aftermath(win: bool, chapter: Resource) -> void:
 	if not win:
 		_show_game_over(chapter)
 		return
