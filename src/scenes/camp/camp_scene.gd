@@ -100,18 +100,25 @@ func _rebuild_bond_panel() -> void:
 		var row := HBoxContainer.new()
 		_scene_box.add_child(row)
 		UIBuilder.label(row, line, 16)
-		for rank_key in ["C", "B", "A"]:
-			var threshold := int(pair.scene_thresholds.get(rank_key, 1 << 30))
-			if points >= threshold and rank_index(GameState.bond_rank_for(String(pair.id))) < rank_index(rank_key) \
-					and not GameState.bond_scenes_viewed.get(String(pair.id), []).has(rank_key) \
-					and _rank_scene_unlocked(pair, rank_key):
-				var btn := UIBuilder.button(row, UIBuilder.t("View %s scene") % rank_key, 14)
-				btn.pressed.connect(func() -> void: _watch_bond_scene(pair, rank_key))
-		# S rank: after A plus story milestone, both alive, one exclusive pair per character.
-		var cur := GameState.bond_rank_for(String(pair.id))
-		if rank_index(cur) >= rank_index("A") and _both_alive(pair) and _s_milestone_reached(pair) and _s_pair_free(pair):
-			var s_btn := UIBuilder.button(row, UIBuilder.t("Lock S pair"), 14)
-			s_btn.pressed.connect(func() -> void: _lock_s(pair))
+		# F-BOND: the next scene opens on points + chapter gate + both alive (BondCampaign).
+		var next := BondCampaign.next_rank(pair)
+		match BondCampaign.scene_state(pair):
+			"ready":
+				var btn := UIBuilder.button(row, UIBuilder.t("View %s scene") % next, 14)
+				btn.pressed.connect(func() -> void: _watch_bond_scene(pair, next))
+			"need_points":
+				UIBuilder.label(row, UIBuilder.t("%s scene: %d more pts") % [next, BondCampaign.points_missing(pair)], 14)
+			"waiting_story":
+				UIBuilder.label(row, UIBuilder.t("%s scene: waiting on the story") % next, 14)
+		# F-BOND S: designer whitelist, exclusive per character, confirmed before it locks.
+		match BondCampaign.s_state(pair):
+			"available":
+				var s_btn := UIBuilder.button(row, UIBuilder.t("Lock S pair"), 14)
+				s_btn.pressed.connect(func() -> void: _confirm_lock_s(pair))
+			"locked":
+				UIBuilder.label(row, UIBuilder.t("S locked"), 14)
+			"closed":
+				UIBuilder.label(row, UIBuilder.t("S closed"), 14)
 
 
 ## Rank comparison by the configured order, never by string compare ("C" < "B" is wrong):
@@ -120,29 +127,26 @@ static func rank_index(rank: String) -> int:
 	return GameState.BOND_RANKS.find(rank)
 
 
-## D05: a rank's scene opens only after the previous rank's scene was watched or skipped
-## (B after C, A after B); C is the entry scene.
-func _rank_scene_unlocked(pair: Resource, rank_key: String) -> bool:
-	var idx := rank_index(rank_key)
-	if idx <= 0:
-		return true
-	var prev_rank: String = GameState.BOND_RANKS[idx - 1]
-	return GameState.bond_scenes_viewed.get(String(pair.id), []).has(prev_rank)
-
-
 ## One exclusive S pair per character (GameState.s_pairs maps unit -> pair_id).
 func _s_pair_free(pair: Resource) -> bool:
 	return not GameState.s_pairs.has(String(pair.unit_a)) and not GameState.s_pairs.has(String(pair.unit_b))
 
 
+## F-BOND: confirmation first (both can never lock S with anyone else); Cancel changes nothing.
+## Confirm re-checks and locks atomically (BondCampaign.lock_s), then the S scene plays.
+func _confirm_lock_s(pair: Resource) -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = UIBuilder.t("Lock S pair")
+	dialog.dialog_text = UIBuilder.t("Lock this S pair? Both characters will never be able to lock S with anyone else.")
+	dialog.ok_button_text = UIBuilder.t("Lock S pair")
+	dialog.cancel_button_text = UIBuilder.t("Cancel")
+	add_child(dialog)
+	dialog.confirmed.connect(func() -> void: _lock_s(pair))
+	dialog.popup_centered()
+
+
 func _both_alive(pair: Resource) -> bool:
-	if not GameState.roster.has(pair.unit_a) or not GameState.roster.has(pair.unit_b):
-		return false
-	return bool(GameState.roster[pair.unit_a].alive) and bool(GameState.roster[pair.unit_b].alive)
-
-
-func _s_milestone_reached(pair: Resource) -> bool:
-	return GameState.completed_chapters.has(String(pair.s_milestone_chapter_id))
+	return BondCampaign.both_alive(pair)
 
 
 func _watch_bond_scene(pair: Resource, rank_key: String) -> void:
@@ -157,18 +161,29 @@ func _watch_bond_scene(pair: Resource, rank_key: String) -> void:
 
 
 func _rank_up(pair: Resource, rank_key: String) -> void:
-	GameState.bond_ranks[String(pair.id)] = rank_key
-	var viewed: Array = GameState.bond_scenes_viewed.get(String(pair.id), [])
-	viewed.append(rank_key)
-	GameState.bond_scenes_viewed[String(pair.id)] = viewed
+	BondCampaign.rank_up(pair, rank_key)
 	_rebuild_bond_panel()
 
 
+## Commits the S lock (re-validated) and plays the S scene; the scene id is recorded once watched.
 func _lock_s(pair: Resource) -> void:
-	GameState.bond_ranks[String(pair.id)] = "S"
-	GameState.s_pairs[String(pair.unit_a)] = String(pair.id)
-	GameState.s_pairs[String(pair.unit_b)] = String(pair.id)
-	GameState.s_lock_unit = String(pair.unit_a)
+	if not BondCampaign.lock_s(pair):
+		_rebuild_bond_panel()
+		return
+	var dlg := DataRegistry.get_dialogue(String(pair.scene_dialogue_ids.get("S", "")))
+	if dlg == null:
+		_mark_s_viewed(pair)
+		return
+	var player := DialoguePlayer.build(dlg)
+	add_child(player)
+	player.finished.connect(func(_skipped: bool) -> void: _mark_s_viewed(pair))
+
+
+func _mark_s_viewed(pair: Resource) -> void:
+	var viewed: Array = GameState.bond_scenes_viewed.get(String(pair.id), [])
+	if not viewed.has("S"):
+		viewed.append("S")
+	GameState.bond_scenes_viewed[String(pair.id)] = viewed
 	_rebuild_bond_panel()
 
 

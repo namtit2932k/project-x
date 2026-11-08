@@ -6,7 +6,7 @@ class_name BondSystem
 ## Adds points for one pair (if eligible and under the per-battle cap) and emits a signal.
 static func add_points(state: BattleState, pair: Resource, amount: int) -> void:
 	var pair_id := String(pair.id)
-	var cap := int(DataRegistry.rule("bond_point_limit_per_pair_per_map", 20))
+	var cap := int(DataRegistry.rule("bond_point_limit_per_pair_per_map", 2))
 	state.bond_points[pair_id] = mini(int(state.bond_points.get(pair_id, 0)) + amount, cap)
 	EventBus.bond_points_gained.emit(pair_id, amount)
 
@@ -62,35 +62,20 @@ static func _adjacency_bonus(state: BattleState, unit: UnitState) -> int:
 	return mini(total, int(DataRegistry.rule("max_adjacent_bond_bonus", 16)))
 
 
-## D05 bond points: after each combat, every eligible pair gets points when ONE member took
-## part in the engagement (attacked OR was attacked) and the OTHER member is alive, on the
-## player side, standing adjacent (manhattan = 1) to that participant. One award per pair
-## per engagement. Healing keeps its own rule in reward_heal().
-static func reward_combat_pairs(state: BattleState, attacker: UnitState, defender: UnitState) -> void:
-	var amount := int(DataRegistry.rule("bond_points_combat_action", 2))
+## F-BOND (GDD F-BA3): the actor just performed an Attack or a Heal. Every pairing it belongs
+## to gets +1 when the partner is alive, player-side and cardinally adjacent to the actor —
+## once per pairing per action, capped per map by add_points(). Defenders earn nothing.
+static func reward_action(state: BattleState, actor: UnitState) -> void:
+	if actor == null or actor.side != "player":
+		return
+	var amount := int(DataRegistry.rule("bond_points_combat_action", 1))
 	for pair in DataRegistry.all_bond_pairs():
-		for participant in [attacker, defender]:
-			if participant == null or _other_member_id(pair, participant.id) == "":
-				continue
-			# Pairs only earn points for player-side engagements ("cùng phe người chơi").
-			# F2: partner lookups stay instance-id based; pairs are template-level data but
-		# player instances carry the template id as their instance id.
-			if participant.side != "player":
-				continue
-			var other_id := _other_member_id(pair, participant.id)
-			var ally: UnitState = state.units.get(other_id, null)
-			if ally != null and ally.alive and ally.side == "player" \
-					and RangeHandler.manhattan(ally.pos, participant.pos) == 1:
-				add_points(state, pair, amount)
-				break
-
-
-## Heal is a valid support action between pair members (explicit, distance-independent:
-## heal range is a skill stat, not a bond rule).
-static func reward_heal(state: BattleState, healer: UnitState, target: UnitState) -> void:
-	var pair := eligible_pair_for(state, healer.id, target.id)
-	if pair != null:
-		add_points(state, pair, int(DataRegistry.rule("bond_points_combat_action", 2)))
+		var other_id := _other_member_id(pair, actor.id)
+		if other_id == "":
+			continue
+		var partner: UnitState = state.units.get(other_id, null)
+		if partner != null and partner.alive and partner.side == "player" 				and RangeHandler.manhattan(partner.pos, actor.pos) == 1:
+			add_points(state, pair, amount)
 
 
 static func _other_member_id(pair: Resource, unit_id: String) -> String:

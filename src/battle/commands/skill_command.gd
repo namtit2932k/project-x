@@ -52,7 +52,7 @@ static func apply(state: BattleState, unit: UnitState, skill_id: String, target:
 		"heal":
 			# F-CC9 / F-HEAL: Mag + heal_might, capped at max HP, no Hit/Crit roll.
 			target.heal(CombatResolver.heal_amount(unit, skill))
-			BondSystem.reward_heal(state, unit, target)
+			BondSystem.reward_action(state, unit)   # F-BOND: the healer's adjacent partners
 			# F-CC13 (F-EXP): a Heal pays the healer the same flat EXP as an Attack.
 			ExpSystem.grant_action_exp(state, unit)
 			# F-PAS: Beastwoman-style self heal, Healer's mentor EXP to the healed ally.

@@ -35,7 +35,7 @@ static func apply(state: BattleState, unit: UnitState, target_id: String) -> Arr
 	var target: UnitState = state.units[target_id]
 	var strikes: Array = CombatResolver.execute(state, unit, target)
 	unit.acted = true
-	BondSystem.reward_combat_pairs(state, unit, target)
+	BondSystem.reward_action(state, unit)   # F-BOND: the attacker's adjacent partners
 	for strike in strikes:
 		if String(strike.get("slain", "")) != "":
 			_on_slain(state, state.units[String(strike["slain"])])

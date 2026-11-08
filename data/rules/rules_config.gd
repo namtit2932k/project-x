@@ -178,5 +178,6 @@ class_name RulesConfig
 ## Bonus theo rank (designer đã chốt); tổng bonus kề ô tối đa +16 (ràng buộc test bằng test).
 @export var bond_bonus_by_rank: Dictionary = {"C": 3, "B": 5, "A": 8, "S": 10}
 @export var max_adjacent_bond_bonus: int = 16
-@export var bond_point_limit_per_pair_per_map: int = 20
-@export var bond_points_combat_action: int = 2
+## F-BOND (GDD F-BA3): +1 support point per qualifying Attack/Heal, max 2 per pairing per map.
+@export var bond_point_limit_per_pair_per_map: int = 2
+@export var bond_points_combat_action: int = 1

@@ -23,6 +23,7 @@ func _ready() -> void:
 	await test_bond_and_reconcile()
 	await test_bond_cap()
 	await test_bond_rules_d05()
+	await test_bond_campaign()
 	await test_campaign_merge_d06()
 	await test_game_over_screen()
 	await test_evacuate()
@@ -79,8 +80,8 @@ func test_bond_cap() -> void:
 	DataRegistry._cache["bonds"].erase("test_pair_s")
 
 
-## N05 (D05): bond points flow from combat participation + adjacency; distance, enemy side
-## and the per-battle cap block them; rank scenes gate on the previous rank; S is exclusive.
+## F-BOND (GDD F-BA3): +1 support point when a player unit PERFORMS an Attack/Heal with its
+## partner cardinally adjacent to it; enemies, defenders, distance and the 2-per-map cap block it.
 func test_bond_rules_d05() -> void:
 	await 0.0
 	var state: BattleState = _plain_map_enemy_state()
@@ -92,39 +93,39 @@ func test_bond_rules_d05() -> void:
 	var attacker := _spawn(state, "attacker", "faction_p", Vector2i(0, 0), false, false, "player")
 	var partner := _spawn(state, "partner", "faction_p", Vector2i(1, 0), false, false, "player")
 	var foe := _spawn(state, "foe1", "faction_e", Vector2i(1, 1), false, false, "enemy")
-	# Adjacent partner on the attacking player unit: points flow.
-	BondSystem.reward_combat_pairs(state, attacker, foe)
-	assert_true(int(state.bond_points["test_pair_d05"]) == int(DataRegistry.rule("bond_points_combat_action", 2)), "bond D05: adjacent partner earns points on attack")
-	# The player unit DEFENDING with an adjacent partner earns the same reward.
+	assert_true(int(DataRegistry.rule("bond_points_combat_action", 0)) == 1 and int(DataRegistry.rule("bond_point_limit_per_pair_per_map", 0)) == 2, "bond F-BOND: +1 per action, 2 per map (GDD)")
+	# The attacker's adjacent partner: +1 through the real attack command.
+	AttackCommand.apply(state, attacker, "foe1")
+	assert_true(int(state.bond_points.get("test_pair_d05", 0)) == 1, "bond F-BOND: attacking next to the partner earns 1")
+	# Being attacked earns nothing (only the unit that performs the action counts).
 	state.bond_points["test_pair_d05"] = 0
-	BondSystem.reward_combat_pairs(state, foe, attacker)
-	assert_true(int(state.bond_points["test_pair_d05"]) == int(DataRegistry.rule("bond_points_combat_action", 2)), "bond D05: defending earns points too")
+	BondSystem.reward_action(state, foe)
+	assert_true(int(state.bond_points.get("test_pair_d05", 0)) == 0, "bond F-BOND: defending earns nothing")
 	# Distant partner: no points.
-	state.bond_points["test_pair_d05"] = 0
-	partner.pos = Vector2i(5, 5)
-	BondSystem.reward_combat_pairs(state, attacker, foe)
-	assert_true(int(state.bond_points["test_pair_d05"]) == 0, "bond D05: distant partner earns nothing")
+	partner.pos = Vector2i(3, 3)
+	BondSystem.reward_action(state, attacker)
+	assert_true(int(state.bond_points.get("test_pair_d05", 0)) == 0, "bond F-BOND: partner not adjacent earns nothing")
 	partner.pos = Vector2i(1, 0)
-	# A pair whose two members fight on OPPOSING sides never earns: participant must be
-	# player-side AND the partner must be player-side and adjacent.
+	# A pair whose other member is on the enemy side never earns.
 	var cross := BondData.new()
 	cross.id = "test_pair_cross"
 	cross.unit_a = "attacker"
 	cross.unit_b = "foe1"
 	DataRegistry._cache["bonds"]["test_pair_cross"] = cross
-	BondSystem.reward_combat_pairs(state, attacker, foe)
-	assert_true(not state.bond_points.has("test_pair_cross"), "bond D05: enemy-side pair earns nothing")
-	# Heal between pair members keeps its own explicit reward.
+	foe.pos = Vector2i(0, 1)
+	BondSystem.reward_action(state, attacker)
+	assert_true(not state.bond_points.has("test_pair_cross"), "bond F-BOND: enemy-side pair earns nothing")
+	foe.pos = Vector2i(1, 1)
+	# Map cap: three qualifying actions still give 2.
+	state.bond_points["test_pair_d05"] = 0
+	for i in 3:
+		BondSystem.reward_action(state, attacker)
+	assert_true(int(state.bond_points["test_pair_d05"]) == 2, "bond F-BOND: at most 2 points per pair per map")
+	# A Heal counts the healer's adjacent partner too (through the real skill command).
 	state.bond_points["test_pair_d05"] = 0
 	partner.hp = 5
-	BondSystem.reward_heal(state, attacker, partner)
-	# Per-battle cap: points stop at bond_point_limit_per_pair_per_map.
-	state.bond_points["test_pair_d05"] = int(DataRegistry.rule("bond_point_limit_per_pair_per_map", 20)) - 1
-	BondSystem.reward_combat_pairs(state, attacker, foe)
-	var cap := int(DataRegistry.rule("bond_point_limit_per_pair_per_map", 20))
-	assert_true(int(state.bond_points["test_pair_d05"]) == cap, "bond D05: points stop at the per-battle cap")
-	BondSystem.reward_combat_pairs(state, attacker, foe)
-	assert_true(int(state.bond_points["test_pair_d05"]) == cap, "bond D05: cap holds on repeat")
+	SkillCommand.apply(state, attacker, "skill_heal", partner)
+	assert_true(int(state.bond_points["test_pair_d05"]) == 1, "bond F-BOND: a Heal next to the partner earns 1")
 	DataRegistry._cache["bonds"].erase("test_pair_d05")
 	DataRegistry._cache["bonds"].erase("test_pair_cross")
 	# P-02: the adjacency bonus lands on EVERY configured target group (accuracy, avoid,
@@ -146,28 +147,75 @@ func test_bond_rules_d05() -> void:
 	assert_true(CombatResolver._hit_pct(state, attacker, foe) == hit_base_no_pair + int(DataRegistry.rule("bond_bonus_by_rank", {}).get("C", 3)), "bond P-02: accuracy now benefits from the adjacency bonus")
 	DataRegistry._cache["bonds"].erase("test_pair_dmg")
 	GameState.bond_ranks.erase("test_pair_dmg")
-	# Rank scene gating: B only after C watched/skipped (index compare, not strings).
-	var camp := CampScene.new()
-	var rank_pair := BondData.new()
-	rank_pair.id = "test_rank_pair"
-	GameState.bond_scenes_viewed.clear()
-	GameState.s_pairs.clear()
-	assert_true(camp._rank_scene_unlocked(rank_pair, "C"), "bond rank: C is the entry scene")
-	assert_true(not camp._rank_scene_unlocked(rank_pair, "B"), "bond rank: B stays blocked before C is watched")
-	GameState.bond_scenes_viewed["test_rank_pair"] = ["C"]
-	assert_true(camp._rank_scene_unlocked(rank_pair, "B"), "bond rank: B unlocks after C watched")
 	assert_true(CampScene.rank_index("B") > CampScene.rank_index("C"), "bond rank: index ordering beats string ordering")
-	# S exclusivity: a member already locked into an S pair blocks a second S pair.
-	var s_pair := BondData.new()
-	s_pair.id = "test_s_pair"
-	s_pair.unit_a = "attacker"
-	s_pair.unit_b = "partner"
-	GameState.s_pairs["partner"] = "other_pair"
-	assert_true(not camp._s_pair_free(s_pair), "bond S: member already in an S pair blocks a second one")
-	GameState.s_pairs.clear()
-	assert_true(camp._s_pair_free(s_pair), "bond S: free again after clearing locks")
-	camp.free()
 
+
+## F-BOND scenes and S (GDD Core Rules 4a/4b): 2/5/9 points, only the next rank, chapter gate,
+## both alive, surplus carries over; S only for whitelisted pairs, exclusive per character,
+## confirmed before it locks.
+func test_bond_campaign() -> void:
+	await 0.0
+	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var knight_pair := DataRegistry.get_data("bonds", "bond_swordsman_knight")
+	var beast_pair := DataRegistry.get_data("bonds", "bond_swordsman_beastwoman")
+	var lancer_pair := DataRegistry.get_data("bonds", "bond_lancer_gunner")
+	var routes := 0
+	for pair in DataRegistry.all_bond_pairs():
+		if String(pair.unit_a) == "unit_swordsman" and bool(pair.s_eligible):
+			routes += 1
+	assert_true(routes == 6 and not bool(lancer_pair.s_eligible), "bond data: 6 Swordsman S routes, Lancer x Gunner is not an S pair")
+	assert_true(BondCampaign.next_rank(knight_pair) == "C" and BondCampaign.scene_state(knight_pair) == "need_points" and BondCampaign.points_missing(knight_pair) == 2, "bond: C needs 2 points")
+	GameState.bond_points["bond_swordsman_knight"] = 2
+	assert_true(BondCampaign.scene_state(knight_pair) == "ready", "bond: C ready at 2 points")
+	BondCampaign.rank_up(knight_pair, "C")
+	GameState.bond_points["bond_swordsman_knight"] = 7
+	assert_true(BondCampaign.next_rank(knight_pair) == "B" and BondCampaign.scene_state(knight_pair) == "ready", "bond: only the next rank (B) opens, never a jump to A")
+	BondCampaign.rank_up(knight_pair, "B")
+	assert_true(BondCampaign.next_rank(knight_pair) == "A" and BondCampaign.points_missing(knight_pair) == 2, "bond: surplus points carry toward A (7 of 9)")
+	# Story gate: enough points but the A scene waits for a later chapter.
+	var later := ChapterData.new()
+	later.id = "chapter_test_later"
+	later.order = 99
+	DataRegistry._cache["chapters"]["chapter_test_later"] = later
+	knight_pair.scene_earliest_chapter = {"A": "chapter_test_later"}
+	GameState.bond_points["bond_swordsman_knight"] = 9
+	assert_true(BondCampaign.scene_state(knight_pair) == "waiting_story", "bond: points reached but waiting on the story")
+	GameState.completed_chapters["chapter_test_later"] = true
+	assert_true(BondCampaign.scene_state(knight_pair) == "ready", "bond: opens once the chapter is reached")
+	GameState.completed_chapters.erase("chapter_test_later")
+	knight_pair.scene_earliest_chapter = {}
+	DataRegistry._cache["chapters"].erase("chapter_test_later")
+	GameState.roster["unit_knight"]["alive"] = false
+	assert_true(BondCampaign.scene_state(knight_pair) == "unavailable", "bond: a fallen member closes the scene")
+	GameState.roster["unit_knight"]["alive"] = true
+	assert_true(BondCampaign.s_state(knight_pair) == "not_yet", "bond S: not before the A scene")
+	BondCampaign.rank_up(knight_pair, "A")
+	assert_true(BondCampaign.s_state(knight_pair) == "available" and BondCampaign.s_state(lancer_pair) == "not_eligible", "bond S: available after A for a whitelisted pair only")
+	# Beastwoman also at A: two candidates for the Swordsman.
+	BondCampaign.rank_up(beast_pair, "C")
+	BondCampaign.rank_up(beast_pair, "B")
+	BondCampaign.rank_up(beast_pair, "A")
+	assert_true(BondCampaign.s_state(beast_pair) == "available", "bond S: second candidate available before any lock")
+	# Camp: the lock waits for confirmation; Cancel changes nothing.
+	var camp := CampScene.new()
+	add_child(camp)
+	await get_tree().process_frame
+	camp._confirm_lock_s(knight_pair)
+	var dialog: ConfirmationDialog = null
+	for child in camp.get_children():
+		if child is ConfirmationDialog:
+			dialog = child
+	assert_true(dialog != null and GameState.s_pairs.is_empty(), "bond S: a confirmation is shown first, nothing locked yet")
+	dialog.canceled.emit()
+	assert_true(GameState.s_pairs.is_empty() and GameState.bond_rank_for("bond_swordsman_knight") == "A", "bond S: Cancel changes nothing")
+	dialog.confirmed.emit()
+	assert_true(GameState.bond_rank_for("bond_swordsman_knight") == "S" and String(GameState.s_pairs.get("unit_swordsman", "")) == "bond_swordsman_knight" and String(GameState.s_pairs.get("unit_knight", "")) == "bond_swordsman_knight", "bond S: confirm locks rank S with symmetric partners")
+	assert_true(BondCampaign.s_state(knight_pair) == "locked" and BondCampaign.s_state(beast_pair) == "closed", "bond S: the other candidate is closed")
+	assert_true(not BondCampaign.lock_s(beast_pair) and GameState.bond_rank_for("bond_swordsman_beastwoman") == "A", "bond S: a closed pair cannot lock, its A bonus stays")
+	camp.queue_free()
 
 
 ## N06 (D06): only a victory merges the battle outcome into the campaign, in ONE place

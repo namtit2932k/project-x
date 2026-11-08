@@ -140,3 +140,8 @@ Escort (turns): keep %s alive through %s enemy phases.,Escort (turns): keep %s a
 Evacuate: rout every foe while the marked NPCs live.,Evacuate: rout every foe while the marked NPCs live.,Sơ tán: hạ hết địch trong khi các NPC được đánh dấu còn sống.
 Evacuate: keep the marked NPCs alive for %s turns.,Evacuate: keep the marked NPCs alive for %s turns.,Sơ tán: giữ các NPC được đánh dấu sống trong %s lượt.
 Retrieve: grab the marked item and return to the exit zone. Carrier can only move.,Retrieve: grab the marked item and return to the exit zone. Carrier can only move.,Thu hồi: lấy vật phẩm được đánh dấu và mang về vùng thoát. Người mang chỉ được di chuyển.
+%s scene: %d more pts,%s scene: %d more pts,Cảnh %s: cần thêm %d điểm
+%s scene: waiting on the story,%s scene: waiting on the story,Cảnh %s: chờ cốt truyện
+S locked,S locked,Đã chốt S
+S closed,S closed,Đã đóng S
+Lock this S pair? Both characters will never be able to lock S with anyone else.,Lock this S pair? Both characters will never be able to lock S with anyone else.,Chốt cặp S này? Cả hai nhân vật sẽ không thể chốt S với bất kỳ ai khác.

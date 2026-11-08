@@ -594,3 +594,19 @@ func check_bonds() -> void:
 		for rank_key in b.scene_thresholds:
 			if not b.scene_dialogue_ids.has(rank_key) or String(b.scene_dialogue_ids[rank_key]) == "":
 				_err("bond %s: rank %s has a threshold but no scene dialogue id" % [id, rank_key])
+		# F-BOND: thresholds strictly rise C < B < A; story gates name real chapters.
+		var prev := 0
+		for rank_key in ["C", "B", "A"]:
+			if b.scene_thresholds.has(rank_key):
+				if int(b.scene_thresholds[rank_key]) <= prev:
+					_err("bond %s: threshold %s must be above the previous rank" % [id, rank_key])
+				prev = int(b.scene_thresholds[rank_key])
+		for rank_key in b.scene_earliest_chapter:
+			var chapter_id := String(b.scene_earliest_chapter[rank_key])
+			if chapter_id != "" and DataRegistry.get_data("chapters", chapter_id) == null:
+				_err("bond %s: scene %s gate names unknown chapter %s" % [id, rank_key, chapter_id])
+		if String(b.s_milestone_chapter_id) != "" and DataRegistry.get_data("chapters", String(b.s_milestone_chapter_id)) == null:
+			_err("bond %s: S gate names unknown chapter %s" % [id, b.s_milestone_chapter_id])
+		# F-BOND S: a whitelisted S pair needs its S scene.
+		if bool(b.s_eligible) and String(b.scene_dialogue_ids.get("S", "")) == "":
+			_err("bond %s: s_eligible but no S scene dialogue" % id)
