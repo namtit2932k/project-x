@@ -15,7 +15,7 @@ func identify() -> String:
 
 
 func describe() -> String:
-	return "Defend: hold the marked zone for %s turns." % [_params.get("turns_required", 0)]
+	return _t("Defend: hold the marked zone for %s turns.") % [_params.get("turns_required", 0)]
 
 
 func zone() -> Rect2i:

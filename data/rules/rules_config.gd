@@ -41,21 +41,21 @@ class_name RulesConfig
 	"hp": 60, "str": 30, "mag": 30, "skill": 30, "speed": 30, "luck": 30, "def": 30, "res": 30,
 }
 ## ------------------------------------------------------------ class passives (F-PAS)
-## GDD Authored Passive Catalog: passive_id -> {name (GDD display name), effect_type, numbers}. Effect types are code
+## GDD Authored Passive Catalog: passive_id -> {name (UI text key; the Vietnamese GDD names live in data/i18n/strings.csv), effect_type, numbers}. Effect types are code
 ## (PassiveSystem); numbers and which class uses which passive are data.
 @export var passive_catalog: Dictionary = {
-	"disarming_strike": {"name": "Giải Giáp", "effect_type": "debuff_target_stat", "stat": "defense", "amount": 3, "duration": 2},
-	"iron_retaliation": {"name": "Phản Đòn Giáp Sắt", "effect_type": "thorns_damage", "damage": 4, "min_hp_ratio": 0.5},
-	"battle_bloodlust": {"name": "Hút Máu Chiến Trận", "effect_type": "lifesteal", "ratio": 0.3},
-	"twin_lance_strike": {"name": "Song Thương", "effect_type": "force_double"},
-	"cover_piercing_shot": {"name": "Bắn Xuyên Giáp", "effect_type": "ignore_defender_terrain"},
-	"survival_instinct": {"name": "Bản Năng Sinh Tồn", "effect_type": "survive_once"},
-	"feral_regeneration": {"name": "Tái Tạo Bản Năng", "effect_type": "flat_self_heal", "amount": 5},
-	"fragile_magic_circle": {"name": "Pháp Trận Mong Manh", "effect_type": "burst_damage", "bonus": 5},
-	"inspiring_melody": {"name": "Giai Điệu Khích Lệ", "effect_type": "adjacency_aura_avoid", "bonus": 3},
-	"devoted_mentor": {"name": "Người Thầy Tận Tâm", "effect_type": "grant_target_exp", "exp": 10},
-	"extended_reach": {"name": "Tầm Đánh Mở Rộng", "effect_type": "extended_range", "bonus": 1, "min_hp_ratio": 0.75},
-	"silent_assassination": {"name": "Ám Sát Không Dấu Vết", "effect_type": "suppress_retaliation"},
+	"disarming_strike": {"name": "Disarming Strike", "effect_type": "debuff_target_stat", "stat": "defense", "amount": 3, "duration": 2},
+	"iron_retaliation": {"name": "Iron Retaliation", "effect_type": "thorns_damage", "damage": 4, "min_hp_ratio": 0.5},
+	"battle_bloodlust": {"name": "Battle Bloodlust", "effect_type": "lifesteal", "ratio": 0.3},
+	"twin_lance_strike": {"name": "Twin Lance Strike", "effect_type": "force_double"},
+	"cover_piercing_shot": {"name": "Cover-Piercing Shot", "effect_type": "ignore_defender_terrain"},
+	"survival_instinct": {"name": "Survival Instinct", "effect_type": "survive_once"},
+	"feral_regeneration": {"name": "Feral Regeneration", "effect_type": "flat_self_heal", "amount": 5},
+	"fragile_magic_circle": {"name": "Fragile Magic Circle", "effect_type": "burst_damage", "bonus": 5},
+	"inspiring_melody": {"name": "Inspiring Melody", "effect_type": "adjacency_aura_avoid", "bonus": 3},
+	"devoted_mentor": {"name": "Devoted Mentor", "effect_type": "grant_target_exp", "exp": 10},
+	"extended_reach": {"name": "Extended Reach", "effect_type": "extended_range", "bonus": 1, "min_hp_ratio": 0.75},
+	"silent_assassination": {"name": "Silent Assassination", "effect_type": "suppress_retaliation"},
 }
 
 ## Designer (08-11-2026): losing is a game over, so a lost battle keeps nothing, EXP included

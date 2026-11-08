@@ -22,27 +22,27 @@ func _ready() -> void:
 	add_child(bg)
 
 	var result: Dictionary = ResultStore.last_result
-	var title := UIBuilder.label(self, "Victory" if result.get("status", "") == "win" else "Defeat", 54)
+	var title := UIBuilder.label(self, UIBuilder.t("Victory") if result.get("status", "") == "win" else UIBuilder.t("Defeat"), 54)
 	title.position = Vector2(60, 40)
 
 	var box := UIBuilder.vbox(UIBuilder.panel(self, 60, 150, 1000, 640), 10)
-	UIBuilder.label(box, "Chapter: %s" % _chapter.display_name, 22)
+	UIBuilder.label(box, UIBuilder.t("Chapter: %s") % _chapter.display_name, 22)
 
-	UIBuilder.label(box, "Objectives:", 20)
+	UIBuilder.label(box, UIBuilder.t("Objectives:"), 20)
 	for r in result.get("results", []):
-		UIBuilder.label(box, "- %s -> %s (%s)" % [r["id"], str(r["progress"]), str(r["status"])], 16)
+		UIBuilder.label(box, "- %s -> %s (%s)" % [UIBuilder.t(String(r["id"])), str(r["progress"]), UIBuilder.t(str(r["status"]))], 16)
 
-	UIBuilder.label(box, "Casualty policy (%s): %s" % [GameState.difficulty, DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "?")], 16)
+	UIBuilder.label(box, UIBuilder.t("Casualty policy (%s): %s") % [UIBuilder.t(GameState.difficulty.capitalize()), UIBuilder.t(String(DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "?")))], 16)
 
 	# Kills per faction (reconcile-relevant bookkeeping).
-	UIBuilder.label(box, "Kills by faction (threshold hidden):", 20)
+	UIBuilder.label(box, UIBuilder.t("Kills by faction (threshold hidden):"), 20)
 	for faction_id in result.get("reconcile", {}):
 		var f := DataRegistry.get_faction(String(faction_id))
 		var fo: Dictionary = result["reconcile"][faction_id]
-		UIBuilder.label(box, "- %s: %d kills -> %s" % [f.display_name if f != null else faction_id, int(fo.get("kills", 0)), "persuaded" if bool(fo.get("persuaded", false)) else "not persuaded"], 16)
+		UIBuilder.label(box, UIBuilder.t("- %s: %d kills -> %s") % [f.display_name if f != null else faction_id, int(fo.get("kills", 0)), UIBuilder.t("persuaded") if bool(fo.get(UIBuilder.t("persuaded"), false)) else UIBuilder.t("not persuaded")], 16)
 
 	# T11 remedial + D08: exp from the result (player side only), level-ups with stat gains.
-	UIBuilder.label(box, "EXP earned:", 20)
+	UIBuilder.label(box, UIBuilder.t("EXP earned:"), 20)
 	for unit_id in result.get("exp", {}):
 		var ud := DataRegistry.get_unit(String(unit_id))
 		UIBuilder.label(box, "- %s +%d" % [ud.display_name if ud != null else unit_id, int(result["exp"][unit_id])], 16)
@@ -51,9 +51,9 @@ func _ready() -> void:
 		for stat_id in lu["gains"]:
 			gains_text += "%s+%d " % [stat_id, int(lu["gains"][stat_id])]
 		var lu_ud := DataRegistry.get_unit(String(lu["unit_id"]))
-		UIBuilder.label(box, "LEVEL UP: %s -> Lv %d (%s)" % [lu_ud.display_name if lu_ud != null else String(lu["unit_id"]), int(lu["level"]), gains_text], 16)
+		UIBuilder.label(box, UIBuilder.t("LEVEL UP: %s -> Lv %d (%s)") % [lu_ud.display_name if lu_ud != null else String(lu["unit_id"]), int(lu["level"]), gains_text], 16)
 
-	var post := UIBuilder.button(self, "Continue", 24)
+	var post := UIBuilder.button(self, UIBuilder.t("Continue"), 24)
 	post.position = Vector2(60, 840)
 	post.size = Vector2(220, 56)
 	post.pressed.connect(func() -> void: continue_pressed.emit())

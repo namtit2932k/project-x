@@ -11,6 +11,12 @@ func evaluate(_state: BattleState) -> Dictionary:
 	return {"status": "ongoing", "progress": "not implemented"}
 
 
+## I18N: objective text in the current UI language (key = English source text, see
+## data/i18n/strings.csv). Engine TranslationServer, so battle logic stays scene-free.
+static func _t(key: String) -> String:
+	return String(TranslationServer.translate(key))
+
+
 func describe() -> String:
 	return "objective"
 

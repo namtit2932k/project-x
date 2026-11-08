@@ -15,7 +15,7 @@ func identify() -> String:
 
 
 func describe() -> String:
-	return "Retrieve: grab the marked item and return to the exit zone. Carrier can only move."
+	return _t("Retrieve: grab the marked item and return to the exit zone. Carrier can only move.")
 
 
 func exit_zone() -> Rect2i:

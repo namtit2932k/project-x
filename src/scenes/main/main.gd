@@ -33,6 +33,8 @@ func _show_menu() -> void:
 	menu.new_game.connect(_on_new_game)
 	menu.continue_game.connect(_on_continue_game)
 	menu.test_battle.connect(_start_test_battle)
+	# I18N: rebuild the menu in the new language (deferred: the old menu is still emitting).
+	menu.language_changed.connect(func() -> void: call_deferred("_show_menu"))
 	if OS.is_debug_build():
 		menu.legacy_chapter.connect(_on_legacy_chapter)
 	_swap_to(menu)

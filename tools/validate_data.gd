@@ -114,6 +114,7 @@ func run_checks(layer: String) -> void:
 	check_dialogues()
 	check_bonds()
 	check_reconcile_keys()
+	check_translations()
 	print("pass %s: %d errors, %d warnings" % [layer, errors - int(before["e"]), warnings - int(before["w"])])
 
 
@@ -180,6 +181,31 @@ func check_rules() -> void:
 	for rank in bonuses:
 		if int(bonuses[rank]) > cap:
 			_err("rules: bond bonus rank '%s' (%d) exceeds max_adjacent_bond_bonus %d" % [rank, int(bonuses[rank]), cap])
+
+
+## I18N: every UI string needs text in every language column; passive names and skill
+## display names are UI keys too.
+func check_translations() -> void:
+	var table: Dictionary = DataRegistry.i18n_table()
+	if table.is_empty():
+		_err("i18n: data/i18n/strings.csv missing or empty")
+		return
+	for locale in ["en", "vi"]:
+		if locale not in DataRegistry.i18n_locales():
+			_err("i18n: no '%s' column" % locale)
+	for key in table:
+		for locale in DataRegistry.i18n_locales():
+			if String((table[key] as Dictionary).get(locale, "")).strip_edges() == "":
+				_err("i18n: '%s' has no %s text" % [key, locale])
+	var catalog: Dictionary = DataRegistry.rule("passive_catalog", {})
+	for passive_id in catalog:
+		var name := String((catalog[passive_id] as Dictionary).get("name", ""))
+		if not table.has(name):
+			_err("i18n: passive '%s' name '%s' has no translation row" % [passive_id, name])
+	for skill_id in DataRegistry.all_ids("skills"):
+		var skill := DataRegistry.get_data("skills", skill_id)
+		if String(skill.display_name) != "" and not table.has(String(skill.display_name)):
+			_err("i18n: skill '%s' display name '%s' has no translation row" % [skill_id, skill.display_name])
 
 
 func check_classes() -> void:

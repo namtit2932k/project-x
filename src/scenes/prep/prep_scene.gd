@@ -28,15 +28,15 @@ func _ready() -> void:
 	# Objectives panel (primary + fail conditions).
 	var obj_panel := UIBuilder.panel(self, 60, 130, 500, 300)
 	var obj_box := UIBuilder.vbox(obj_panel, 8)
-	UIBuilder.label(obj_box, "Objectives", 22)
+	UIBuilder.label(obj_box, UIBuilder.t("Objectives"), 22)
 	var map := DataRegistry.get_map(String(_chapter.map_id))
 	for cfg in map.objectives:
 		var obj := ObjectiveBase.create(cfg)
 		if obj != null:
 			UIBuilder.label(obj_box, "- " + obj.describe(), 16)
-	UIBuilder.label(obj_box, "Fail: protagonist down = game over.", 16)
+	UIBuilder.label(obj_box, UIBuilder.t("Fail: protagonist down = game over."), 16)
 	if int(map.turn_limit) > 0:
-		UIBuilder.label(obj_box, "Turn limit: %d" % int(map.turn_limit), 16)
+		UIBuilder.label(obj_box, UIBuilder.t("Turn limit: %d") % int(map.turn_limit), 16)
 	# N10: when the map carries a remnant faction, warn about kills without the hidden number.
 	var remnant_found := false
 	var placements: Array = []
@@ -51,12 +51,12 @@ func _ready() -> void:
 		if fac != null and String(fac.remnant_id) != "":
 			remnant_found = true
 	if remnant_found:
-		UIBuilder.label(obj_box, "Note: limit your kills if you want to persuade the remnants.", 16)
+		UIBuilder.label(obj_box, UIBuilder.t("Note: limit your kills if you want to persuade the remnants."), 16)
 
 	# Deploy roster panel.
 	var list_panel := UIBuilder.panel(self, 600, 130, 760, 500)
 	var list_box := UIBuilder.vbox(list_panel, 6)
-	UIBuilder.label(list_box, "Deploy (max %d)" % int(_chapter.deploy_max), 22)
+	UIBuilder.label(list_box, UIBuilder.t("Deploy (max %d)") % int(_chapter.deploy_max), 22)
 	var locked_any := false
 	for unit_id in _chapter.deployable_unit_ids:
 		var ud := DataRegistry.get_unit(String(unit_id))
@@ -75,7 +75,7 @@ func _ready() -> void:
 			check.disabled = true
 			locked_any = true
 
-	_start_button = UIBuilder.button(self, "Start battle", 24)
+	_start_button = UIBuilder.button(self, UIBuilder.t("Start battle"), 24)
 	_start_button.position = Vector2(600, 680)
 	_start_button.size = Vector2(220, 56)
 	_start_button.pressed.connect(_on_start)

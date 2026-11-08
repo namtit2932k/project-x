@@ -53,6 +53,7 @@ Put new code in the matching folder. If a new top-level folder seems needed, ask
 - Keep functions small and single-purpose. Prefer composition and signals over deep inheritance or node-path coupling.
 - Do not use `get_node` paths across unrelated scenes; communicate via signals or `EventBus`.
 - Comments explain *why*, not *what*. Public functions get a one-line doc comment.
+- **Player-facing text is never a bare string (I18N).** Wrap it as `UIBuilder.t("English source text")` (battle logic: `ObjectiveBase._t()` / `TranslationServer.translate()`), format after translating (`UIBuilder.t("Turn limit: %d") % n`), and add the row to `data/i18n/strings.csv` with **both** `en` and `vi`. Data that is shown to the player (passive names, skill display names) stores the English key. The validator and `test_i18n` fail on a missing row or an empty column.
 
 ## 6. Game rules reference (current agreement)
 
@@ -288,6 +289,13 @@ Replaces the flat `crit_bonus`/`hit_bonus` idea of a passive (GDD retired it). E
 - Designer rule kept: a full-HP ally cannot be healed (overrides GDD's "0 effective healing is legal").
 - **Preview (GDD Pillar 2):** while choosing a Heal target, hovering a highlighted ally shows the raw HealAmount and the real HP gain (e.g. "Heal 20 → +12 HP (36→48)").
 
+### I18N — Two UI languages (designer 08-11-2026: "the game will have at least 2 languages, do both")
+
+- **English + Vietnamese** for all UI text. Table: `data/i18n/strings.csv` (`keys,en,vi`; key = English source text, so a missing translation shows English). Imported as `keep` (`strings.csv.import`) and read by `DataRegistry._load_translations()` into Godot's `TranslationServer` — no extra autoload, no generated files. A new language = a new column + an entry in `GameState.LANGUAGES`.
+- **Setting:** `GameState.options.language` (default `en`, kept across New campaign, saved with the options, applied by `GameState.apply_language()` at startup and after a load). Options panel has a Language button cycling the languages (names shown in their own language); the main menu rebuilds itself on a switch. Screens already open (e.g. the battle HUD behind the pause menu) switch on the next screen.
+- **Covered:** menu, options, pause, prep, dialogue controls, battle HUD/banners/combat log, forecast (incl. passive notes, stat names), skill names, Game Over, camp, post-battle, objective names/descriptions/status, difficulty and casualty-policy names, passive names (VI = GDD names).
+- **Not covered yet (content, needs per-language data):** unit/class/weapon/map/chapter/faction display names, dialogue and story lines, bond scenes. Proposed approach when content arrives: the data fields keep an English key and the writer fills `vi` rows (or per-language dialogue files) — designer to confirm.
+
 ### F-EXP — EXP & level-up from the GDD (08-11-2026, `core-combat-system.md` Core Rule 12 / F-CC13 / F-CC14 / AC-CC78–84 + `dual-restraint-scoring.md` Edge Cases)
 
 Supersedes **D08** and **P-04** outright. D06/P-09 stay as they were (see "No defeat, only game over" below). Source: Core Combat is still "In Review" in the GDD index, but the user asked to follow it for EXP; the defeat rule comes from Dual Restraint Scoring, which is Approved.
@@ -340,6 +348,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (10) — Claude (Opus) — done: two UI languages (new §7b **I18N**, new §5 rule). `data/i18n/strings.csv` (141 rows, en + vi; key = English text) loaded by `DataRegistry._load_translations()` into `TranslationServer`; `UIBuilder.t()` / `ObjectiveBase._t()`; `GameState.LANGUAGES`, `options.language`, `set_language()/apply_language()`; Language button in OptionsPanel, menu rebuilds on switch. Every UI string in menu/options/pause/prep/dialogue/battle/forecast/game over/camp/post-battle and all objective descriptions wrapped; passive catalog names are English keys now (VI = GDD names). Validator `check_translations()`; new `test_i18n` (scans src/ for every t() key, checks vi texts on screens, setting survives New campaign); preview test updated for English name keys. Verified: validation 0/0, run_tests **296/296**, smoke_full_battle 21/21 (×4), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: content localization once the designer confirms the approach (names, dialogue, story); GDD backlog. — issues: not pushed (cached account `kame-gamedesign` has no write access). A first test run hung because a parse error in run_tests.gd kept the test scene from quitting — fixed; worth adding a timeout to the test runner later.
 
 - 2026-11-08 (9) — Claude (Opus) — done: forecast preview of passive side effects (F-PAS "Preview" bullet updated; closes GDD Core Rule 11f's UI gap). `PassiveSystem.forecast_notes()` returns data notes for the exchange (lifesteal per hit, thorns, survive-once while unused, regen, debuff on hit, Lancer double, terrain-ignore, burst, no-counter, extended range, Bard aura on either side, active debuffs); `CombatResolver.forecast()` attaches them as `notes` (execute() does not); `ForecastPanel.note_text()` formats each line under its side, using the GDD display names now stored as `name` in `rules_config.passive_catalog`. New `test_forecast_passive_notes`. Verified: validation 0/0, run_tests **287/287**, smoke_full_battle 21/21 (×5), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: GDD backlog (demo enemy stats, bond S-routes, objectives W5, Dual Restraint, persuasion UI, enemy stat multiplier). — issues: not pushed (cached account `kame-gamedesign` has no write access). Panel text is English with Vietnamese passive names (UI language not decided yet).
 

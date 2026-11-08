@@ -13,7 +13,7 @@ func identify() -> String:
 
 
 func describe() -> String:
-	return "Escort: the marked NPC must reach the destination tile alive."
+	return _t("Escort: the marked NPC must reach the destination tile alive.")
 
 
 func evaluate(state: BattleState) -> Dictionary:

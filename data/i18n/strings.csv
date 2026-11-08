@@ -1,0 +1,142 @@
+keys,en,vi
+Tactical turn-based RPG - vertical slice build,Tactical turn-based RPG - vertical slice build,RPG chiến thuật theo lượt - bản vertical slice
+New campaign,New campaign,Chiến dịch mới
+Continue,Continue,Tiếp tục
+Difficulty: %s (switch),Difficulty: %s (switch),Độ khó: %s (đổi)
+Test maps,Test maps,Map thử nghiệm
+Legacy chapter (ch01),Legacy chapter (ch01),Chương cũ (ch01)
+Quit,Quit,Thoát
+Test maps (debug build only),Test maps (debug build only),Map thử nghiệm (chỉ bản debug)
+Story,Story,Cốt truyện
+Normal,Normal,Thường
+Hard,Hard,Khó
+Nightmare,Nightmare,Ác mộng
+Options,Options,Tùy chọn
+Volume,Volume,Âm lượng
+Fullscreen,Fullscreen,Toàn màn hình
+Language: %s,Language: %s,Ngôn ngữ: %s
+Paused,Paused,Tạm dừng
+Resume,Resume,Chơi tiếp
+Quit to menu,Quit to menu,Về menu chính
+Current battle progress will be lost. Only your latest manual save is kept. Quit anyway?,Current battle progress will be lost. Only your latest manual save is kept. Quit anyway?,Tiến độ trận hiện tại sẽ mất. Chỉ bản lưu thủ công gần nhất được giữ lại. Vẫn thoát?
+Back to battle,Back to battle,Quay lại trận
+Objectives,Objectives,Mục tiêu
+Fail: protagonist down = game over.,Fail: protagonist down = game over.,Thất bại: nhân vật chính gục = game over.
+Turn limit: %d,Turn limit: %d,Giới hạn lượt: %d
+Note: limit your kills if you want to persuade the remnants.,Note: limit your kills if you want to persuade the remnants.,Lưu ý: hạn chế giết địch nếu muốn thuyết phục tàn quân.
+Deploy (max %d),Deploy (max %d),Triển khai (tối đa %d)
+Start battle,Start battle,Bắt đầu trận
+Click / Space: continue   -   Esc: skip,Click / Space: continue   -   Esc: skip,Click / Space: tiếp   -   Esc: bỏ qua
+Skip scene,Skip scene,Bỏ qua cảnh
+Game Over,Game Over,Game Over
+Chapter: %s,Chapter: %s,Chương: %s
+%s has fallen.,%s has fallen.,%s đã gục ngã.
+The mission objective failed.,The mission objective failed.,Nhiệm vụ đã thất bại.
+Progress from this battle is not kept.,Progress from this battle is not kept.,Tiến độ trận này không được giữ lại.
+Retry chapter,Retry chapter,Chơi lại chương
+Main menu,Main menu,Menu chính
+Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait,Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait,Click unit: xem tầm đi - click địch ô đỏ: Dự báo - Xác nhận để đánh - sau khi đi: click lại unit / ô khác / chuột phải = Chờ
+End phase,End phase,Kết thúc phase
+%s is OUT of reach of %s (unit acted? one action per phase — use another unit or Rewind).,%s is OUT of reach of %s (unit acted? one action per phase — use another unit or Rewind).,%s NGOÀI tầm của %s (unit đã hành động? mỗi phase một hành động — dùng unit khác hoặc Tua lại).
+Skill: %s,Skill: %s,Kỹ năng: %s
+Choose a target for %s (right click to cancel).,Choose a target for %s (right click to cancel).,Chọn mục tiêu cho %s (chuột phải để hủy).
+Skip,Skip,Bỏ qua
+%s %s %d dmg -> %s (HP %d),%s %s %d dmg -> %s (HP %d),%s %s %d sát thương -> %s (HP %d)
+critical,critical,chí mạng
+misses,misses,trượt
+hits,hits,trúng
+Rewind,Rewind,Tua lại
+Rewind %d,Rewind %d,Tua lại %d
+Victory,Victory,Chiến thắng
+Defeat,Defeat,Thất bại
+"%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid","%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid","%s | HP %d/%d | Công %d Thủ %d Kháng %d Tốc %d | địa hình +%d thủ, +%d né"
+"terrain: %s (+%d def, +%d avoid)","terrain: %s (+%d def, +%d avoid)","địa hình: %s (+%d thủ, +%d né)"
+%s: Heal %d -> +%d HP (%d->%d),%s: Heal %d -> +%d HP (%d->%d),%s: Hồi %d -> +%d HP (%d->%d)
+Limit your kills if you want to persuade the remnants - watch the attitude chips.,Limit your kills if you want to persuade the remnants - watch the attitude chips.,Hạn chế giết địch nếu muốn thuyết phục tàn quân - để ý các ô thái độ.
+Safe,Safe,An toàn
+Lost,Lost,Mất
+Neutral,Neutral,Trung lập
+Confirm attack,Confirm attack,Xác nhận tấn công
+Cancel,Cancel,Hủy
+NOT committed yet - Confirm to fight. Cancel / right-click to step back.,NOT committed yet - Confirm to fight. Cancel / right-click to step back.,CHƯA thực hiện - Xác nhận để đánh. Hủy / chuột phải để quay lại.
+No counter,No counter,Không phản đòn
+Strike %d: Hit %d%% / Crit %d%% / Dmg %d,Strike %d: Hit %d%% / Crit %d%% / Dmg %d,Đòn %d: Trúng %d%% / Chí mạng %d%% / ST %d
+on hit: target %s -%d for %d turns,on hit: target %s -%d for %d turns,khi trúng: mục tiêu %s -%d trong %d lượt
+on hit: heals %d HP per hit (more on a crit),on hit: heals %d HP per hit (more on a crit),khi trúng: hồi %d HP mỗi đòn (nhiều hơn khi chí mạng)
+strikes twice before the counter,strikes twice before the counter,đánh 2 lần trước khi bị phản
+ignores the target's terrain Avoid (+%d),ignores the target's terrain Avoid (+%d),bỏ qua Né địa hình của mục tiêu (+%d)
++%d damage on the first strike,+%d damage on the first strike,+%d sát thương ở đòn đầu
+target has not acted yet: no counter,target has not acted yet: no counter,mục tiêu chưa hành động: không phản đòn
+heals %d HP after attacking,heals %d HP after attacking,hồi %d HP sau khi tấn công
+deals %d damage back if it survives,deals %d damage back if it survives,phản %d sát thương nếu còn sống
+survives one lethal blow at 1 HP (not used yet),survives one lethal blow at 1 HP (not used yet),sống sót một đòn chí tử với 1 HP (chưa dùng)
+range +%d at high HP,range +%d at high HP,tầm +%d khi máu cao
++%d Avoid from an adjacent Bard,+%d Avoid from an adjacent Bard,+%d Né nhờ Bard đứng kề
+Debuffed: %s -%d (%d turns left),Debuffed: %s -%d (%d turns left),Bị suy yếu: %s -%d (còn %d lượt)
+Def,Def,Thủ
+Res,Res,Kháng
+Str,Str,Sức
+Mag,Mag,Phép
+Skill,Skill,Kỹ năng
+Speed,Speed,Tốc
+Luck,Luck,May mắn
+Disarming Strike,Disarming Strike,Giải Giáp
+Iron Retaliation,Iron Retaliation,Phản Đòn Giáp Sắt
+Battle Bloodlust,Battle Bloodlust,Hút Máu Chiến Trận
+Twin Lance Strike,Twin Lance Strike,Song Thương
+Cover-Piercing Shot,Cover-Piercing Shot,Bắn Xuyên Giáp
+Survival Instinct,Survival Instinct,Bản Năng Sinh Tồn
+Feral Regeneration,Feral Regeneration,Tái Tạo Bản Năng
+Fragile Magic Circle,Fragile Magic Circle,Pháp Trận Mong Manh
+Inspiring Melody,Inspiring Melody,Giai Điệu Khích Lệ
+Devoted Mentor,Devoted Mentor,Người Thầy Tận Tâm
+Extended Reach,Extended Reach,Tầm Đánh Mở Rộng
+Silent Assassination,Silent Assassination,Ám Sát Không Dấu Vết
+Heal,Heal,Hồi máu
+Encore,Encore,Diễn Tấu
+Camp - manage the squad,Camp - manage the squad,Doanh trại - quản lý đội
+Roster,Roster,Đội hình
+alive,alive,còn sống
+fallen,fallen,đã ngã
+%s | %s | Lv %d | exp %d | %s,%s | %s | Lv %d | exp %d | %s,%s | %s | Cấp %d | exp %d | %s
+possible,possible,có thể
+locked,locked,đang khóa
+"True ending: %s (every true-ending chapter finished, remnants persuaded)","True ending: %s (every true-ending chapter finished, remnants persuaded)","Kết thúc thật: %s (hoàn thành mọi chương cần thiết, thuyết phục được tàn quân)"
+Save,Save,Lưu
+Campaign complete,Campaign complete,Hoàn thành chiến dịch
+No further chapters in data yet.,No further chapters in data yet.,Chưa có chương tiếp theo trong dữ liệu.
+Next chapter,Next chapter,Chương tiếp
+Bonds (eligibility is designer data),Bonds (eligibility is designer data),Liên kết (danh sách cặp do designer quy định)
+%s x %s | %d pts | rank %s,%s x %s | %d pts | rank %s,%s x %s | %d điểm | hạng %s
+View %s scene,View %s scene,Xem cảnh %s
+Lock S pair,Lock S pair,Khóa cặp S
+Saved - manual saves sit between battles only.,Saved - manual saves sit between battles only.,Đã lưu - chỉ lưu thủ công giữa các trận.
+Objectives:,Objectives:,Mục tiêu:
+Casualty policy (%s): %s,Casualty policy (%s): %s,Chính sách thương vong (%s): %s
+Kills by faction (threshold hidden):,Kills by faction (threshold hidden):,Số địch bị hạ theo phe (ngưỡng ẩn):
+- %s: %d kills -> %s,- %s: %d kills -> %s,- %s: hạ %d -> %s
+persuaded,persuaded,đã thuyết phục
+not persuaded,not persuaded,chưa thuyết phục
+EXP earned:,EXP earned:,EXP nhận được:
+LEVEL UP: %s -> Lv %d (%s),LEVEL UP: %s -> Lv %d (%s),LÊN CẤP: %s -> Cấp %d (%s)
+temp_injury,temporary injury,bị thương tạm thời
+permadeath,permadeath,chết vĩnh viễn
+none,none,không
+eliminate,Eliminate,Tiêu diệt
+escort,Escort,Hộ tống
+escort_turns,Escort (turns),Hộ tống (lượt)
+defend,Defend,Phòng thủ
+retrieve,Retrieve,Thu hồi
+capture,Capture,Chiếm giữ
+evacuate,Evacuate,Sơ tán
+ongoing,ongoing,đang diễn ra
+win,win,đạt
+lose,lose,thất bại
+Capture & hold: keep player units inside every marked zone %s consecutive turns.,Capture & hold: keep player units inside every marked zone %s consecutive turns.,Chiếm & giữ: giữ quân ta trong mọi vùng đánh dấu %s lượt liên tiếp.
+Defend: hold the marked zone for %s turns.,Defend: hold the marked zone for %s turns.,Phòng thủ: giữ vùng đánh dấu trong %s lượt.
+Rout: defeat all enemies (or the marked targets).,Rout: defeat all enemies (or the marked targets).,Tiêu diệt: hạ toàn bộ địch (hoặc các mục tiêu được đánh dấu).
+Escort: the marked NPC must reach the destination tile alive.,Escort: the marked NPC must reach the destination tile alive.,Hộ tống: NPC được đánh dấu phải tới ô đích an toàn.
+Escort (turns): keep %s alive through %s enemy phases.,Escort (turns): keep %s alive through %s enemy phases.,Hộ tống (lượt): giữ %s sống qua %s phase địch.
+Evacuate: rout every foe while the marked NPCs live.,Evacuate: rout every foe while the marked NPCs live.,Sơ tán: hạ hết địch trong khi các NPC được đánh dấu còn sống.
+Evacuate: keep the marked NPCs alive for %s turns.,Evacuate: keep the marked NPCs alive for %s turns.,Sơ tán: giữ các NPC được đánh dấu sống trong %s lượt.
+Retrieve: grab the marked item and return to the exit zone. Carrier can only move.,Retrieve: grab the marked item and return to the exit zone. Carrier can only move.,Thu hồi: lấy vật phẩm được đánh dấu và mang về vùng thoát. Người mang chỉ được di chuyển.

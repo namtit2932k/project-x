@@ -66,10 +66,10 @@ func _build_ui() -> void:
 	_info_label.position = Vector2(24, 920)
 	_info_label.size = Vector2(700, 60)
 
-	_hint_label = UIBuilder.label(_ui_root(), "Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait", 20)
+	_hint_label = UIBuilder.label(_ui_root(), UIBuilder.t("Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait"), 20)
 	_hint_label.position = Vector2(400, 60)
 
-	_end_turn_button = UIBuilder.button(_ui_root(), "End phase", 22)
+	_end_turn_button = UIBuilder.button(_ui_root(), UIBuilder.t("End phase"), 22)
 	_end_turn_button.position = Vector2(1740, 990)
 	_end_turn_button.size = Vector2(150, 52)
 	_end_turn_button.pressed.connect(_on_end_phase)
@@ -185,7 +185,7 @@ func _on_left_click(cell: Vector2i) -> void:
 				# Phân biệt rõ khi người chơi click một địch không nằm trong ô đỏ:
 				# click đó chỉ là xem range, không phải một đợt tấn công.
 				if sel != null and not sel.acted and not active_targets.has(unit.id) and unit.side != sel.side:
-					_info_label.text = "%s is OUT of reach of %s (unit acted? one action per phase — use another unit or Rewind)." % [unit.display_name, sel.display_name]
+					_info_label.text = UIBuilder.t("%s is OUT of reach of %s (unit acted? one action per phase — use another unit or Rewind).") % [unit.display_name, sel.display_name]
 			else:
 				_cancel_selection()
 		Mode.TARGET_SELECT:
@@ -287,7 +287,7 @@ func _show_action_menu(unit: UnitState) -> void:
 		if skill == null or _skill_targets_for(unit, skill_id).is_empty():
 			continue
 		var label := String(skill.display_name) if String(skill.display_name) != "" else skill_id
-		var sk := UIBuilder.button(_action_menu, "skill: " + label, 16)
+		var sk := UIBuilder.button(_action_menu, UIBuilder.t("Skill: %s") % UIBuilder.t(label), 16)
 		sk.pressed.connect(func() -> void: _use_skill(skill_id))
 	if _action_menu.get_child_count() == 0:
 		return
@@ -342,7 +342,7 @@ func _use_skill(skill_id: String) -> void:
 	mode = Mode.SKILL_TARGET
 	_hide_action_menu()
 	var skill_name := String(skill.display_name) if String(skill.display_name) != "" else skill_id
-	_info_label.text = "Choose a target for %s (right click to cancel)." % skill_name
+	_info_label.text = UIBuilder.t("Choose a target for %s (right click to cancel).") % UIBuilder.t(skill_name)
 	_refresh_overlays()
 
 
@@ -473,7 +473,7 @@ func _play_combat(strikes: Array) -> void:
 	v.offset_left = 500
 	v.offset_top = 260
 	v.offset_right = -500
-	_skip_btn_ = UIBuilder.button(overlay, "Skip", 20)
+	_skip_btn_ = UIBuilder.button(overlay, UIBuilder.t("Skip"), 20)
 	_skip_btn_.position = Vector2(1740, 990)
 	_skip_btn_.pressed.connect(func() -> void: _combat_skip = true)
 
@@ -506,9 +506,9 @@ func _play_combat(strikes: Array) -> void:
 		var attacker: UnitState = director.state.units.get(String(strike.get("attacker_id", "")), null)
 		if target == null or attacker == null:
 			continue
-		var text := "%s %s %d dmg -> %s (HP %d)" % [
+		var text := UIBuilder.t("%s %s %d dmg -> %s (HP %d)") % [
 			attacker.display_name,
-			"critical" if bool(strike.get("crit", false)) else ("misses" if not bool(strike.get("hit", true)) else "hits"),
+			UIBuilder.t("critical") if bool(strike.get("crit", false)) else (UIBuilder.t("misses") if not bool(strike.get("hit", true)) else UIBuilder.t("hits")),
 			int(strike.get("damage", 0)),
 			target.display_name,
 			int(strike.get("target_hp_after", 0)),
@@ -576,7 +576,7 @@ func _run_npc_phase() -> void:
 func _refresh_rewind_button() -> void:
 	var budget := director.rewind_budget
 	var left := director.rewind_uses_left
-	_rewind_button.text = "Rewind" if budget == -1 else "Rewind %d" % left
+	_rewind_button.text = UIBuilder.t("Rewind") if budget == -1 else UIBuilder.t("Rewind %d") % left
 	_rewind_button.disabled = budget == 0 or (budget > 0 and left <= 0)
 
 
@@ -615,15 +615,15 @@ func _show_result_banner() -> void:
 	layer.add_child(overlay)
 	var v := UIBuilder.vbox(overlay, 20)
 	v.set_anchors_preset(Control.PRESET_CENTER)
-	UIBuilder.label(v, "Victory" if is_win else "Defeat", 64)
+	UIBuilder.label(v, UIBuilder.t("Victory") if is_win else UIBuilder.t("Defeat"), 64)
 	# D04: after a defeat the banner carries a Rewind button while uses remain (Nightmare
 	# disables rewind entirely, so the button never shows there). Winning is final.
 	if not is_win and _rewind_available_on_banner():
-		var rw := UIBuilder.button(v, "Rewind", 26)
+		var rw := UIBuilder.button(v, UIBuilder.t("Rewind"), 26)
 		rw.pressed.connect(func() -> void:
 			layer.queue_free()
 			_on_rewind())
-	var cont := UIBuilder.button(v, "Continue", 26)
+	var cont := UIBuilder.button(v, UIBuilder.t("Continue"), 26)
 	cont.pressed.connect(func() -> void:
 		layer.queue_free()
 		battle_finished.emit(director.state.battle_over.get("status", "lose") == "win"))
@@ -647,11 +647,11 @@ func _update_hover_info() -> void:
 			_info_label.text = heal_text
 			return
 	if u != null:
-		_info_label.text = "%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid" % [
+		_info_label.text = UIBuilder.t("%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid") % [
 			u.display_name, u.hp, u.max_hp, u.power, u.defense, u.resistance, u.speed,
 			int(terr.get("def_bonus", 0)), int(terr.get("avoid_bonus", 0))]
 	else:
-		_info_label.text = "terrain: %s (+%d def, +%d avoid)" % [director.state.terrain_at(hover_cell), int(terr.get("def_bonus", 0)), int(terr.get("avoid_bonus", 0))]
+		_info_label.text = UIBuilder.t("terrain: %s (+%d def, +%d avoid)") % [director.state.terrain_at(hover_cell), int(terr.get("def_bonus", 0)), int(terr.get("avoid_bonus", 0))]
 
 
 ## "Heal 20 -> +12 HP (36->48)" for a heal skill, "" for other skills (numbers from CombatResolver).
@@ -660,13 +660,13 @@ func heal_preview_text(healer: UnitState, target: UnitState, skill_id: String) -
 	if healer == null or target == null or skill == null or String(skill.effect_type) != "heal":
 		return ""
 	var p := CombatResolver.heal_preview(healer, target, skill)
-	return "%s: Heal %d -> +%d HP (%d->%d)" % [target.display_name, int(p["raw"]), int(p["gain"]), int(p["hp_before"]), int(p["hp_after"])]
+	return UIBuilder.t("%s: Heal %d -> +%d HP (%d->%d)") % [target.display_name, int(p["raw"]), int(p["gain"]), int(p["hp_before"]), int(p["hp_after"])]
 
 
 func _update_objective_label() -> void:
 	var lines: Array[String] = []
 	for res in director.active_objectives_progress():
-		lines.append("%s: %s (%s)" % [res["id"], str(res["progress"]), str(res["status"])])
+		lines.append("%s: %s (%s)" % [UIBuilder.t(String(res["id"])), str(res["progress"]), UIBuilder.t(str(res["status"]))])
 	_objective_label.text = "\n".join(lines)
 
 
@@ -741,7 +741,7 @@ func _build_reconcile_hud() -> void:
 	if factions.is_empty():
 		return
 	_reconcile_notice = UIBuilder.label(_ui_root(),
-		"Limit your kills if you want to persuade the remnants - watch the attitude chips.", 18)
+		UIBuilder.t("Limit your kills if you want to persuade the remnants - watch the attitude chips."), 18)
 	_reconcile_notice.position = Vector2(24, 960)
 	_reconcile_notice.size = Vector2(1500, 40)
 	_reconcile_chip_box = HBoxContainer.new()
@@ -754,9 +754,9 @@ func _build_reconcile_hud() -> void:
 
 func _attitude_word(attack: String) -> String:
 	match attack:
-		"safe": return "Safe"
-		"lost": return "Lost"
-		_: return "Neutral"
+		"safe": return UIBuilder.t("Safe")
+		"lost": return UIBuilder.t("Lost")
+		_: return UIBuilder.t("Neutral")
 
 
 func _refresh_reconcile_hud() -> void:

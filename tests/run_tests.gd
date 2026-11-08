@@ -16,6 +16,7 @@ func _ready() -> void:
 	await test_skill_target_selection()
 	await test_heal_formula()
 	await test_forecast_passive_notes()
+	await test_i18n()
 	await test_objectives()
 	await test_rewind()
 	await test_bond_and_reconcile()
@@ -1555,7 +1556,7 @@ func test_forecast_passive_notes() -> void:
 	var fc: Dictionary = CombatResolver.forecast(state, jack, knight)
 	var steal := _note_of(fc, "lifesteal")
 	assert_true(String(steal.get("owner", "")) == "attacker" and int(steal.get("value", -1)) == 5, "preview: lifesteal 5 HP per hit on the attacker side")
-	assert_true(String(steal.get("name", "")) == "Hút Máu Chiến Trận", "preview: GDD display name from the catalog")
+	assert_true(String(steal.get("name", "")) == "Battle Bloodlust", "preview: passive name key from the catalog")
 	var thorns := _note_of(fc, "thorns_damage")
 	assert_true(String(thorns.get("owner", "")) == "defender" and int(thorns.get("value", -1)) == 4, "preview: thorns 4 on the defender side")
 	knight.hp = 9
@@ -1578,9 +1579,9 @@ func test_forecast_passive_notes() -> void:
 	wyvern.miracle_used = true
 	assert_true(_note_of(CombatResolver.forecast(s2, shade, wyvern), "survive_once").is_empty(), "preview: no survive-once note once used")
 	# The panel renders the notes as text, under the right column.
-	assert_true(ForecastPanel.note_text(steal).contains("[Hút Máu Chiến Trận]") and ForecastPanel.note_text(steal).contains("5 HP per hit"), "preview text: %s" % ForecastPanel.note_text(steal))
+	assert_true(ForecastPanel.note_text(steal).contains("[Battle Bloodlust]") and ForecastPanel.note_text(steal).contains("5 HP per hit"), "preview text: %s" % ForecastPanel.note_text(steal))
 	var panel := ForecastPanel.build(fc, jack, knight)
-	assert_true(_has_label_containing(panel, "Hút Máu Chiến Trận"), "preview panel: lifesteal line rendered")
+	assert_true(_has_label_containing(panel, "Battle Bloodlust"), "preview panel: lifesteal line rendered")
 	panel.free()
 
 
@@ -1598,6 +1599,52 @@ func _has_label_containing(root: Node, text: String) -> bool:
 		if _has_label_containing(child, text):
 			return true
 	return false
+
+
+## I18N: the UI ships in English and Vietnamese. Every key used in code exists in
+## data/i18n/strings.csv with both texts, and switching the language changes what screens show.
+func test_i18n() -> void:
+	await 0.0
+	var table: Dictionary = DataRegistry.i18n_table()
+	assert_true(DataRegistry.i18n_locales().has("en") and DataRegistry.i18n_locales().has("vi"), "i18n: en and vi columns loaded")
+	var missing: Array = []
+	var re := RegEx.new()
+	re.compile('(?:UIBuilder\\.t|_t)\\("((?:[^"\\\\]|\\\\.)*)"\\)')
+	for path in _gd_files("res://src"):
+		var text := FileAccess.get_file_as_string(path)
+		for m in re.search_all(text):
+			var key := m.get_string(1).replace("\\\"", "\"")
+			if not table.has(key):
+				missing.append("%s: %s" % [path.get_file(), key])
+	assert_true(missing.is_empty(), "i18n: every t() key in src/ has a row (missing: %s)" % str(missing))
+	assert_true(GameState.language() == "en" and UIBuilder.t("Retry chapter") == "Retry chapter", "i18n: English by default")
+	GameState.set_language("vi")
+	assert_true(UIBuilder.t("Retry chapter") == "Chơi lại chương", "i18n: Vietnamese text after switching")
+	assert_true(UIBuilder.t("eliminate") == "Tiêu diệt" and ObjectiveBase.create({"type": "eliminate", "params": {}}).describe().begins_with("Tiêu diệt"), "i18n: objective names and descriptions translated")
+	var note := {"owner": "attacker", "name": "Battle Bloodlust", "effect_type": "lifesteal", "value": 5}
+	assert_true(ForecastPanel.note_text(note) == "[Hút Máu Chiến Trận] khi trúng: hồi 5 HP mỗi đòn (nhiều hơn khi chí mạng)", "i18n: forecast note in Vietnamese (%s)" % ForecastPanel.note_text(note))
+	var over := GameOverScene.build(null)
+	add_child(over)
+	await get_tree().process_frame
+	assert_true(_find_button(over, "Chơi lại chương") != null and _find_button(over, "Menu chính") != null, "i18n: Game Over buttons in Vietnamese")
+	over.queue_free()
+	GameState.new_game()
+	assert_true(GameState.language() == "vi", "i18n: the language survives a new campaign")
+	GameState.set_language("en")
+	assert_true(UIBuilder.t("Retry chapter") == "Retry chapter" and ForecastPanel.note_text(note).begins_with("[Battle Bloodlust]"), "i18n: back to English")
+
+
+func _gd_files(dir_path: String) -> Array:
+	var out: Array = []
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return out
+	for f in dir.get_files():
+		if f.ends_with(".gd"):
+			out.append(dir_path + "/" + f)
+	for sub in dir.get_directories():
+		out.append_array(_gd_files(dir_path + "/" + sub))
+	return out
 
 
 func _sides(plan: Dictionary) -> Array:

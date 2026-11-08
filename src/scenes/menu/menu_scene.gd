@@ -6,6 +6,8 @@ signal new_game
 ## F4.3 (P-08): only connected in debug builds — opens the legacy ch01 campaign.
 signal legacy_chapter
 signal continue_game
+## I18N: the language was switched in the options block; Main rebuilds the menu.
+signal language_changed
 signal test_battle(map_id: String)   # N12: debug-only quick battle entry per test map
 var _test_maps_panel: Control = null
 
@@ -21,36 +23,38 @@ func _ready() -> void:
 
 	var title := UIBuilder.label(self, "PROJECT X", 64)
 	title.position = Vector2(60, 80)
-	var sub := UIBuilder.label(self, "Tactical turn-based RPG - vertical slice build", 22)
+	var sub := UIBuilder.label(self, UIBuilder.t("Tactical turn-based RPG - vertical slice build"), 22)
 	sub.position = Vector2(64, 160)
 
 	var box := UIBuilder.vbox(self, 14)
 	box.position = Vector2(64, 280)
 	box.custom_minimum_size = Vector2(360, 400)
 
-	var new_btn := UIBuilder.button(box, "New campaign", 24)
+	var new_btn := UIBuilder.button(box, UIBuilder.t("New campaign"), 24)
 	new_btn.pressed.connect(func() -> void: _reset_options_and_emit("new"))
 	if SaveService.has_save():
-		var cont := UIBuilder.button(box, "Continue", 24)
+		var cont := UIBuilder.button(box, UIBuilder.t("Continue"), 24)
 		cont.pressed.connect(func() -> void: _reset_options_and_emit("continue"))
 
-	var diff := UIBuilder.button(box, "Difficulty: %s (switch)" % GameState.difficulty, 20)
+	var diff := UIBuilder.button(box, UIBuilder.t("Difficulty: %s (switch)") % UIBuilder.t(GameState.difficulty.capitalize()), 20)
 	diff.pressed.connect(_on_cycle_difficulty)
 	_diff_button = diff
 
 	if OS.is_debug_build():
-		var test_btn := UIBuilder.button(box, "Test maps", 20)
+		var test_btn := UIBuilder.button(box, UIBuilder.t("Test maps"), 20)
 		test_btn.pressed.connect(_open_test_maps)
-		var legacy_btn := UIBuilder.button(box, "Legacy chapter (ch01)", 20)
+		var legacy_btn := UIBuilder.button(box, UIBuilder.t("Legacy chapter (ch01)"), 20)
 		legacy_btn.pressed.connect(func() -> void: legacy_chapter.emit())
 
-	var quit := UIBuilder.button(box, "Quit", 20)
+	var quit := UIBuilder.button(box, UIBuilder.t("Quit"), 20)
 	quit.pressed.connect(func() -> void: get_tree().quit())
 
 	# Options reuse the shared module (N08): identical behavior in the battle pause menu.
 	var options := UIBuilder.panel(self, 1500, 640, 360, 300)
 	var obox := UIBuilder.vbox(options, 10)
-	obox.add_child(OptionsPanel.new())
+	var opts := OptionsPanel.new()
+	opts.language_changed.connect(func() -> void: language_changed.emit())
+	obox.add_child(opts)
 
 
 ## Debug-only map picker (N12): one button per map_test_* entry in the registry.
@@ -61,7 +65,7 @@ func _open_test_maps() -> void:
 	var panel := UIBuilder.panel(self, 600, 160, 400, 420)
 	_test_maps_panel = panel
 	var box := UIBuilder.vbox(panel, 8)
-	UIBuilder.label(box, "Test maps (debug build only)", 22)
+	UIBuilder.label(box, UIBuilder.t("Test maps (debug build only)"), 22)
 	for map_id in DataRegistry.all_ids("maps"):
 		if not String(map_id).begins_with("map_test_"):
 			continue
@@ -87,7 +91,7 @@ func _on_cycle_difficulty() -> void:
 	var idx := order.find(GameState.difficulty)
 	GameState.difficulty = order[(idx + 1) % order.size()]
 	if _diff_button != null:
-		_diff_button.text = "Difficulty: %s (switch)" % GameState.difficulty
+		_diff_button.text = UIBuilder.t("Difficulty: %s (switch)") % UIBuilder.t(GameState.difficulty.capitalize())
 
 
 		

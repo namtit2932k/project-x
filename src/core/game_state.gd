@@ -25,8 +25,32 @@ var story_branch: String = ""
 ## Story flags set by DialoguePlayer lines with set_flag (D09); the same dictionary is
 ## saved: reading an old save yields an empty flags table for missing keys.
 var story_flags: Dictionary = {}
-## options: {volume: float, fullscreen: bool}
-var options: Dictionary = {"volume": 0.8, "fullscreen": false}
+## options: {volume: float, fullscreen: bool, language: String}
+var options: Dictionary = {"volume": 0.8, "fullscreen": false, "language": DEFAULT_LANGUAGE}
+
+## I18N: languages the UI ships in, shown by their own name (never translated).
+const LANGUAGES := {"en": "English", "vi": "Tiếng Việt"}
+const DEFAULT_LANGUAGE := "en"
+
+
+func _ready() -> void:
+	# DataRegistry (earlier autoload) has registered the translations by now.
+	apply_language()
+
+
+## Current UI language code.
+func language() -> String:
+	return String(options.get("language", DEFAULT_LANGUAGE))
+
+
+## Switches the UI language and applies it right away (screens built afterwards use it).
+func set_language(code: String) -> void:
+	options["language"] = code if LANGUAGES.has(code) else DEFAULT_LANGUAGE
+	apply_language()
+
+
+func apply_language() -> void:
+	TranslationServer.set_locale(language())
 
 
 func new_game() -> void:
@@ -44,7 +68,8 @@ func new_game() -> void:
 	s_lock_unit = ""
 	reconcile_outcomes.clear()
 	completed_chapters.clear()
-	options = {"volume": 0.8, "fullscreen": false}
+	# The UI language is a player setting, it survives a new campaign.
+	options = {"volume": 0.8, "fullscreen": false, "language": language()}
 
 
 ## Register the roster of the active campaign (F4.2): only units tagged for it (or
@@ -188,3 +213,6 @@ func from_dict(d: Dictionary) -> void:
 	story_branch = String(d.get("story_branch", ""))
 	story_flags = d.get("story_flags", {})
 	options = d.get("options", {"volume": 0.8, "fullscreen": false})
+	if not options.has("language"):
+		options["language"] = DEFAULT_LANGUAGE
+	apply_language()

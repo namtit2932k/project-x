@@ -18,7 +18,7 @@ func identify() -> String:
 
 
 func describe() -> String:
-	return "Capture & hold: keep player units inside every marked zone %s consecutive turns." % [_params.get("turns_required", 1)]
+	return _t("Capture & hold: keep player units inside every marked zone %s consecutive turns.") % [_params.get("turns_required", 1)]
 
 
 ## All required zones. "zones" [{x, y, w, h}] first; the single legacy zone_x/y/w/h still works.

@@ -3,6 +3,12 @@ class_name UIBuilder
 ## Minimal code-built UI helpers so placeholder screens stay small and consistent.
 
 
+## I18N: UI text in the current language. The key is the English source text (also the
+## fallback); the translations live in data/i18n/strings.csv. Usable from static code too.
+static func t(key: String) -> String:
+	return String(TranslationServer.translate(key))
+
+
 static func label(parent: Control, text: String, size: int = 18) -> Label:
 	var l := Label.new()
 	l.text = text

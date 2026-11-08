@@ -16,8 +16,8 @@ func identify() -> String:
 
 func describe() -> String:
 	if String(_params.get("mode", "survive_turns")) == "clear_all":
-		return "Evacuate: rout every foe while the marked NPCs live."
-	return "Evacuate: keep the marked NPCs alive for %s turns." % [_params.get("turns_required", 1)]
+		return _t("Evacuate: rout every foe while the marked NPCs live.")
+	return _t("Evacuate: keep the marked NPCs alive for %s turns.") % [_params.get("turns_required", 1)]
 
 
 func evaluate(state: BattleState) -> Dictionary:

@@ -14,7 +14,7 @@ func identify() -> String:
 
 
 func describe() -> String:
-	return "Rout: defeat all enemies (or the marked targets)."
+	return _t("Rout: defeat all enemies (or the marked targets).")
 
 
 func evaluate(state: BattleState) -> Dictionary:

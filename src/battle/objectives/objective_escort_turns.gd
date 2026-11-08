@@ -16,7 +16,7 @@ func identify() -> String:
 
 
 func describe() -> String:
-	return "Escort (turns): keep %s alive through %s enemy phases." % [
+	return _t("Escort (turns): keep %s alive through %s enemy phases.") % [
 		String(_params.get("npc_unit_id", "")), String(_params.get("turns_required", 0))]
 
 

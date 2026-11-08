@@ -44,10 +44,10 @@ func _ready() -> void:
 	_text_label.add_theme_font_size_override("font_size", 24)
 	inner.add_child(_text_label)
 
-	_prompt = UIBuilder.label(self, "Click / Space: continue   -   Esc: skip", 14)
+	_prompt = UIBuilder.label(self, UIBuilder.t("Click / Space: continue   -   Esc: skip"), 14)
 	_prompt.position = Vector2(160, 1010)
 
-	var skip := UIBuilder.button(self, "Skip scene", 16)
+	var skip := UIBuilder.button(self, UIBuilder.t("Skip scene"), 16)
 	skip.position = Vector2(1640, 990)
 	skip.pressed.connect(func() -> void: _finish(true))
 

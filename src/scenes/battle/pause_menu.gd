@@ -17,11 +17,11 @@ func _ready() -> void:
 
 	var window_panel := UIBuilder.panel(self, 760, 220, 400, 420)
 	var box := UIBuilder.vbox(window_panel, 14)
-	UIBuilder.label(box, "Paused", 32)
-	var resume := UIBuilder.button(box, "Resume", 24)
+	UIBuilder.label(box, UIBuilder.t("Paused"), 32)
+	var resume := UIBuilder.button(box, UIBuilder.t("Resume"), 24)
 	resume.pressed.connect(_on_resume)
 	box.add_child(OptionsPanel.new())
-	var quit := UIBuilder.button(box, "Quit to menu", 24)
+	var quit := UIBuilder.button(box, UIBuilder.t("Quit to menu"), 24)
 	quit.pressed.connect(_confirm_quit)
 
 
@@ -33,10 +33,10 @@ func _on_resume() -> void:
 ## Confirmation spells out D11: no mid-battle save, only the last manual save survives.
 func _confirm_quit() -> void:
 	var dialog := ConfirmationDialog.new()
-	dialog.title = "Quit to menu"
-	dialog.dialog_text = "Current battle progress will be lost. Only your latest manual save is kept. Quit anyway?"
-	dialog.ok_button_text = "Quit"
-	dialog.cancel_button_text = "Back to battle"
+	dialog.title = UIBuilder.t("Quit to menu")
+	dialog.dialog_text = UIBuilder.t("Current battle progress will be lost. Only your latest manual save is kept. Quit anyway?")
+	dialog.ok_button_text = UIBuilder.t("Quit")
+	dialog.cancel_button_text = UIBuilder.t("Back to battle")
 	add_child(dialog)
 	dialog.confirmed.connect(func() -> void: quit_to_menu.emit())
 	dialog.popup_centered()

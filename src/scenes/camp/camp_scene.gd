@@ -17,18 +17,18 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var title := UIBuilder.label(self, "Camp - manage the squad", 40)
+	var title := UIBuilder.label(self, UIBuilder.t("Camp - manage the squad"), 40)
 	title.position = Vector2(60, 40)
 
 	# Roster panel.
 	var roster_panel := UIBuilder.panel(self, 60, 130, 760, 560)
 	var roster_box := UIBuilder.vbox(roster_panel, 6)
-	UIBuilder.label(roster_box, "Roster", 24)
+	UIBuilder.label(roster_box, UIBuilder.t("Roster"), 24)
 	for unit_id in GameState.roster:
 		var ud := DataRegistry.get_unit(String(unit_id))
 		var r: Dictionary = GameState.roster[unit_id]
-		var status := "alive" if bool(r.alive) else "fallen"
-		UIBuilder.label(roster_box, "%s | %s | Lv %d | exp %d | %s" % [ud.display_name, ud.class_id, int(r.level), int(r.exp), status], 16)
+		var status := UIBuilder.t("alive") if bool(r.alive) else UIBuilder.t("fallen")
+		UIBuilder.label(roster_box, UIBuilder.t("%s | %s | Lv %d | exp %d | %s") % [ud.display_name, ud.class_id, int(r.level), int(r.exp), status], 16)
 
 	# Bond panel (eligible designer pairs only).
 	var bond_panel := UIBuilder.panel(self, 860, 130, 1000, 560)
@@ -36,16 +36,16 @@ func _ready() -> void:
 	_rebuild_bond_panel()
 
 	# D10: show the true-ending eligibility derived from finished chapters + persuade.
-	var ending_word := "possible" if GameState.is_true_ending_eligible() else "locked"
-	var ending_note := UIBuilder.label(self, "True ending: %s (every true-ending chapter finished, remnants persuaded)" % ending_word, 16)
+	var ending_word := UIBuilder.t("possible") if GameState.is_true_ending_eligible() else UIBuilder.t("locked")
+	var ending_note := UIBuilder.label(self, UIBuilder.t("True ending: %s (every true-ending chapter finished, remnants persuaded)") % ending_word, 16)
 	ending_note.position = Vector2(60, 700)
 
-	var save_btn := UIBuilder.button(self, "Save", 22)
+	var save_btn := UIBuilder.button(self, UIBuilder.t("Save"), 22)
 	save_btn.position = Vector2(60, 730)
 	save_btn.size = Vector2(180, 50)
 	save_btn.pressed.connect(_on_save)
 
-	var diff_btn := UIBuilder.button(self, "Difficulty: %s (switch)" % GameState.difficulty, 20)
+	var diff_btn := UIBuilder.button(self, UIBuilder.t("Difficulty: %s (switch)") % UIBuilder.t(GameState.difficulty.capitalize()), 20)
 	diff_btn.position = Vector2(280, 730)
 	diff_btn.size = Vector2(320, 50)
 	diff_btn.pressed.connect(_on_cycle_difficulty)
@@ -54,25 +54,25 @@ func _ready() -> void:
 		# Defeat: the chapter was NOT advanced; the squad stays in camp to retry it.
 		_add_retry_button()
 	elif not GameState.has_next_chapter():
-		var done_label := UIBuilder.label(self, "Campaign complete", 22)
+		var done_label := UIBuilder.label(self, UIBuilder.t("Campaign complete"), 22)
 		done_label.position = Vector2(1640, 690)
-		var done_note := UIBuilder.label(self, "No further chapters in data yet.", 16)
+		var done_note := UIBuilder.label(self, UIBuilder.t("No further chapters in data yet."), 16)
 		done_note.position = Vector2(1640, 720)
-		var menu_after := UIBuilder.button(self, "Main menu", 22)
+		var menu_after := UIBuilder.button(self, UIBuilder.t("Main menu"), 22)
 		menu_after.position = Vector2(1660, 730)
 		menu_after.size = Vector2(200, 50)
 		menu_after.pressed.connect(func() -> void: to_menu.emit())
 	elif not GameState.completed_chapters.has(String(GameState.current_chapter().id)):
-		# D06: "Next chapter" unlocks only after the CURRENT chapter was won (defensive
+		# D06: UIBuilder.t("Next chapter") unlocks only after the CURRENT chapter was won (defensive
 		# path: defeat banner rewind-rescue or a load made before any victory).
 		_add_retry_button()
 	else:
-		var next_btn := UIBuilder.button(self, "Next chapter", 22)
+		var next_btn := UIBuilder.button(self, UIBuilder.t("Next chapter"), 22)
 		next_btn.position = Vector2(1660, 730)
 		next_btn.size = Vector2(200, 50)
 		next_btn.pressed.connect(func() -> void: next_chapter.emit())
 
-	var menu_btn := UIBuilder.button(self, "Main menu", 22)
+	var menu_btn := UIBuilder.button(self, UIBuilder.t("Main menu"), 22)
 	menu_btn.position = Vector2(1660, 810)
 	menu_btn.size = Vector2(200, 50)
 	menu_btn.pressed.connect(func() -> void: to_menu.emit())
@@ -81,7 +81,7 @@ func _ready() -> void:
 ## Retry reopens the CURRENT chapter without any campaign-wide loss bookkeeping (D06:
 ## a defeat writes nothing, so the retry never counts as a defeat either).
 func _add_retry_button() -> void:
-	var retry_btn := UIBuilder.button(self, "Retry chapter", 22)
+	var retry_btn := UIBuilder.button(self, UIBuilder.t("Retry chapter"), 22)
 	retry_btn.position = Vector2(1660, 730)
 	retry_btn.size = Vector2(200, 50)
 	retry_btn.pressed.connect(func() -> void: retry_chapter.emit())
@@ -90,13 +90,13 @@ func _add_retry_button() -> void:
 func _rebuild_bond_panel() -> void:
 	for c in _scene_box.get_children():
 		c.queue_free()
-	UIBuilder.label(_scene_box, "Bonds (eligibility is designer data)", 24)
+	UIBuilder.label(_scene_box, UIBuilder.t("Bonds (eligibility is designer data)"), 24)
 	for pair in DataRegistry.all_bond_pairs():
 		var points := int(GameState.bond_points.get(String(pair.id), 0))
 		var rank := GameState.bond_rank_for(String(pair.id))
 		var ua := DataRegistry.get_unit(String(pair.unit_a))
 		var ub := DataRegistry.get_unit(String(pair.unit_b))
-		var line := "%s x %s | %d pts | rank %s" % [ua.display_name, ub.display_name, points, rank if rank != "" else "-"]
+		var line := UIBuilder.t("%s x %s | %d pts | rank %s") % [ua.display_name, ub.display_name, points, rank if rank != "" else "-"]
 		var row := HBoxContainer.new()
 		_scene_box.add_child(row)
 		UIBuilder.label(row, line, 16)
@@ -105,12 +105,12 @@ func _rebuild_bond_panel() -> void:
 			if points >= threshold and rank_index(GameState.bond_rank_for(String(pair.id))) < rank_index(rank_key) \
 					and not GameState.bond_scenes_viewed.get(String(pair.id), []).has(rank_key) \
 					and _rank_scene_unlocked(pair, rank_key):
-				var btn := UIBuilder.button(row, "View %s scene" % rank_key, 14)
+				var btn := UIBuilder.button(row, UIBuilder.t("View %s scene") % rank_key, 14)
 				btn.pressed.connect(func() -> void: _watch_bond_scene(pair, rank_key))
 		# S rank: after A plus story milestone, both alive, one exclusive pair per character.
 		var cur := GameState.bond_rank_for(String(pair.id))
 		if rank_index(cur) >= rank_index("A") and _both_alive(pair) and _s_milestone_reached(pair) and _s_pair_free(pair):
-			var s_btn := UIBuilder.button(row, "Lock S pair", 14)
+			var s_btn := UIBuilder.button(row, UIBuilder.t("Lock S pair"), 14)
 			s_btn.pressed.connect(func() -> void: _lock_s(pair))
 
 
@@ -174,7 +174,7 @@ func _lock_s(pair: Resource) -> void:
 
 func _on_save() -> void:
 	SaveService.save_campaign()
-	toast("Saved - manual saves sit between battles only.")
+	toast(UIBuilder.t("Saved - manual saves sit between battles only."))
 
 
 func _on_cycle_difficulty() -> void:

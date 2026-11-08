@@ -21,6 +21,8 @@ story scene → squad preparation → tactical battle → post-battle results �
 - Rewind snapshots per confirmed action; budget by difficulty (Story ∞ / Normal 5 / Hard 3 / Nightmare 0)
 - Manual saves between battles; roster, casualties, bond ranks, chapter progress, reconcile outcomes persist
 
+UI languages: **English and Vietnamese** (Options → Language). Strings live in `data/i18n/strings.csv`.
+
 ## Requirements
 
 - [Godot 4.7.x](https://godotengine.org/download) (verified on 4.7.2 stable)
@@ -59,7 +61,7 @@ godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test map
 godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example maps: units, stats, objectives (F6)
 ```
 
-Current: rule tests **287/287**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
+Current: rule tests **296/296**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
 
 Debug builds also get a **Test maps** entry on the main menu: every `data/maps/test_*` map
 starts a battle straight away with the default roster (no chapter loop; results never merge
