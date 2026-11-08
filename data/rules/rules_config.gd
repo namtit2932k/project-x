@@ -152,7 +152,7 @@ class_name RulesConfig
 ## ------------------------------------------------------------ casualties
 ## Thương vong theo độ khó (chờ chốt): "temp_injury" (về đội sau trận) | "permadeath" | "none".
 @export var casualty_by_difficulty: Dictionary = {
-	"story": "temp_injury", "normal": "temp_injury", "hard": "permadeath", "nightmare": "permadeath",
+	"story": "temp_injury", "normal": "temp_injury", "hard": "sit_out", "nightmare": "sit_out",
 }
 
 ## ------------------------------------------------------------ battle outcome

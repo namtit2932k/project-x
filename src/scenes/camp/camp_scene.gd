@@ -31,6 +31,8 @@ func _ready() -> void:
 		var r: Dictionary = GameState.roster[unit_id]
 		var status := UIBuilder.t("alive") if bool(r.alive) else UIBuilder.t("fallen")
 		var line := UIBuilder.t("%s | %s | Lv %d | exp %d | %s") % [ud.display_name, ud.class_id, int(r.level), int(r.exp), status]
+		if GameState.is_resting(String(unit_id)):
+			line += " | " + UIBuilder.t("rests next map")
 		if not (r.get("items", []) as Array).is_empty():
 			line += " | " + UIBuilder.t("Items: %s") % BattleScene.item_list_text(r.get("items", []))
 		UIBuilder.label(roster_box, line, 16)

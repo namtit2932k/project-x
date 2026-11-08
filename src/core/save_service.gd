@@ -66,6 +66,11 @@ func migrate(from_version: int) -> Array[String]:
 			if ud == null or not GameState._unit_in_campaign(ud):
 				GameState.roster.erase(unit_id)
 				notes.append("SaveService: v%d save - dropped roster unit %s (not in the %s campaign)" % [from_version, unit_id, GameState.campaign_tag])
+	# F-CAS (every version): there is no permadeath any more - a dead roster unit comes back.
+	for unit_id in GameState.roster:
+		if not bool(GameState.roster[unit_id].get("alive", true)):
+			GameState.roster[unit_id]["alive"] = true
+			notes.append("SaveService: %s was dead in this save - permadeath no longer exists, back on the roster" % unit_id)
 	for note in notes:
 		push_warning(note)
 	return notes

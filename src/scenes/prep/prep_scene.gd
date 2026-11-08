@@ -67,7 +67,10 @@ func _ready() -> void:
 		check.text = "%s  (Lv %d, %s)" % [ud.display_name, GameState.roster[unit_id].level, ud.class_id]
 		entry.add_child(check)
 		_checks[unit_id] = check
-		var dead: bool = not bool(GameState.roster[unit_id].alive)
+		# F-CAS: a unit that fell on the last map (Hard / Nightmare) sits this one out.
+		var dead: bool = not bool(GameState.roster[unit_id].alive) or GameState.is_resting(String(unit_id))
+		if GameState.is_resting(String(unit_id)):
+			check.text += "  - " + UIBuilder.t("resting this map")
 		check.disabled = dead
 		check.toggled.connect(func(_on: bool) -> void: _enforce_count())
 		# Campaign-critical units (protagonist / must_survive) deploy locked (D02).

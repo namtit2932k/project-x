@@ -17,6 +17,10 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 	if not won:
 		return
 	var policy: String = String(DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "temp_injury"))
+	# F-CAS: units that sat this map out are free again; then this battle's fallen units rest.
+	for unit_id in GameState.roster:
+		if int(GameState.roster[unit_id].get("rest", 0)) > 0:
+			GameState.roster[unit_id]["rest"] = int(GameState.roster[unit_id]["rest"]) - 1
 	for unit_id in GameState.roster:
 		if not battle_state.units.has(String(unit_id)):
 			continue
@@ -24,8 +28,11 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 		var entry: Dictionary = GameState.roster[unit_id]
 		if not state_unit.alive:
 			match policy:
-				"permadeath":
-					entry.alive = false
+				"sit_out":
+					# F-CAS (no permadeath): back on the roster, but not pickable on the next map.
+					entry.alive = true
+					entry["rest"] = 1
+					entry["defeats"] = int(entry.get("defeats", 0)) + 1
 				"none":
 					entry.alive = true
 				_:

@@ -201,3 +201,6 @@ Active bonds: %s,Active bonds: %s,Gắn kết đang có: %s
 %s +%d (%d turns),%s +%d (%d turns),%s +%d (%d lượt)
 Buffs: %s,Buffs: %s,Hiệu ứng tăng: %s
 Traits: updating,Traits: updating,Đặc điểm nhân vật: đang cập nhật
+sit_out,sit out the next map,nghỉ map kế tiếp
+resting this map,resting this map,nghỉ map này
+rests next map,rests next map,nghỉ map kế tiếp

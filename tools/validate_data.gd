@@ -149,7 +149,8 @@ func check_rules() -> void:
 			_err("rules: rewind_per_difficulty missing difficulty '%s'" % difficulty)
 		if not casualty_table.has(difficulty):
 			_err("rules: casualty_by_difficulty missing difficulty '%s'" % difficulty)
-		elif String(casualty_table[difficulty]) not in ["temp_injury", "permadeath", "none"]:
+		# F-CAS: there is no permadeath any more.
+		elif String(casualty_table[difficulty]) not in ["temp_injury", "sit_out", "none"]:
 			_err("rules: casualty value '%s' invalid for '%s'" % [casualty_table[difficulty], difficulty])
 	var enemy_mult: Dictionary = DataRegistry.rule("enemy_stat_multiplier_by_difficulty", {})
 	for difficulty in DIFFICULTIES:

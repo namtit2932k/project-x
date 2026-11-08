@@ -33,6 +33,7 @@ func _ready() -> void:
 	await test_persuasion_conditions()
 	await test_battle_ui_gdd()
 	await test_save_migration_v3()
+	await test_no_permadeath_sit_out()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -1822,9 +1823,9 @@ func test_dual_restraint() -> void:
 	state.turn = 1
 	# Deaths only break the ally condition on a permadeath tier (GDD Core Rule 2).
 	state.units["unit_knight"].alive = false
-	assert_true(DualRestraint.zero_ally_deaths(state), "drs: on Normal a fallen ally does not break zero_ally_deaths")
+	assert_true(not DualRestraint.zero_ally_deaths(state), "drs: F-CAS - a fallen ally breaks zero_ally_deaths on Normal too")
 	state.difficulty = "hard"
-	assert_true(not DualRestraint.zero_ally_deaths(state), "drs: on Hard a fallen ally breaks it")
+	assert_true(not DualRestraint.zero_ally_deaths(state), "drs: and on Hard")
 	state.units["unit_knight"].alive = true
 	state.difficulty = "normal"
 	# A map with no persuadable faction: no kill / perfect terms, ceiling 75.
@@ -2330,6 +2331,8 @@ func test_enemy_ai_profiles() -> void:
 	d1.commit_ai_plan(raid)
 	assert_true(String(s1.villages["3,2"]["state"]) == "destroyed", "ai: reaching the village destroys it")
 	raider.acted = false
+	raider.alive = true            # the counter may have felled it (random seed): bring it back
+	raider.hp = raider.max_hp
 	raider.pos = Vector2i(9, 0)
 	var fallback := EnemyAI.plan_unit(s1, raider, ["player", "npc"])
 	assert_true(fallback["move_cell"] != Vector2i(3, 2) and not fallback.has("ai_context"), "ai: no village left -> the Raider plays StandardAggressive")
@@ -2561,6 +2564,50 @@ func test_save_migration_v3() -> void:
 	assert_true(int(resaved.get("save_version", 0)) == 3, "save: the next save is written at version 3")
 	# A current (v3) save is not migrated: nothing is dropped from it.
 	assert_true(SaveService.migrate(3).is_empty(), "save: a v3 save needs no migration")
+	GameState.new_game()
+
+
+## F-CAS: no permadeath. On Hard / Nightmare a unit that fell in a won battle sits out the next
+## map only; Story / Normal bring it straight back; defeats keep the resting state for a retry.
+func test_no_permadeath_sit_out() -> void:
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	GameState.difficulty = "hard"
+	assert_true(String(DataRegistry.rule("casualty_by_difficulty", {})["hard"]) == "sit_out" and String(DataRegistry.rule("casualty_by_difficulty", {})["nightmare"]) == "sit_out", "casualty: Hard / Nightmare sit out instead of permadeath")
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	var d := BattleDirector.new()
+	d.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "hard")
+	d.state.units["unit_knight"].alive = false
+	CampaignMerge.merge(d.state, chapter, {"status": "win"})
+	assert_true(bool(GameState.roster["unit_knight"]["alive"]) and GameState.is_resting("unit_knight"), "casualty: the fallen Knight stays on the roster but rests")
+	# Prep screen: the Knight cannot be picked for the next map.
+	var prep := PrepScene.build(chapter)
+	add_child(prep)
+	await get_tree().process_frame
+	assert_true(prep._checks.has("unit_knight") and prep._checks["unit_knight"].disabled and String(prep._checks["unit_knight"].text).contains("resting"), "casualty: the resting Knight is disabled on the prep screen")
+	prep.free()
+	# A defeat merges nothing: still resting for the retry.
+	CampaignMerge.merge(d.state, chapter, {"status": "lose"})
+	assert_true(GameState.is_resting("unit_knight"), "casualty: a lost battle keeps the Knight resting for the retry")
+	# The next won map (without the Knight) frees it.
+	var d2 := BattleDirector.new()
+	d2.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "hard")
+	CampaignMerge.merge(d2.state, chapter, {"status": "win"})
+	assert_true(not GameState.is_resting("unit_knight"), "casualty: after sitting out one map the Knight is pickable again")
+	# Story / Normal: back straight away.
+	GameState.difficulty = "normal"
+	var d3 := BattleDirector.new()
+	d3.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	d3.state.units["unit_knight"].alive = false
+	CampaignMerge.merge(d3.state, chapter, {"status": "win"})
+	assert_true(not GameState.is_resting("unit_knight") and bool(GameState.roster["unit_knight"]["alive"]), "casualty: on Normal the fallen unit is back for the next battle")
+	# Old saves: a dead roster unit comes back on load.
+	GameState.roster["unit_knight"]["alive"] = false
+	var notes := SaveService.migrate(3)
+	assert_true(bool(GameState.roster["unit_knight"]["alive"]) and notes.size() == 1, "casualty: a save with a dead unit brings it back (no permadeath)")
+	GameState.difficulty = "normal"
 	GameState.new_game()
 
 

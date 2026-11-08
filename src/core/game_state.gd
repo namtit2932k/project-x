@@ -95,6 +95,11 @@ func build_roster() -> void:
 	_apply_starting_bonds()
 
 
+## F-CAS: a unit that fell on the last map (Hard / Nightmare) cannot be picked for this one.
+func is_resting(unit_id: String) -> bool:
+	return int((roster.get(unit_id, {}) as Dictionary).get("rest", 0)) > 0
+
+
 ## F-ITEM: a unit's data-authored items, trimmed to the slot limit.
 func starting_items(unit_id: String) -> Array:
 	var ud := DataRegistry.get_unit(unit_id)

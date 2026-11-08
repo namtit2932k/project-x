@@ -66,7 +66,7 @@ Put new code in the matching folder. If a new top-level folder seems needed, ask
 - Objective types (F-OBJ): elimination, protect (unit or zone), escort (destination or timed), retrieve (carrier may only move), seize. Primary objective and fail conditions must show in prep and in battle.
 - Bond (F-BOND): a pair earns +1 (max 2 per map) when one member performs an Attack/Heal next to the other; 2/5/9 points (plus a chapter gate) unlock the C/B/A scenes; rank rises after the scene is viewed or skipped; only unlocked ranks give adjacency bonus (C +3, B +5, A +8, S +10; max total adjacent bonus +16). S unlocks after A plus a story milestone, both alive; one S pair per character. Eligible pairs come from a designer-provided list, never inferred from gender.
 - Reconciliation: separate from map victory. Each faction has its own conditions; low damage alone is not enough. Player gets feedback by dialogue or attitude color; the threshold is hidden. Store which conditions happened and the outcome so post-battle story can read them.
-- Rewind: snapshot includes positions, HP, turn, AI, items, objectives, bond points, reconcile state, and EXP/level/live combat stats (F-EXP). Per battle: Story unlimited, Normal 5, Hard 3, Nightmare 0. Permadeath: off for Story/Normal, on for Hard (verify with designer).
+- Rewind: snapshot includes positions, HP, turn, AI, items, objectives, bond points, reconcile state, and EXP/level/live combat stats (F-EXP). Per battle: Story unlimited, Normal 5, Hard 3, Nightmare 0. No permadeath on any tier (designer 08-11-2026, F-CAS): on Hard/Nightmare a fallen unit sits out the next map; on Story/Normal it is back for the next battle.
 - Class passives (F-PAS): every class has one fixed conditional passive (catalog in `rules_config.passive_catalog`); Bard has no weapon, cannot attack or counter, and uses Encore to give an adjacent ally that already acted another Move + Action; Healer cannot attack.
 - EXP (F-EXP): a player unit gets a flat 25 EXP for each Attack or Heal it performs (hit or miss, kill or not); nothing else pays. 100 EXP = level up (cap 20), each stat rolls its class growth rate. A unit that dies earns no EXP; a full-HP ally cannot be healed. Losing is a game over: nothing from that battle is kept.
 - Save: manual, between battles only, never mid-turn. Stores roster, stats, casualties, chapter progress, bond points/ranks/scenes/S locks, story branch, difficulty, outcomes. Options: volume, windowed/fullscreen. Difficulty can change between battles.
@@ -284,7 +284,7 @@ Replaces the flat `crit_bonus`/`hit_bonus` idea of a passive (GDD retired it). E
 ### F-DRS — Dual Restraint scoring + victory bonus EXP (08-11-2026, `dual-restraint-scoring.md` Core Rules 1-9, F-DRS1, F-DRS2)
 
 - `src/battle/systems/dual_restraint.gd` (`DualRestraint`) computes the result **from the battle state at the moment it ends**, so a rewind past a death or a kill undoes it automatically (GDD Core Rule 4) — no separate tracker to snapshot.
-  - `zero_ally_deaths`: no player-side unit is down **on a permadeath tier** (`casualty_by_difficulty` = `permadeath`); on Story/Normal it always holds (GDD Core Rule 2, intentional).
+  - `zero_ally_deaths`: no player-side unit fell in this battle, on **any** tier (designer 08-11-2026 with F-CAS, replacing the GDD's "only a permadeath tier can break it" now that permadeath is gone).
   - `kill_restraint_eligible` + `battle_kill_count`: the map engages a remnant faction with reconcile rules (`BattleState.reconcile_state`, the repo's Persuade-Pressure equivalent); kills of that faction only; `low_kill_restraint` = kills ≤ `drs_kill_tolerance` (2).
   - `swift_clear_met`: final turn ≤ the map's `turn_par`.
 - **F-DRS1 score (display only, 0–150):** ally 50 + kill 50 (eligible maps) + perfect 25 (both + eligible) + swift 25. Numbers in `rules_config` (`drs_*`).
@@ -349,6 +349,16 @@ Each enemy's `UnitData.ai_profile` picks its turn logic (`EnemyAI.plan_unit` dis
 - **Migration of a v1/v2 save on load (`SaveService.migrate`)**: roster entries whose unit no longer exists or does not belong to the save's campaign are dropped (the demo units that leaked into legacy rosters before the campaign-tag fix) and each drop is logged as a warning; the next manual save writes version 3.
 - **Deliberately not migrated (would need a design call):** level-up stat bonuses possibly inflated by the pre-F-EXP triple-count bug, and bond points earned under the old 20/45/70 thresholds — both load as they are. Old demo saves do not get the P-11 starting bond (it only applies to a new campaign).
 - W9 (old stat keys in saves) needs no data rewrite: `UnitState` reads both key sets (`apply_stat_bonus` / `_add_to_stat`).
+
+### F-CAS — No permadeath: fallen units sit out the next map (designer 08-11-2026)
+
+Supersedes the permadeath part of D06 and of `casualty_by_difficulty`.
+
+- **Hard / Nightmare:** `casualty_by_difficulty` = `sit_out` (was `permadeath`). A unit that falls in a battle the squad **wins** gets `roster[unit].rest = 1`: it cannot be picked on the prep screen of the next map, and is free again from the map after (the merge of the next victory clears it). A lost battle / game over / bad ending merges nothing, so a retry keeps the same units resting. Protagonist / must-survive units never fall without a game over, so they never rest.
+- **Story / Normal:** unchanged (`temp_injury`: back for the next battle, only `defeats` is counted).
+- Nobody is ever removed from the roster; old saves with a dead roster unit bring it back on load (`SaveService.migrate`).
+- **Dual Restraint (designer, same day):** `zero_ally_deaths` is broken by any player unit falling in the battle, on every tier (+50 points / +15 EXP lost); the HUD squad line follows.
+- UI: prep screen shows a resting unit as disabled with "resting this map"; camp roster line "rests next map".
 
 ### Demo maps are reference only (designer 08-11-2026)
 

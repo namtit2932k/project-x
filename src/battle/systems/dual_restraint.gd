@@ -5,12 +5,9 @@ class_name DualRestraint
 ## tracking. F-DRS1 = display-only score; F-DRS2 = small victory bonus EXP for the squad.
 
 
-## True while no player-side unit has died on a permadeath tier (GDD Core Rule 2: on
-## Story/Normal nobody reaches Dead, so it always holds there).
+## True while no player-side unit has fallen in this battle, on any tier (designer, F-CAS:
+## with permadeath gone, a fall is what breaks it).
 static func zero_ally_deaths(state: BattleState) -> bool:
-	var policy := String(DataRegistry.rule("casualty_by_difficulty", {}).get(state.difficulty, "temp_injury"))
-	if policy != "permadeath":
-		return true
 	for u in state.units.values():
 		if u.side == "player" and not u.alive:
 			return false
