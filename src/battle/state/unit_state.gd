@@ -223,6 +223,17 @@ func eff(field: String) -> int:
 	return value
 
 
+## F-DIFF (GDD F-DS2): enemy stat block scaled once at deploy — floor(stat * multiplier) on
+## Str/Mag/Skill/Speed/Def/Res; HP and Luck are never scaled.
+func apply_enemy_scaling(multiplier: float) -> void:
+	power = int(floor(power * multiplier))
+	magic = int(floor(magic * multiplier))
+	skill = int(floor(skill * multiplier))
+	speed = int(floor(speed * multiplier))
+	defense = int(floor(defense * multiplier))
+	resistance = int(floor(resistance * multiplier))
+
+
 ## Max weapon range right now: catalog value plus extended_range when its condition holds.
 func attack_max() -> int:
 	return attack_range_max + PassiveSystem.extra_range(self)

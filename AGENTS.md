@@ -163,7 +163,7 @@ known-wrong against GDD/demo until the W5 rewrite:
 - **Seize** exports as the legacy `capture` plugin (contested/held rules differ from GDD hold-through-enemy-phases).
 - **Retrieve**: legacy plugin does NOT lose the battle when the carrier dies (item drops);
   GDD/demo = immediate loss. Also "pickup ends the move step at `item_tile`" is not implemented.
-- Priority-target AI, restraint and enemy-stat multipliers are data fields only — not wired in combat yet (W3/W7).
+- Priority-target AI and restraint are data fields only — not wired yet (W7). (Enemy stat multipliers: wired, see F-DIFF.)
 
 - **D01 — Forecast restored (confirmed).** Attack flow: select unit (may move) → click an
   enemy on a red tile (measured from the current position) → ForecastPanel → Confirm/Cancel
@@ -289,6 +289,10 @@ Replaces the flat `crit_bonus`/`hit_bonus` idea of a passive (GDD retired it). E
 - Designer rule kept: a full-HP ally cannot be healed (overrides GDD's "0 effective healing is legal").
 - **Preview (GDD Pillar 2):** while choosing a Heal target, hovering a highlighted ally shows the raw HealAmount and the real HP gain (e.g. "Heal 20 → +12 HP (36→48)").
 
+### F-DIFF — Enemy stats by difficulty (08-11-2026, `difficulty-system.md` F-DS2 / AC-DS2 / AC-DS4, `core-combat-system.md` Core Rule 1)
+
+- At deploy time (`BattleDirector.setup`), every **enemy-side** unit's Str/Mag/Skill/Speed/Def/Res becomes `floor(stat × rules_config.enemy_stat_multiplier_by_difficulty[tier])` — Story 1.0, Normal 1.0, Hard 1.08, Nightmare 1.15. **HP and Luck are never scaled**; player units and NPCs are never scaled. Unknown tier → 1.0 (GDD edge case). The scaled values are the battle's own stats, so forecast, AI and rewind all see them.
+
 ### I18N — Two UI languages (designer 08-11-2026: "the game will have at least 2 languages, do both")
 
 - **English + Vietnamese** for all UI text. Table: `data/i18n/strings.csv` (`keys,en,vi`; key = English source text, so a missing translation shows English). Imported as `keep` (`strings.csv.import`) and read by `DataRegistry._load_translations()` into Godot's `TranslationServer` — no extra autoload, no generated files. A new language = a new column + an entry in `GameState.LANGUAGES`.
@@ -348,6 +352,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (11) — Claude (Opus) — done: enemy stats by difficulty (new §7b **F-DIFF**, GDD F-DS2): `BattleDirector._scale_enemies()` applies `rules_config.enemy_stat_multiplier_by_difficulty` once at deploy to enemy-side Str/Mag/Skill/Speed/Def/Res (floor; HP/Luck and player/NPC units untouched) via `UnitState.apply_enemy_scaling()`. "Known mismatches" note updated. New `test_enemy_difficulty_scaling` (AC-DS2, AC-DS4, Nightmare vs Normal on ch01). Verified: validation 0/0, run_tests **302/302**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: bond S-routes. — next: rest of the GDD backlog. — issues: not pushed.
 
 - 2026-11-08 (10) — Claude (Opus) — done: two UI languages (new §7b **I18N**, new §5 rule). `data/i18n/strings.csv` (141 rows, en + vi; key = English text) loaded by `DataRegistry._load_translations()` into `TranslationServer`; `UIBuilder.t()` / `ObjectiveBase._t()`; `GameState.LANGUAGES`, `options.language`, `set_language()/apply_language()`; Language button in OptionsPanel, menu rebuilds on switch. Every UI string in menu/options/pause/prep/dialogue/battle/forecast/game over/camp/post-battle and all objective descriptions wrapped; passive catalog names are English keys now (VI = GDD names). Validator `check_translations()`; new `test_i18n` (scans src/ for every t() key, checks vi texts on screens, setting survives New campaign); preview test updated for English name keys. Verified: validation 0/0, run_tests **296/296**, smoke_full_battle 21/21 (×4), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: content localization once the designer confirms the approach (names, dialogue, story); GDD backlog. — issues: not pushed (cached account `kame-gamedesign` has no write access). A first test run hung because a parse error in run_tests.gd kept the test scene from quitting — fixed; worth adding a timeout to the test runner later.
 

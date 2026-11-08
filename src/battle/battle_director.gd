@@ -28,6 +28,18 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: 
 	player_sides = ["player"]
 	# F-PAS: turn 1 opens on the player phase (Magician burst readiness etc.).
 	PassiveSystem.on_phase_started(state, "player")
+	_scale_enemies(difficulty)
+
+
+## F-DIFF: enemies only, once at deploy, multiplier per difficulty tier (unknown tier = 1.0).
+func _scale_enemies(difficulty: String) -> void:
+	var table: Dictionary = DataRegistry.rule("enemy_stat_multiplier_by_difficulty", {})
+	var multiplier := float(table.get(difficulty, 1.0))
+	if is_equal_approx(multiplier, 1.0):
+		return
+	for u in state.units.values():
+		if u.side == "enemy":
+			u.apply_enemy_scaling(multiplier)
 
 
 ## Applies one player/AI command: the command's check() runs first (no snapshot and no

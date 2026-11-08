@@ -17,6 +17,7 @@ func _ready() -> void:
 	await test_heal_formula()
 	await test_forecast_passive_notes()
 	await test_i18n()
+	await test_enemy_difficulty_scaling()
 	await test_objectives()
 	await test_rewind()
 	await test_bond_and_reconcile()
@@ -1645,6 +1646,34 @@ func _gd_files(dir_path: String) -> Array:
 	for sub in dir.get_directories():
 		out.append_array(_gd_files(dir_path + "/" + sub))
 	return out
+
+
+## F-DIFF (GDD F-DS2, AC-DS2/AC-DS4): enemy Str/Mag/Skill/Speed/Def/Res x multiplier at deploy,
+## floored; HP and Luck never scaled; player units never scaled.
+func test_enemy_difficulty_scaling() -> void:
+	await 0.0
+	var table: Dictionary = DataRegistry.rule("enemy_stat_multiplier_by_difficulty", {})
+	assert_true(is_equal_approx(float(table["nightmare"]), 1.15) and is_equal_approx(float(table["hard"]), 1.08) and is_equal_approx(float(table["normal"]), 1.0) and is_equal_approx(float(table["story"]), 1.0), "difficulty: GDD multipliers 1.15 / 1.08 / 1.0 / 1.0")
+	var u := UnitState.new()
+	u.power = 10; u.magic = 10; u.skill = 10; u.speed = 10; u.defense = 10; u.resistance = 10; u.luck = 10
+	u.max_hp = 30; u.hp = 30
+	u.apply_enemy_scaling(1.2)
+	assert_true(u.power == 12 and u.magic == 12 and u.skill == 12 and u.speed == 12 and u.defense == 12 and u.resistance == 12, "difficulty: AC-DS4 six stats scaled to 12")
+	assert_true(u.luck == 10 and u.max_hp == 30 and u.hp == 30, "difficulty: AC-DS4 Luck and HP unchanged")
+	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var normal := BattleDirector.new()
+	normal.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "normal")
+	var nightmare := BattleDirector.new()
+	nightmare.setup(map, {"unit_swordsman": map.deploy_cells[0]}, "nightmare")
+	var foe_n: UnitState = normal.state.units["unit_rebel_commander"]
+	var foe_x: UnitState = nightmare.state.units["unit_rebel_commander"]
+	assert_true(foe_x.power == int(floor(foe_n.power * 1.15)) and foe_x.defense == int(floor(foe_n.defense * 1.15)), "difficulty: Nightmare enemy stats x1.15, floored")
+	assert_true(foe_x.max_hp == foe_n.max_hp and foe_x.luck == foe_n.luck, "difficulty: enemy HP and Luck unscaled on Nightmare")
+	assert_true(nightmare.state.units["unit_swordsman"].power == normal.state.units["unit_swordsman"].power, "difficulty: player units never scaled")
 
 
 func _sides(plan: Dictionary) -> Array:
