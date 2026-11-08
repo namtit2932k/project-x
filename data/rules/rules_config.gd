@@ -40,6 +40,16 @@ class_name RulesConfig
 @export var stat_caps: Dictionary = {
 	"hp": 60, "str": 30, "mag": 30, "skill": 30, "speed": 30, "luck": 30, "def": 30, "res": 30,
 }
+## ------------------------------------------------------------ dual restraint (F-DRS)
+## GDD F-DRS1 (display-only score, 0-150) and F-DRS2 (victory bonus EXP). First pass numbers.
+@export var drs_kill_tolerance: int = 2
+@export var drs_ally_points: int = 50
+@export var drs_kill_points: int = 50
+@export var drs_perfect_bonus: int = 25
+@export var drs_swift_bonus: int = 25
+@export var drs_ally_bonus_exp: int = 15
+@export var drs_kill_restraint_bonus_exp: int = 15
+
 ## ------------------------------------------------------------ class passives (F-PAS)
 ## GDD Authored Passive Catalog: passive_id -> {name (UI text key; the Vietnamese GDD names live in data/i18n/strings.csv), effect_type, numbers}. Effect types are code
 ## (PassiveSystem); numbers and which class uses which passive are data.

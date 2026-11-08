@@ -142,3 +142,14 @@ seize,Seize,Chiếm giữ
 Protect: keep every enemy out of the marked zone for %s enemy phases.,Protect: keep every enemy out of the marked zone for %s enemy phases.,Bảo vệ: không để địch vào vùng đánh dấu trong %s phase địch.
 Protect: keep %s alive for %s enemy phases.,Protect: keep %s alive for %s enemy phases.,Bảo vệ: giữ %s sống trong %s phase địch.
 Seize: hold the marked point through %s consecutive enemy phases.,Seize: hold the marked point through %s consecutive enemy phases.,Chiếm giữ: giữ điểm đánh dấu qua %s phase địch liên tiếp.
+Squad: no ally lost,Squad: no ally lost,Đội hình: chưa mất ai
+Squad: an ally has fallen,Squad: an ally has fallen,Đội hình: đã có đồng đội ngã xuống
+yes,yes,có
+no,no,không
+Restraint score: %d,Restraint score: %d,Điểm kiềm chế: %d
+- No ally lost: %s (+%d),- No ally lost: %s (+%d),- Không mất đồng đội: %s (+%d)
+"- Few kills of the holdout faction (%d, limit %d): %s (+%d)","- Few kills of the holdout faction (%d, limit %d): %s (+%d)","- Ít hạ quân phe cần thuyết phục (%d, giới hạn %d): %s (+%d)"
+- Perfect restraint: +%d,- Perfect restraint: +%d,- Kiềm chế hoàn hảo: +%d
+- Swift clear (turn par): %s (+%d),- Swift clear (turn par): %s (+%d),- Hoàn thành nhanh (turn par): %s (+%d)
+Bonus EXP +%d to every deployed unit,Bonus EXP +%d to every deployed unit,EXP thưởng +%d cho mọi quân đã triển khai
+Restraint score: %d (not awarded - battle lost),Restraint score: %d (not awarded - battle lost),Điểm kiềm chế: %d (không được tính - thua trận)

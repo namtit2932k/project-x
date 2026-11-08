@@ -8,6 +8,8 @@ const PHASE_ENEMY := 1
 const PHASE_NPC := 2
 
 var map: Resource = null                 # MapData
+## Difficulty tier of this battle (set by the director): F-DRS reads its casualty policy.
+var difficulty: String = "normal"
 var width: int = 0
 var height: int = 0
 var terrain: Array = []                  # terrain[String] per cell: terrain_field[y][x] -> String

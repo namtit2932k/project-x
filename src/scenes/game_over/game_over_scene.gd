@@ -29,6 +29,10 @@ func _ready() -> void:
 		UIBuilder.label(box, UIBuilder.t("Chapter: %s") % _chapter.display_name, 22)
 	UIBuilder.label(box, reason_text(ResultStore.last_result), 22)
 	UIBuilder.label(box, UIBuilder.t("Progress from this battle is not kept."), 18)
+	# F-DRS / GDD Battle UI: the restraint score still shows on a loss, marked as not awarded.
+	var restraint: Dictionary = ResultStore.last_result.get("restraint", {})
+	if not restraint.is_empty():
+		UIBuilder.label(box, UIBuilder.t("Restraint score: %d (not awarded - battle lost)") % int(restraint.get("restraint_points_awarded", 0)), 18)
 
 	var retry := UIBuilder.button(box, UIBuilder.t("Retry chapter"), 26)
 	retry.pressed.connect(func() -> void: retry_pressed.emit())

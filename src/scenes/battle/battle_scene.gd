@@ -668,6 +668,8 @@ func _update_objective_label() -> void:
 	var lines: Array[String] = []
 	for res in director.active_objectives_progress():
 		lines.append("%s: %s (%s)" % [UIBuilder.t(String(res["id"])), str(res["progress"]), UIBuilder.t(str(res["status"]))])
+	# F-DRS (GDD Core Rule 6): the squad's death-free status is shown live; kills stay hidden.
+	lines.append(UIBuilder.t("Squad: no ally lost") if DualRestraint.zero_ally_deaths(director.state) else UIBuilder.t("Squad: an ally has fallen"))
 	_objective_label.text = "\n".join(lines)
 
 

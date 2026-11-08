@@ -280,6 +280,16 @@ Replaces the flat `crit_bonus`/`hit_bonus` idea of a passive (GDD retired it). E
 - Designer rule kept: a full-HP ally cannot be healed (overrides GDD's "0 effective healing is legal").
 - **Preview (GDD Pillar 2):** while choosing a Heal target, hovering a highlighted ally shows the raw HealAmount and the real HP gain (e.g. "Heal 20 → +12 HP (36→48)").
 
+### F-DRS — Dual Restraint scoring + victory bonus EXP (08-11-2026, `dual-restraint-scoring.md` Core Rules 1-9, F-DRS1, F-DRS2)
+
+- `src/battle/systems/dual_restraint.gd` (`DualRestraint`) computes the result **from the battle state at the moment it ends**, so a rewind past a death or a kill undoes it automatically (GDD Core Rule 4) — no separate tracker to snapshot.
+  - `zero_ally_deaths`: no player-side unit is down **on a permadeath tier** (`casualty_by_difficulty` = `permadeath`); on Story/Normal it always holds (GDD Core Rule 2, intentional).
+  - `kill_restraint_eligible` + `battle_kill_count`: the map engages a remnant faction with reconcile rules (`BattleState.reconcile_state`, the repo's Persuade-Pressure equivalent); kills of that faction only; `low_kill_restraint` = kills ≤ `drs_kill_tolerance` (2).
+  - `swift_clear_met`: final turn ≤ the map's `turn_par`.
+- **F-DRS1 score (display only, 0–150):** ally 50 + kill 50 (eligible maps) + perfect 25 (both + eligible) + swift 25. Numbers in `rules_config` (`drs_*`).
+- **F-DRS2 bonus EXP (victory only):** `drs_ally_bonus_exp` (15) if `zero_ally_deaths`, + `drs_kill_restraint_bonus_exp` (15) if low kills on an eligible map, handed to **every living deployed player unit** through `ExpSystem.resolve_level_up` (dead units earn no EXP, designer rule). Applied once when the battle ends in a win, before the result is read, so the post-battle screen and the campaign merge include it.
+- **UI:** the battle HUD shows the live squad status ("No ally lost" / "An ally has fallen") — the kill count stays hidden in battle (GDD Core Rule 6). The post-battle screen shows the score breakdown and the bonus EXP; the Game Over screen shows the score marked "not awarded" (GDD Battle UI defeat rule).
+
 ### F-OBJ — The five GDD objective types (08-11-2026, `battle-map-system.md` Core Rules 4, 6, 10–14)
 
 Replaces the legacy plugins `eliminate` / `defend` / `escort_turns` / `capture` / `evacuate`. Maps declare `{type, params}` with exactly the GDD enum (`ObjectiveBase.TYPES`); all map data and the demo importer were converted. `evacuate` is retired (the GDD has no such type — `test_evacuate` became a timed Escort).
@@ -332,7 +342,7 @@ Supersedes **D08** and **P-04** outright. D06/P-09 stay as they were (see "No de
 - **No defeat, only game over (designer-confirmed 08-11-2026).** The game has no "lost battle" outcome that carries on — losing is a game over, so nothing from that battle is kept, EXP included. `rules_config.action_exp_commits_on_defeat = false` (the GDD's Dual Restraint edge case says action EXP survives a defeat; the designer overrides it). D06 therefore stands unchanged for EXP. **Game Over screen (designer, 08-11-2026): "game over goes together with Retry chapter".** A lost battle (after the defeat banner, where Rewind is still offered) opens `GameOverScene` (`src/scenes/game_over/`) instead of the post-battle results + camp: title "Game Over", the reason (critical unit down / objective failed), and two buttons — **Retry chapter** (replays the same chapter from its story scene with the pre-battle roster) and **Main menu**. Victories still go to post-battle → camp.
 - **Rewind** now reverts level-up stat gains: `UnitState.to_dict()/from_dict()` carry the live combat stats (power/magic/defense/resistance/skill/speed/luck) besides HP/exp/level, so rewinding to before a level-up undoes it completely (GDD Core Rule 12e). Growth rolls are not replayed after a rewind (RNG not restored, D04).
 - **Latent bugs fixed (they only showed up once EXP was on):** (1) the roster stat bonus was counted three times per battle (`from_data` copied the roster bonus into `UnitState.stat_bonus` and then re-recorded it while replaying it; the merge then added that again). `UnitState.stat_bonus` now holds **only this battle's gains**; the roster keeps the running total. (2) Level-up gains on GDD keys (`str/mag/skill/speed/luck`) were silently dropped; `mag`/`luck` gains were impossible. (3) The rewind stat problem above.
-- **Not in this slice:** F-DRS2 bonus EXP (needs the Dual Restraint tracking system), Healer `devoted_mentor` +10 EXP to the healed target (class passive catalog), Bard `Encore`.
+- **Done later the same day:** F-DRS2 bonus EXP (F-DRS), Healer mentor EXP and Bard Encore (F-PAS).
 - **Edge cases (designer-confirmed 08-11-2026):** (a) a unit that dies earns no EXP — including an attacker felled by the counter in its own exchange (`grant_action_exp` requires the unit to be alive after the action); (b) a full-HP ally cannot be healed (the existing SkillCommand rule stays; this overrides GDD AC-CC78's "Heal on a full-HP ally pays 25"), so a Heal always has a wounded target.
 
 ## 8. Assets and UI
@@ -373,6 +383,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+2026-11-08 (15) — Claude — done: F-DRS Dual Restraint scoring + victory bonus EXP (src/battle/systems/dual_restraint.gd; drs_* rules: kill tolerance 2, points 50/50/25/25, bonus EXP 15+15; zero_ally_deaths only breaks on a permadeath tier; kill terms only on maps with a reconcile faction; result locked once at battle end, bonus EXP granted to living player units on a win only; HUD squad line, post-battle breakdown, Game Over 'not awarded' line; en+vi strings) / in progress: none / next: persuasion pressure colour UI, demo-layer enemy stats, demo bond data / issues: not pushed (no repo access); checks: validation 0/0, run_tests 353/353, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25.
 
 - 2026-11-08 (14) — Claude (Opus) — done: objective markers on the battle map (F-OBJ "Map markers" bullet). `ObjectiveBase.markers(state)` + per-plugin data (protect zone / unit, escort NPC + goal or countdown, retrieve exit + item on the ground + carrier, seize point + hold progress, named elimination targets); `BattleMapView.set_objectives()` draws them live each frame — tinted areas, tile frames, item diamond, cyan unit rings, and labels in dark badges drawn last so units never cover them. Checked visually on the four test maps (screenshots via a one-off capture script, not committed). New `test_objective_markers`. Verified: validation 0/0, run_tests **339/339**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: Dual Restraint + bonus EXP, persuasion pressure color, demo enemy stats / demo bond data; prep screen could preview the markers too. — issues: not pushed.
 

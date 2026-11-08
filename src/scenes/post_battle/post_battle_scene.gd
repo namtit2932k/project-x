@@ -53,7 +53,27 @@ func _ready() -> void:
 		var lu_ud := DataRegistry.get_unit(String(lu["unit_id"]))
 		UIBuilder.label(box, UIBuilder.t("LEVEL UP: %s -> Lv %d (%s)") % [lu_ud.display_name if lu_ud != null else String(lu["unit_id"]), int(lu["level"]), gains_text], 16)
 
+	_render_restraint(box, result.get("restraint", {}))
+
 	var post := UIBuilder.button(self, UIBuilder.t("Continue"), 24)
 	post.position = Vector2(60, 840)
 	post.size = Vector2(220, 56)
 	post.pressed.connect(func() -> void: continue_pressed.emit())
+
+
+## F-DRS1 score breakdown (display only) and the F-DRS2 bonus EXP the squad received.
+func _render_restraint(box: Control, r: Dictionary) -> void:
+	if r.is_empty():
+		return
+	UIBuilder.label(box, UIBuilder.t("Restraint score: %d") % int(r.get("restraint_points_awarded", 0)), 20)
+	UIBuilder.label(box, UIBuilder.t("- No ally lost: %s (+%d)") % [_yes_no(bool(r.get("zero_ally_deaths", false))), int(r.get("ally_points", 0))], 16)
+	if bool(r.get("kill_restraint_eligible", false)):
+		UIBuilder.label(box, UIBuilder.t("- Few kills of the holdout faction (%d, limit %d): %s (+%d)") % [int(r.get("battle_kill_count", 0)), int(DataRegistry.rule("drs_kill_tolerance", 2)), _yes_no(bool(r.get("low_kill_restraint", false))), int(r.get("kill_points", 0))], 16)
+		UIBuilder.label(box, UIBuilder.t("- Perfect restraint: +%d") % int(r.get("perfect_bonus", 0)), 16)
+	UIBuilder.label(box, UIBuilder.t("- Swift clear (turn par): %s (+%d)") % [_yes_no(bool(r.get("swift_clear_met", false))), int(r.get("swift_bonus", 0))], 16)
+	if int(r.get("bonus_exp", 0)) > 0:
+		UIBuilder.label(box, UIBuilder.t("Bonus EXP +%d to every deployed unit") % int(r.get("bonus_exp", 0)), 16)
+
+
+static func _yes_no(flag: bool) -> String:
+	return UIBuilder.t("yes") if flag else UIBuilder.t("no")

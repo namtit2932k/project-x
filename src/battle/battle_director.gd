@@ -17,6 +17,7 @@ var player_sides: Array = ["player"]
 func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: int = -1) -> void:
 	state = BattleState.new()
 	state.setup(p_map, deploy, seed_value)
+	state.difficulty = difficulty
 	rewind = SnapshotStack.new()
 	objectives.clear()
 	for cfg in state.objectives_config:
@@ -230,9 +231,15 @@ func _on_state_changed() -> void:
 	if not state.battle_over.is_empty():
 		var result: Dictionary = state.battle_over
 		var won: bool = result.get("status", "") == "win"
-		if won:
+		if won and not result.has("reconcile"):
 			ReconcileSystem.record_spared_units(state)
 			result["reconcile"] = ReconcileSystem.evaluate(state)
+		# F-DRS: lock the restraint result once; a victory hands the bonus EXP to the squad
+		# before the EXP lines below are read.
+		if not result.has("restraint"):
+			result["restraint"] = DualRestraint.result(state)
+			if won:
+				DualRestraint.grant_bonus_exp(state, int(result["restraint"]["bonus_exp"]))
 		# F-EXP: the post-battle screen lists earned EXP and level-ups whenever they will be
 		# merged — every victory (and a defeat only if action_exp_commits_on_defeat is turned on).
 		if won or bool(DataRegistry.rule("action_exp_commits_on_defeat", false)):

@@ -21,6 +21,7 @@ func _ready() -> void:
 	await test_objectives()
 	await test_retrieve_rules()
 	await test_objective_markers()
+	await test_dual_restraint()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -1748,6 +1749,74 @@ func test_objective_markers() -> void:
 	await get_tree().process_frame
 	assert_true(view.current_markers().size() == 1 and String(view.current_markers()[0]["kind"]) == "zone", "map view: the test map's protect zone is drawn")
 	view.queue_free()
+
+
+## F-DRS (GDD F-DRS1/F-DRS2): restraint score from the battle state at the end, and the
+## victory-only bonus EXP for every living deployed unit.
+func test_dual_restraint() -> void:
+	await 0.0
+	GameState.new_game()
+	# F4: tests exercise the legacy ch01 data, not the demo campaign.
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	var state := director.state
+	var r: Dictionary = DualRestraint.result(state)
+	assert_true(bool(r["kill_restraint_eligible"]) and bool(r["zero_ally_deaths"]) and bool(r["low_kill_restraint"]) and bool(r["swift_clear_met"]), "drs: eligible ch01, clean start")
+	assert_true(int(r["restraint_points_awarded"]) == 150 and int(r["bonus_exp"]) == 30, "drs: 50+50+25+25 = 150 points, 15+15 bonus EXP")
+	for faction_id in state.reconcile_state:
+		state.reconcile_state[faction_id]["kills"] = 3
+	r = DualRestraint.result(state)
+	assert_true(not bool(r["low_kill_restraint"]) and int(r["restraint_points_awarded"]) == 75 and int(r["bonus_exp"]) == 15, "drs: 3 kills > tolerance 2 -> 75 points, 15 EXP")
+	state.turn = int(map.turn_par) + 1
+	assert_true(not bool(DualRestraint.result(state)["swift_clear_met"]), "drs: past turn par is not a swift clear")
+	state.turn = 1
+	# Deaths only break the ally condition on a permadeath tier (GDD Core Rule 2).
+	state.units["unit_knight"].alive = false
+	assert_true(DualRestraint.zero_ally_deaths(state), "drs: on Normal a fallen ally does not break zero_ally_deaths")
+	state.difficulty = "hard"
+	assert_true(not DualRestraint.zero_ally_deaths(state), "drs: on Hard a fallen ally breaks it")
+	state.units["unit_knight"].alive = true
+	state.difficulty = "normal"
+	# A map with no persuadable faction: no kill / perfect terms, ceiling 75.
+	var plain: BattleState = _plain_map_enemy_state()
+	plain.reconcile_state.clear()
+	var rp: Dictionary = DualRestraint.result(plain)
+	assert_true(not bool(rp["kill_restraint_eligible"]) and int(rp["kill_points"]) == 0 and int(rp["perfect_bonus"]) == 0 and int(rp["restraint_points_awarded"]) <= 75, "drs: ineligible map caps at 75")
+	# Victory: the squad gets the bonus EXP once, before the result's EXP lines are read.
+	for faction_id in state.reconcile_state:
+		state.reconcile_state[faction_id]["kills"] = 0
+	for soldier_id in ["unit_rebel_soldier_1", "unit_rebel_soldier_2", "unit_rebel_soldier_3"]:
+		state.units[soldier_id].alive = false
+	director.commit("wait", {"unit_id": "unit_swordsman"})
+	assert_true(String(state.battle_over.get("status", "")) == "win", "drs: setup victory")
+	var locked: Dictionary = state.battle_over["restraint"]
+	var expected_exp := int(locked["bonus_exp"])
+	assert_true(expected_exp > 0 and int(state.units["unit_knight"].exp) == expected_exp, "drs: every living deployed unit got the bonus EXP (%d)" % expected_exp)
+	assert_true(int(state.battle_over["exp"].get("unit_knight", 0)) == expected_exp, "drs: the result lists the bonus EXP for the post-battle screen")
+	director._on_state_changed()
+	assert_true(int(state.units["unit_knight"].exp) == expected_exp, "drs: the bonus is granted only once")
+	# Post-battle shows the breakdown; Game Over shows the score as not awarded.
+	ResultStore.last_result = state.battle_over
+	var post := PostBattleScene.build(GameState.current_chapter())
+	add_child(post)
+	await get_tree().process_frame
+	assert_true(_has_label_containing(post, "Restraint score: %d" % int(locked["restraint_points_awarded"])), "drs: post-battle shows the restraint score")
+	post.queue_free()
+	ResultStore.last_result = {"status": "lose", "restraint": {"restraint_points_awarded": 75}}
+	var over := GameOverScene.build(null)
+	add_child(over)
+	await get_tree().process_frame
+	assert_true(_has_label_containing(over, "not awarded"), "drs: Game Over marks the score as not awarded")
+	over.queue_free()
+	# Defeat: no bonus EXP.
+	var lost := BattleDirector.new()
+	lost.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	lost.state.units["unit_swordsman"].alive = false
+	lost.commit("wait", {"unit_id": "unit_knight"})
+	assert_true(String(lost.state.battle_over.get("status", "")) == "lose" and int(lost.state.units["unit_knight"].exp) == 0, "drs: no bonus EXP on a defeat")
 
 
 func _sides(plan: Dictionary) -> Array:
