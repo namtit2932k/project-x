@@ -60,3 +60,15 @@ the F-ELV target band.
 3. **The demo maps are reference only, not official content** — observations 3 and 4 above are
    not acted on (no map/threshold rebalancing); the maps stay as they are for checking systems.
 
+## Re-run after the enemy AI profiles (F-AI, 2026-11-08)
+
+- demo_01 / 02 / 04 / 05 / 06: unchanged (100% wins); enemy damage per strike ~5.
+
+- demo_03 (the only map with a Protect/Persuade unit, the commander):
+  - aggressive bot: still 100% wins, all bad endings (3 holdout kills, threshold 2);
+  - restrained bot: **0 holdout kills and no bad ending any more** — the commander now flees or
+    holds with restrained strikes instead of trading counters — but only 20% wins: the two
+    StandardAggressive pursuers reach and kill the evacuee (20 / 25 objective failures) because
+    the restrained bot just waits instead of guarding it. A human escort would block; the map
+    is reference-only, so nothing is tuned.
+

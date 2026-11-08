@@ -69,6 +69,12 @@ var fragile_circle_ready: bool = false
 var items: Array = []
 var has_traded: bool = false
 var active_buffs: Dictionary = {}
+## F-AI: the unit's AI profile (StandardAggressive / Raider / ProtectPersuade), the state its
+## last Enemy-Phase evaluation chose (counters reuse it for the Restraint Rule; default Hold),
+## and its deploy tile (Flee tie-break toward the nearest map edge).
+var ai_profile: String = ""
+var ai_context: String = "hold"
+var start_pos: Vector2i = Vector2i.ZERO
 ## Item buff_stat keys (GDD names) -> stat() field names.
 const BUFF_FIELDS := {"str": "power", "mag": "magic", "skill": "skill", "speed": "speed", "luck": "luck", "def": "defense", "res": "resistance"}
 
@@ -134,6 +140,8 @@ static func from_data(unit_res: Resource, cell: Vector2i, level_override: int = 
 	# Weapon comes from the class def (GDD class_weapons table); formulas consume it in W3.
 	u.weapon_id = String(c.weapon_id)
 	u.priority_target_id = String(unit_res.priority_target_id)
+	u.ai_profile = String(unit_res.ai_profile) if "ai_profile" in unit_res else ""
+	u.start_pos = cell
 	# Attack range lives on ClassDef (weapon range); riders nu unit base stats when present.
 	u.attack_range_min = c.attack_range_min
 	u.attack_range_max = c.attack_range_max
@@ -299,6 +307,7 @@ func to_dict() -> Dictionary:
 		"active_debuffs": active_debuffs.duplicate(true), "miracle_used": miracle_used,
 		"fragile_circle_ready": fragile_circle_ready,
 		"items": items.duplicate(), "has_traded": has_traded, "active_buffs": active_buffs.duplicate(true),
+		"ai_context": ai_context,
 	}
 
 
@@ -324,6 +333,7 @@ func from_dict(d: Dictionary) -> void:
 	items = (d.get("items", items) as Array).duplicate()
 	has_traded = bool(d.get("has_traded", has_traded))
 	active_buffs = (d.get("active_buffs", {}) as Dictionary).duplicate(true)
+	ai_context = String(d.get("ai_context", ai_context))
 	max_hp = int(d.get("max_hp", max_hp))
 	hp = int(d.get("hp", hp))
 	alive = bool(d.get("alive", alive))

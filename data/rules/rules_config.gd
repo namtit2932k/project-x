@@ -189,6 +189,10 @@ class_name RulesConfig
 @export var restraint_rule_active_by_difficulty: Dictionary = {
 	"story": true, "normal": true, "hard": true, "nightmare": false,
 }
+## F-AI Protect/Persuade AI (GDD F-PPA2 / F-PPA4 defaults): key unit "critically wounded" at or
+## below this share of max HP; an ally within this many tiles means the unit is not isolated.
+@export var protect_hp_threshold: float = 0.3
+@export var rally_radius: int = 3
 ## balance_profile mechanism (D-A1/T2.7): DataRegistry nạp data/<profile>/ classes/units/weapons/items/maps
 ## đè các id trùng của lớp gốc. "" = tắt overlay (chạy dữ liệu ch01 gốc nguyên vẹn).
 @export var balance_profile: String = "demo"

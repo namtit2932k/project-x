@@ -29,6 +29,7 @@ func _ready() -> void:
 	await test_faction_state_across_chapters()
 	await test_ai_pathing_regressions()
 	await test_items_gold_and_shop()
+	await test_enemy_ai_profiles()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2280,6 +2281,117 @@ func _find_button_containing(root: Node, text: String) -> bool:
 		if _find_button_containing(child, text):
 			return true
 	return false
+
+
+## F-AI: StandardAggressive targets the nearest (ties x+y) with carrier / priority overrides,
+## Raiders beeline onto reachable villages, Protect/Persuade picks Protect / Flee / Cornered /
+## Rally / Hold, and the Restraint Rule stops its strikes (and counters) at 1 HP.
+func test_enemy_ai_profiles() -> void:
+	await 0.0
+	GameState.new_game()
+	GameState.build_roster()
+	var maps := DataRegistry.chapters_sorted("demo")
+	# ---- demo_01: StandardAggressive guard_2 and the Raider guard_1 (village at (3,2)).
+	var m1 := DataRegistry.get_map(String(maps[0].map_id))
+	var d1 := BattleDirector.new()
+	d1.setup(m1, {"unit_demo_swordsman": m1.deploy_cells[0], "unit_demo_knight": m1.deploy_cells[1]}, "normal")
+	var s1 := d1.state
+	var sword: UnitState = s1.units["unit_demo_swordsman"]
+	var knight: UnitState = s1.units["unit_demo_knight"]
+	var guard: UnitState = s1.units["guard_2"]
+	var raider: UnitState = s1.units["guard_1"]
+	assert_true(guard.ai_profile == "StandardAggressive" and raider.ai_profile == "Raider", "ai: profiles come from the unit data")
+	raider.pos = Vector2i(9, 7)
+	guard.pos = Vector2i(8, 5)
+	sword.pos = Vector2i(8, 3)    # distance 2, x+y 11
+	knight.pos = Vector2i(7, 6)   # distance 2, x+y 13
+	var plan := EnemyAI.plan_unit(s1, guard, ["player", "npc"])
+	assert_true(String(plan["target_id"]) == sword.id, "ai: StandardAggressive picks the nearest target, ties by lowest x+y")
+	guard.priority_target_id = knight.id
+	assert_true(String(EnemyAI.plan_unit(s1, guard, ["player", "npc"])["target_id"]) == knight.id, "ai: a reachable priority target wins (D-B7)")
+	guard.priority_target_id = ""
+	sword.pos = Vector2i(1, 1)
+	knight.pos = Vector2i(1, 6)
+	var approach := EnemyAI.plan_unit(s1, guard, ["player", "npc"])
+	assert_true(String(approach["target_id"]) == "" and approach["move_cell"] != guard.pos, "ai: nothing reachable -> walk toward the nearest")
+	# Raider: the village (3,2) is 3 tiles away -> beeline onto it, attack whoever is in range there.
+	raider.pos = Vector2i(6, 2)
+	sword.pos = Vector2i(3, 1)
+	var raid := EnemyAI.plan_unit(s1, raider, ["player", "npc"])
+	assert_true(raid["move_cell"] == Vector2i(3, 2) and String(raid["target_id"]) == sword.id, "ai: the Raider moves onto the reachable village and attacks from it")
+	d1.state.phase = BattleState.PHASE_ENEMY
+	d1.commit_ai_plan(raid)
+	assert_true(String(s1.villages["3,2"]["state"]) == "destroyed", "ai: reaching the village destroys it")
+	raider.acted = false
+	raider.pos = Vector2i(9, 0)
+	var fallback := EnemyAI.plan_unit(s1, raider, ["player", "npc"])
+	assert_true(fallback["move_cell"] != Vector2i(3, 2) and not fallback.has("ai_context"), "ai: no village left -> the Raider plays StandardAggressive")
+	# ---- demo_03: the commander is ProtectPersuade and the key unit.
+	var m3 := DataRegistry.get_map(String(maps[2].map_id))
+	var d3 := BattleDirector.new()
+	d3.setup(m3, {"unit_demo_swordsman": m3.deploy_cells[0], "unit_demo_knight": m3.deploy_cells[1]}, "normal")
+	var s3 := d3.state
+	var sw: UnitState = s3.units["unit_demo_swordsman"]
+	var kn: UnitState = s3.units["unit_demo_knight"]
+	var cmd: UnitState = s3.units["commander"]
+	var p1: UnitState = s3.units["pursuer_1"]
+	var p2: UnitState = s3.units["pursuer_2"]
+	assert_true(ProtectPersuadeAI.is_governed(s3, cmd) and ProtectPersuadeAI.key_unit(s3, p1) == cmd, "ai: the commander is governed and resolves as the key unit")
+	# Hold: nobody threatens it.
+	sw.pos = Vector2i(0, 0)
+	kn.pos = Vector2i(0, 7)
+	var hold := EnemyAI.plan_unit(s3, cmd, ["player", "npc"])
+	assert_true(String(hold["ai_context"]) == "hold" and hold["move_cell"] == cmd.pos, "ai: not threatened -> Hold in place")
+	# Flee: threatened with a way out.
+	sw.pos = Vector2i(5, 3)
+	var flee := EnemyAI.plan_unit(s3, cmd, ["player", "npc"])
+	var threats := ProtectPersuadeAI.player_threats(s3)
+	assert_true(String(flee["ai_context"]) == "flee" and not threats[sw.id].has(flee["move_cell"]), "ai: threatened with an escape -> Flee to an unthreatened tile")
+	# Cornered: threatened and unable to move.
+	var mv := cmd.move_range
+	cmd.move_range = 0
+	var cornered := EnemyAI.plan_unit(s3, cmd, ["player", "npc"])
+	assert_true(String(cornered["ai_context"]) == "cornered" and cornered["move_cell"] == cmd.pos and String(cornered["target_id"]) == "", "ai: no escape -> Cornered (no move, no attack)")
+	cmd.move_range = mv
+	# Protect Key Unit: a governed guard blocks next to the wounded, threatened commander.
+	p1.ai_profile = "ProtectPersuade"
+	cmd.hp = int(floor(0.3 * cmd.max_hp))
+	sw.pos = Vector2i(6, 3)
+	var protect := EnemyAI.plan_unit(s3, p1, ["player", "npc"])
+	assert_true(String(protect["ai_context"]) == "protect" and protect["move_cell"] == Vector2i(7, 3) and String(protect["target_id"]) == sw.id, "ai: Protect Key Unit blocks on the tile toward the threat and attacks")
+	cmd.hp = cmd.max_hp
+	# Rally: an isolated, unthreatened governed unit walks back toward the key unit.
+	p2.ai_profile = "ProtectPersuade"
+	sw.pos = Vector2i(0, 0)
+	kn.pos = Vector2i(0, 7)
+	p1.pos = Vector2i(9, 0)
+	p2.pos = Vector2i(9, 7)
+	var rally := EnemyAI.plan_unit(s3, p2, ["player", "npc"])
+	assert_true(String(rally["ai_context"]) == "rally" and RangeHandler.manhattan(rally["move_cell"], cmd.pos) < RangeHandler.manhattan(p2.pos, cmd.pos) and String(rally["target_id"]) == "", "ai: isolated -> Rally toward the key unit, no attack")
+	# Restraint Rule: Hold-context strikes stop at 1 HP, crits included; counters too.
+	sw.pos = cmd.pos + Vector2i(-1, 0)
+	sw.hp = 3
+	cmd.skill = 99
+	cmd.power = 60
+	cmd.ai_context = "hold"
+	assert_true(int(CombatResolver.forecast(s3, cmd, sw)["sequence"][0]["damage"]) == 2, "ai: the forecast shows the restrained damage (HP 3 -> 2)")
+	CombatResolver.execute(s3, cmd, sw)
+	assert_true(sw.alive and sw.hp == 1, "ai: a restrained strike leaves the target at 1 HP")
+	sw.hp = 3
+	cmd.max_hp = 999
+	cmd.hp = 999
+	CombatResolver.execute(s3, sw, cmd)
+	assert_true(sw.alive and sw.hp >= 1, "ai: its counter-attack is restrained too")
+	cmd.ai_context = "protect"
+	assert_true(not ProtectPersuadeAI.restrained(s3, cmd), "ai: Protect Key Unit fights at full force")
+	cmd.ai_context = "hold"
+	s3.difficulty = "nightmare"
+	assert_true(not ProtectPersuadeAI.restrained(s3, cmd), "ai: no Restraint Rule on Nightmare")
+	s3.difficulty = "normal"
+	# Unpersuadable (red bar) -> back to StandardAggressive.
+	s3.reconcile_state[cmd.faction_id]["kills"] = 99
+	assert_true(not ProtectPersuadeAI.is_governed(s3, cmd) and not ProtectPersuadeAI.restrained(s3, cmd), "ai: an Unpersuadable faction's units fall back to StandardAggressive, unrestrained")
+	GameState.new_game()
 
 
 func _sides(plan: Dictionary) -> Array:

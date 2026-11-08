@@ -326,6 +326,9 @@ func check_units() -> void:
 		if String(u.priority_target_id) != "" and DataRegistry.get_unit(String(u.priority_target_id)) == null:
 			_err("unit %s: unknown priority target %s" % [id, u.priority_target_id])
 		# T2.9: carried item slots cap.
+		# F-AI: only the profiles the enemy AI knows.
+		if String(u.ai_profile) not in ["", "StandardAggressive", "Raider", "ProtectPersuade"]:
+			_err("unit %s: unknown ai_profile '%s'" % [id, u.ai_profile])
 		if u.carried_items.size() > int(DataRegistry.rule("max_item_slots", 2)):
 			_err("unit %s: carried %d items, cap is %d" % [id, u.carried_items.size(), int(DataRegistry.rule("max_item_slots", 2))])
 		for item_id in u.carried_items:

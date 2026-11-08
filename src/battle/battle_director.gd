@@ -158,6 +158,10 @@ func commit_ai_plan(plan: Dictionary) -> bool:
 	if plan.is_empty():
 		return false
 	var unit: UnitState = state.units[String(plan["unit_id"])]
+	# F-AI: remember the state this turn's evaluation chose (the Restraint Rule reads it, also
+	# for counters during the next Player Phase).
+	if plan.has("ai_context"):
+		unit.ai_context = String(plan["ai_context"])
 	var move_cell: Variant = plan.get("move_cell", Vector2i(-1, -1))
 	var moved_ok := true
 	if move_cell is Vector2i and move_cell != unit.pos:

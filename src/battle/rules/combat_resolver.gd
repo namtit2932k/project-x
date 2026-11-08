@@ -39,6 +39,9 @@ static func execute(state: BattleState, attacker: UnitState, defender: UnitState
 		if crit:
 			damage = _round_value(int(damage * float(DataRegistry.rule("crit_multiplier", 3.0))))
 		damage += state.rng().randi_range(0, int(DataRegistry.rule("damage_flat", 0)))
+		# F-AI Restraint Rule (F-PPA5): a restrained holdout unit never kills - crits included.
+		if ProtectPersuadeAI.restrained(state, a):
+			damage = mini(damage, maxi(d.hp - 1, 0))
 		# F-PAS survive_once: the Wyvern Knight's first death in the battle is undone at 1 HP.
 		var applied := PassiveSystem.guard_lethal(d, damage)
 		d.take_damage(applied)
@@ -92,7 +95,11 @@ static func _strike_plan(state: BattleState, attacker: UnitState, defender: Unit
 
 
 static func _entry(state: BattleState, side: String, a: UnitState, d: UnitState, extra_damage: int = 0) -> Dictionary:
-	return {"side": side, "hit_pct": _hit_pct(state, a, d), "crit_pct": _crit_pct(state, a, d), "damage": _damage(state, a, d, extra_damage)}
+	var damage := _damage(state, a, d, extra_damage)
+	# F-AI: the forecast shows the Restraint cap against the defender's current HP.
+	if ProtectPersuadeAI.restrained(state, a):
+		damage = mini(damage, maxi(d.hp - 1, 0))
+	return {"side": side, "hit_pct": _hit_pct(state, a, d), "crit_pct": _crit_pct(state, a, d), "damage": damage}
 
 
 ## F-CC5 (approved GDD): Damage = offense_stat + weapon_might - defense_stat + bond bonus
