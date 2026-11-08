@@ -94,7 +94,7 @@ Track here. Remove an item once the designer confirms it.
 - **D-A2 (partial):** unit stat keys — demo layer uses GDD keys
   (`hp,str,mag,skill,speed,luck,def,res,move,base_vision`); the old ch01 layer keeps legacy
   keys. Validator accepts either but rejects a single unit mixing both. Migration of
-  `GameState` saves is still pending (W9).
+  `GameState` saves: done by F-SAVE (both key sets are read; v1/v2 saves are migrated to v3).
 - **D-A6:** demo scenario NPC use side-player-with-`controllable=false` semantics via
   `faction_neutral` + `controllable=false`; base-layer `side npc` stays.
 - **D-A5/D-A8:** all demo JSON ported to `.tres` via `tools/import_demo_data.gd` (rerunnable,
@@ -343,6 +343,13 @@ Each enemy's `UnitData.ai_profile` picks its turn logic (`EnemyAI.plan_unit` dis
 - **Squad view (Rule 13, P-10):** Pause menu → "Squad": every deployed ally (fallen ones greyed, "Fallen"), then a read-only detail: the 8 stats, current HP, active bond partners and ranks, active buffs, items, and a "Traits: updating" placeholder. Reachable in the Enemy Phase too; closing returns to the pause menu.
 - **Rewind point screen (Rewind Core Rule 3, P-06):** the Rewind button opens a list of every rewindable boundary since battle start (newest first: turn + the action that followed it), with "Undo last action" on top; confirming any entry costs exactly 1 charge whatever the distance. Boundaries stay the player-phase frames of D04.
 
+### F-SAVE — Save version 3 and old-save migration (08-11-2026, user request "A6", option 1)
+
+- `SaveService.SAVE_VERSION` = **3** (readable: 1, 2, 3). Version 3 marks saves written after the 08-11-2026 schema additions (gold, bags, faction kills / states, starting bonds). Missing keys still default in `GameState.from_dict`.
+- **Migration of a v1/v2 save on load (`SaveService.migrate`)**: roster entries whose unit no longer exists or does not belong to the save's campaign are dropped (the demo units that leaked into legacy rosters before the campaign-tag fix) and each drop is logged as a warning; the next manual save writes version 3.
+- **Deliberately not migrated (would need a design call):** level-up stat bonuses possibly inflated by the pre-F-EXP triple-count bug, and bond points earned under the old 20/45/70 thresholds — both load as they are. Old demo saves do not get the P-11 starting bond (it only applies to a new campaign).
+- W9 (old stat keys in saves) needs no data rewrite: `UnitState` reads both key sets (`apply_stat_bonus` / `_add_to_stat`).
+
 ### Demo maps are reference only (designer 08-11-2026)
 
 The six `demo_0N` maps/chapters are **reference material, not official content**: do not rebalance their layouts, enemy counts or faction thresholds from playtest results (e.g. demo_03's strict persuasion). Playtests on them are for checking rules and systems.
@@ -474,6 +481,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (29) — Claude (Opus) — done: save version 3 + old-save migration (new §7b **F-SAVE**, option 1 chosen by the designer; D-A2 / W9 closed). `SAVE_VERSION` 3 (1-3 readable); `SaveService.migrate()` runs after loading a v1/v2 save and drops roster units that no longer exist or are not in the save’s campaign (leaked demo units), logging each; the next save is v3. Stat bonuses (old atk/skl keys still apply) and old bond points load unchanged, as agreed. New `test_save_migration_v3`. Verified: validation 0/0, run_tests **508/508**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: C clean-up (test runner timeout); content work waits for the designer. — issues: not pushed (no repo access); the save tests overwrite user://save_game.json on the dev machine (pre-existing).
 
 - 2026-11-08 (28) — Claude (Opus) — done: recorded the designer's decision to postpone fog of war (A5) in §7. — in progress: none. — next: A6 save migration W9 or C clean-up (test runner timeout). — issues: not pushed (no repo access).
 

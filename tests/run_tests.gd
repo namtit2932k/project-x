@@ -32,6 +32,7 @@ func _ready() -> void:
 	await test_enemy_ai_profiles()
 	await test_persuasion_conditions()
 	await test_battle_ui_gdd()
+	await test_save_migration_v3()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2527,6 +2528,39 @@ func test_battle_ui_gdd() -> void:
 	await get_tree().process_frame
 	assert_true(sword.hp == hp_before and sword.alive, "ui: the Squad View changes nothing")
 	pause.queue_free()
+	GameState.new_game()
+
+
+## F-SAVE: saves are written at version 3; a v2 legacy save that carries leaked demo units and
+## an unknown unit loads with those roster entries dropped and everything else intact.
+func test_save_migration_v3() -> void:
+	await 0.0
+	assert_true(SaveService.SAVE_VERSION == 3 and 2 in SaveService.READABLE_VERSIONS, "save: version 3, older versions still readable")
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var legacy_count := GameState.roster.size()
+	var gs := GameState.to_dict().duplicate(true)
+	gs["roster"]["unit_demo_swordsman"] = {"level": 1, "exp": 0, "alive": true, "defeats": 0}
+	gs["roster"]["unit_removed_long_ago"] = {"level": 3, "exp": 0, "alive": true, "defeats": 0}
+	gs["roster"]["unit_swordsman"]["stat_bonus"] = {"atk": 2, "skl": 1}   # old stat keys
+	gs.erase("gold")
+	gs.erase("faction_states")
+	SaveService.write_save({"save_version": 2, "game_state": gs})
+	GameState.new_game()
+	assert_true(SaveService.load_campaign(), "save: a v2 save loads")
+	assert_true(not GameState.roster.has("unit_demo_swordsman") and not GameState.roster.has("unit_removed_long_ago") and GameState.roster.size() == legacy_count, "save: leaked demo units and removed units are dropped, the legacy squad stays")
+	assert_true(GameState.gold == 0 and GameState.faction_states.is_empty() and Array(GameState.roster["unit_swordsman"].get("items", [])) is Array, "save: new fields default")
+	var with_bonus := UnitState.from_data(DataRegistry.get_unit("unit_swordsman"), Vector2i.ZERO)
+	var saved_bonus: Dictionary = GameState.roster["unit_swordsman"]["stat_bonus"]
+	GameState.roster["unit_swordsman"]["stat_bonus"] = {}
+	var without := UnitState.from_data(DataRegistry.get_unit("unit_swordsman"), Vector2i.ZERO)
+	GameState.roster["unit_swordsman"]["stat_bonus"] = saved_bonus
+	assert_true(with_bonus.power == without.power + 2 and with_bonus.skill == without.skill + 1, "save: old-key stat bonuses (atk / skl) still apply (W9)")
+	var resaved := SaveService.save_campaign()
+	assert_true(int(resaved.get("save_version", 0)) == 3, "save: the next save is written at version 3")
+	# A current (v3) save is not migrated: nothing is dropped from it.
+	assert_true(SaveService.migrate(3).is_empty(), "save: a v3 save needs no migration")
 	GameState.new_game()
 
 
