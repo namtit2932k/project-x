@@ -19,3 +19,5 @@ class_name FactionData
 ## dialogue_id}. The battle HUD plays the matching dialogue when the attitude chip flips
 ## into that state; rewind back also fires it (display follows the restored state).
 @export var feedback: Dictionary = {}
+## F-BAD: dialogue for the bad ending this faction causes (empty = rules_config default).
+@export var bad_ending_dialogue_id: String = ""

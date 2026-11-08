@@ -124,6 +124,10 @@ func _start_test_battle(map_id: String) -> void:
 
 func _show_post_battle(win: bool) -> void:
 	var chapter := GameState.current_chapter()
+	# F-BAD: a victory with a red faction is the bad ending; like a Game Over it keeps nothing.
+	if win and not Array(ResultStore.last_result.get("bad_ending_factions", [])).is_empty():
+		_show_bad_ending(chapter)
+		return
 	# D06: the merge itself decides win/lose from the stored result; defeat touches nothing.
 	CampaignMerge.merge(_battle_director.state if _battle_director != null else null, chapter, ResultStore.last_result)
 	if not win:
@@ -145,6 +149,30 @@ func _show_game_over(chapter: Resource) -> void:
 	over.retry_pressed.connect(_on_retry_chapter)
 	over.menu_pressed.connect(_show_menu)
 	_swap_to(over)
+
+
+## F-BAD: bad-ending dialogue (the first red faction's own, else the rules default), then
+## the Bad Ending screen with Retry chapter / Main menu.
+func _show_bad_ending(chapter: Resource) -> void:
+	var factions: Array = ResultStore.last_result.get("bad_ending_factions", [])
+	var dialogue_id := String(DataRegistry.rule("bad_ending_dialogue_id", ""))
+	var f := DataRegistry.get_faction(String(factions[0])) if not factions.is_empty() else null
+	if f != null and String(f.bad_ending_dialogue_id) != "":
+		dialogue_id = String(f.bad_ending_dialogue_id)
+	var dlg := DataRegistry.get_dialogue(dialogue_id) if dialogue_id != "" else null
+	if dlg == null:
+		_show_bad_ending_screen(chapter)
+		return
+	var player := DialoguePlayer.build(dlg)
+	player.finished.connect(func(_skipped: bool) -> void: _show_bad_ending_screen(chapter))
+	_swap_to(player)
+
+
+func _show_bad_ending_screen(chapter: Resource) -> void:
+	var screen := BadEndingScene.build(chapter)
+	screen.retry_pressed.connect(_on_retry_chapter)
+	screen.menu_pressed.connect(_show_menu)
+	_swap_to(screen)
 
 
 func _show_camp() -> void:

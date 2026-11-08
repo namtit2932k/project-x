@@ -242,6 +242,8 @@ func _on_state_changed() -> void:
 		if won and not result.has("reconcile"):
 			ReconcileSystem.record_spared_units(state)
 			result["reconcile"] = ReconcileSystem.evaluate(state)
+		# F-BAD: a red faction at chapter end turns this victory into the bad ending.
+		result["bad_ending_factions"] = ReconcileSystem.unpersuadable_factions(state)
 		# F-DRS: lock the restraint result once; a victory hands the bonus EXP to the squad
 		# before the EXP lines below are read.
 		if not result.has("restraint"):

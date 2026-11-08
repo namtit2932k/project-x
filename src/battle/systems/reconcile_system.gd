@@ -78,6 +78,16 @@ static func kill_pressure_ratio(state: BattleState, faction_id: String) -> float
 	return clampf(float(effective_kills(state, faction_id)) / float(threshold), 0.0, 1.0)
 
 
+## F-BAD: remnant factions whose pressure bar is red (ratio 1.0) - a victory with any of
+## them ends in the bad ending.
+static func unpersuadable_factions(state: BattleState) -> Array[String]:
+	var out: Array[String] = []
+	for faction_id in state.reconcile_state:
+		if kill_pressure_ratio(state, String(faction_id)) >= 1.0:
+			out.append(String(faction_id))
+	return out
+
+
 ## Attitude used for the feedback dialogues (FactionData.feedback): safe/neutral/lost.
 static func attitude(state: BattleState, faction_id: String) -> String:
 	var rs: Dictionary = state.reconcile_state.get(faction_id, {})

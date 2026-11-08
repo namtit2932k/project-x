@@ -298,6 +298,15 @@ Replaces the flat `crit_bonus`/`hit_bonus` idea of a passive (GDD retired it). E
 - **Hidden on Persuaded (Rule 14e):** the chip disappears for a faction whose `reconcile_state` is `evaluated` and `persuaded` (in this repo that is only known at battle end). No chip at all on a map with no remnant faction.
 - **Unchanged:** the existing attitude feedback dialogues (`FactionData.feedback`, `ReconcileSystem.attitude()`) still play when the attitude flips; only the chip's look changed. The battle-start note now points at the colour bar.
 
+### F-BAD — Bad ending when a faction is red at chapter end (designer 08-11-2026: "when a faction shows red at the end of the chapter, the bad ending runs immediately")
+
+Overrides GDD `game-concept.md` "a failed persuasion carries forward into the story rather than a hard fail".
+
+- **Trigger (designer):** the battle is **won** and at least one remnant faction on the map has `kill_pressure_ratio == 1.0` (prior + this battle's kills ≥ `kill_threshold`, the red bar of F-PSI). Checked once when the victory is locked; the director stores the faction ids in `result["bad_ending_factions"]` (`ReconcileSystem.unpersuadable_factions()`). A missing required event alone (bar not red) does **not** trigger it — that is still only "not persuaded".
+- **Flow:** instead of post-battle → camp, `Main` plays the bad-ending dialogue (`FactionData.bad_ending_dialogue_id`, fallback `rules_config.bad_ending_dialogue_id` = `dlg_bad_ending`, placeholder text) and then `BadEndingScene` (`src/scenes/bad_ending/`): title "Bad Ending", one line per red faction, then **Retry chapter** / **Main menu**.
+- **Provisional defaults (not confirmed by the designer yet):** (a) the bad ending ends the campaign run like a Game Over — **nothing from that battle is merged** (EXP, kills, bonds, chapter completion) so Retry chapter replays it from the pre-battle state; (b) Retry chapter is offered. Switch to "merge and end the campaign, menu only" if the designer prefers a hard ending.
+- Validator warns about a remnant faction with `kill_threshold` 0 (always red → every victory would be a bad ending) and errors on an unknown `bad_ending_dialogue_id`.
+
 ### F-OBJ — The five GDD objective types (08-11-2026, `battle-map-system.md` Core Rules 4, 6, 10–14)
 
 Replaces the legacy plugins `eliminate` / `defend` / `escort_turns` / `capture` / `evacuate`. Maps declare `{type, params}` with exactly the GDD enum (`ObjectiveBase.TYPES`); all map data and the demo importer were converted. `evacuate` is retired (the GDD has no such type — `test_evacuate` became a timed Escort).
@@ -391,6 +400,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (18) — Claude (Opus) — done: bad ending (new §7b **F-BAD**, designer rule). A victory while any remnant faction's pressure bar is red (`ReconcileSystem.unpersuadable_factions()`, ratio 1.0) stores `result.bad_ending_factions`; `Main` then plays the bad-ending dialogue (`FactionData.bad_ending_dialogue_id` or `rules_config.bad_ending_dialogue_id` → placeholder `dlg_bad_ending`) and opens the new `BadEndingScene` (faction lines, Retry chapter / Main menu) instead of post-battle → camp; nothing is merged. Validator: warning for kill_threshold 0, error for an unknown dialogue id. en+vi strings. New `test_bad_ending`. Verified: validation 0/0, run_tests **383/383**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: designer to confirm the provisional F-BAD defaults (no merge + Retry offered vs hard campaign end); demo-layer enemy stats, demo bond data, content localization. — issues: not pushed (no repo access). On legacy ch01 the rout path (commander killed → 4 kills) now ends in the bad ending — intended by the rule.
 
 - 2026-11-08 (17) — Claude (Opus) — done: cumulative faction kills across chapters (F-PSI "Cumulative kills" bullet; GDD F-PS1/F-PS3). `GameState.faction_kill_counts` (saved, cleared by New campaign, old saves read as empty); director copies it into `reconcile_state[f].prior_kills` at setup; `ReconcileSystem.effective_kills()` = prior + this battle, used by evaluate(), attitude() and the pressure ratio; `CampaignMerge` adds this battle's kills on a victory only (designer game-over rule overrides the GDD's commit-on-defeat). Rewind never touches prior kills. Dual Restraint keeps counting this battle only. New `test_persistent_faction_kills`. Verified: validation 0/0, run_tests **375/375**, smoke_full_battle 21/21, smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: demo-layer enemy stats, demo bond data, campaign-level faction state (Persuaded/Unpersuadable carried to later maps), content localization. — issues: not pushed (no repo access). Feedback dialogues are placeholders (designer: no official story yet).
 

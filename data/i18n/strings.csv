@@ -150,3 +150,6 @@ Restraint score: %d,Restraint score: %d,Điểm kiềm chế: %d
 - Swift clear (turn par): %s (+%d),- Swift clear (turn par): %s (+%d),- Hoàn thành nhanh (turn par): %s (+%d)
 Bonus EXP +%d to every deployed unit,Bonus EXP +%d to every deployed unit,EXP thưởng +%d cho mọi quân đã triển khai
 Restraint score: %d (not awarded - battle lost),Restraint score: %d (not awarded - battle lost),Điểm kiềm chế: %d (không được tính - thua trận)
+Bad Ending,Bad Ending,Kết cục xấu
+%s will never accept the peace.,%s will never accept the peace.,%s sẽ không bao giờ chấp nhận hòa bình.
+The campaign ends here. Retry the chapter to change the outcome.,The campaign ends here. Retry the chapter to change the outcome.,Chiến dịch kết thúc tại đây. Chơi lại chương để thay đổi kết cục.

@@ -23,6 +23,7 @@ func _ready() -> void:
 	await test_objective_markers()
 	await test_dual_restraint()
 	await test_persistent_faction_kills()
+	await test_bad_ending()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -1891,6 +1892,56 @@ func test_persistent_faction_kills() -> void:
 	saved.erase("faction_kill_counts")
 	GameState.from_dict(saved)
 	assert_true(GameState.faction_kill_counts.is_empty(), "kills: an old save without the field loads as 0")
+	GameState.new_game()
+
+
+## F-BAD: a victory while a faction's pressure bar is red plays the bad ending (dialogue,
+## then the Bad Ending screen) instead of post-battle; nothing is merged.
+func test_bad_ending() -> void:
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var fid := "faction_rebel_ch01"
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	# Win ch01 with 2 earlier + 2 battle kills (threshold 4): red at chapter end.
+	GameState.faction_kill_counts[fid] = 2
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	director.state.reconcile_state[fid]["kills"] = 2
+	for soldier_id in ["unit_rebel_soldier_1", "unit_rebel_soldier_2", "unit_rebel_soldier_3"]:
+		director.state.units[soldier_id].alive = false
+	director.commit("wait", {"unit_id": "unit_swordsman"})
+	var result: Dictionary = director.state.battle_over
+	assert_true(String(result.get("status", "")) == "win" and Array(result.get("bad_ending_factions", [])) == [fid], "bad ending: the red faction is listed on the victory")
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	await get_tree().process_frame
+	main._battle_director = director
+	ResultStore.last_result = result
+	main._show_post_battle(true)
+	await get_tree().process_frame
+	var dlg_player := main._current as DialoguePlayer
+	assert_true(dlg_player != null, "bad ending: the bad-ending dialogue plays first")
+	if dlg_player != null:
+		dlg_player.finished.emit(true)
+	await get_tree().process_frame
+	var screen := main._current as BadEndingScene
+	assert_true(screen != null, "bad ending: then the Bad Ending screen")
+	assert_true(screen != null and _find_button(screen, "Retry chapter") != null and _find_button(screen, "Main menu") != null, "bad ending: Retry chapter and Main menu offered")
+	assert_true(BadEndingScene.faction_lines(result)[0].contains(DataRegistry.get_faction(fid).display_name), "bad ending: names the faction, no numbers")
+	assert_true(not GameState.completed_chapters.has(String(chapter.id)) and GameState.current_chapter() == chapter, "bad ending: chapter neither completed nor advanced")
+	assert_true(int(GameState.faction_kill_counts[fid]) == 2, "bad ending: this battle's kills are not committed")
+	main.queue_free()
+	await get_tree().process_frame
+	# Not red: the three fallen soldiers count as 3 kills of 4 (event missing too) - a plain victory.
+	GameState.faction_kill_counts.clear()
+	var clean := BattleDirector.new()
+	clean.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	for soldier_id in ["unit_rebel_soldier_1", "unit_rebel_soldier_2", "unit_rebel_soldier_3"]:
+		clean.state.units[soldier_id].alive = false
+	clean.commit("wait", {"unit_id": "unit_swordsman"})
+	assert_true(Array(clean.state.battle_over.get("bad_ending_factions", [])).is_empty(), "bad ending: a bar below red does not trigger it")
 	GameState.new_game()
 
 

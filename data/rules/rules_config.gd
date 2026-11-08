@@ -49,6 +49,8 @@ class_name RulesConfig
 @export var drs_swift_bonus: int = 25
 @export var drs_ally_bonus_exp: int = 15
 @export var drs_kill_restraint_bonus_exp: int = 15
+## F-BAD: dialogue played before the Bad Ending screen when a faction has no own one.
+@export var bad_ending_dialogue_id: String = "dlg_bad_ending"
 
 ## ------------------------------------------------------------ class passives (F-PAS)
 ## GDD Authored Passive Catalog: passive_id -> {name (UI text key; the Vietnamese GDD names live in data/i18n/strings.csv), effect_type, numbers}. Effect types are code

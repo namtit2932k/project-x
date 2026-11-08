@@ -384,6 +384,11 @@ func check_reconcile_keys() -> void:
 		var f := DataRegistry.get_faction(faction_id)
 		if f == null or String(f.remnant_id) == "":
 			continue
+		# F-BAD: threshold 0 means the bar is red from the start - every victory would end badly.
+		if int(f.reconcile.get("kill_threshold", 0)) <= 0:
+			_warn("faction %s: kill_threshold 0 - any victory on its maps triggers the bad ending" % faction_id)
+		if String(f.bad_ending_dialogue_id) != "" and DataRegistry.get_dialogue(String(f.bad_ending_dialogue_id)) == null:
+			_err("faction %s: unknown bad_ending_dialogue_id %s" % [faction_id, f.bad_ending_dialogue_id])
 		var known: Array = keys_by_faction.get(faction_id, [])
 		for ev in f.reconcile.get("required_events", []):
 			if str(ev) not in known:
