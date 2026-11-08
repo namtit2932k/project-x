@@ -251,44 +251,18 @@ func toast(text: String) -> void:
 var _shop_panel: Control = null
 
 
-## Catalog browsing: every entry listed; the ones the squad cannot afford stay disabled.
+## F-UI step 3: the shared ShopDialog (also opened from the prep screen).
 func open_shop() -> void:
 	close_shop()
-	_shop_panel = UIBuilder.modal(self)
-	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_shop_panel, 800, 600), 8)
-	UIBuilder.label(box, UIBuilder.t("Shop - gold: %d") % GameState.gold, 26)
-	for entry in Shop.catalog():
-		var item_id := String(entry["item_id"])
-		var btn := UIBuilder.button(box, UIBuilder.t("%s - %s - %d gold") % [BattleScene.item_name(item_id), item_effect_text(entry["item"]), int(entry["price"])], 18)
-		btn.disabled = not Shop.can_buy(item_id)
-		btn.pressed.connect(func() -> void: _choose_buyer(item_id))
-	var close := UIBuilder.button(box, UIBuilder.t("Close"), 18)
-	close.pressed.connect(func() -> void: close_shop(); _refresh_after_shop())
-
-
-## Target selection: living roster units with a free slot; picking one buys at once.
-func _choose_buyer(item_id: String) -> void:
-	close_shop()
-	_shop_panel = UIBuilder.modal(self)
-	var box := UIBuilder.vbox(UIBuilder.centered_modal_panel(_shop_panel, 800, 600), 8)
-	UIBuilder.label(box, UIBuilder.t("Buy %s for whom?") % BattleScene.item_name(item_id), 24)
-	var units := Shop.eligible_units()
-	if units.is_empty():
-		UIBuilder.label(box, UIBuilder.t("No unit has a free item slot."), 18)
-	for unit_id in units:
+	var dialog := ShopDialog.new()
+	dialog.closed.connect(func() -> void:
+		_shop_panel = null
+		_refresh_after_shop())
+	dialog.purchased.connect(func(item_id: String, unit_id: String) -> void:
 		var ud := DataRegistry.get_unit(unit_id)
-		var count := (GameState.roster[unit_id].get("items", []) as Array).size()
-		var btn := UIBuilder.button(box, UIBuilder.t("%s (%d/%d items)") % [ud.display_name if ud != null else unit_id, count, int(DataRegistry.rule("max_item_slots", 2))], 18)
-		btn.pressed.connect(func() -> void: _buy(item_id, unit_id))
-	var back := UIBuilder.button(box, UIBuilder.t("Cancel"), 18)
-	back.pressed.connect(open_shop)
-
-
-func _buy(item_id: String, unit_id: String) -> void:
-	if Shop.buy(item_id, unit_id):
-		var ud := DataRegistry.get_unit(unit_id)
-		toast(UIBuilder.t("Bought %s for %s.") % [BattleScene.item_name(item_id), ud.display_name if ud != null else unit_id])
-	open_shop()
+		toast(UIBuilder.t("Bought %s for %s.") % [BattleScene.item_name(item_id), ud.display_name if ud != null else unit_id]))
+	_shop_panel = dialog
+	add_child(dialog)
 
 
 func close_shop() -> void:
@@ -305,13 +279,7 @@ func _refresh_after_shop() -> void:
 
 
 static func item_effect_text(item: ItemData) -> String:
-	if item == null:
-		return ""
-	if item.is_heal_item():
-		return UIBuilder.t("restores %d HP") % int(item.heal_value)
-	if item.is_buff_item():
-		return UIBuilder.t("+%d %s for %d turns") % [int(item.buff_amount), String(item.buff_stat), int(item.buff_duration)]
-	return ""
+	return ShopDialog.item_effect_text(item)
 
 
 # ------------------------------------------------------------ F-ROSTER roster menu

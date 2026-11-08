@@ -39,6 +39,7 @@ func _ready() -> void:
 	await test_autosave_after_aftermath()
 	await test_camp_roster_menu()
 	await test_ui_start_flow()
+	await test_prep_screen_layout()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -788,15 +789,7 @@ func test_reconcile_hud() -> void:
 	var prep := PrepScene.build(chapter)
 	add_child(prep)
 	await get_tree().process_frame
-	var found := [false]
-	for label_child in prep.get_children():
-		if label_child is PanelContainer:
-			for line in label_child.get_children():
-				if line is VBoxContainer:
-					for text_node in line.get_children():
-						if text_node is Label and String(text_node.text).find("persuade the remnants") >= 0:
-							found[0] = true
-	assert_true(found[0], "reconcile: prep screen shows the limit-kills note")
+	assert_true(_has_label_containing(prep, "persuade the remnants"), "reconcile: prep screen shows the limit-kills note")
 	prep.free()
 
 
@@ -2841,6 +2834,47 @@ func test_ui_start_flow() -> void:
 	await get_tree().process_frame
 	assert_true(GameState.difficulty == "hard" and not GameState.roster.is_empty() and not (main._current is DifficultyScene), "start: Start begins a Hard campaign and moves on to the story")
 	main.queue_free()
+	GameState.difficulty = "normal"
+	GameState.new_game()
+
+
+## F-UI step 3: prep screen per the UI document - mission + squad column, map preview with
+## markers, count, Back, Shop and Options (difficulty switch + save) entries.
+func test_prep_screen_layout() -> void:
+	GameState.new_game()
+	GameState.build_roster()   # demo campaign: shop on
+	GameState.gold = 20
+	var chapter := GameState.current_chapter()
+	var prep := PrepScene.build(chapter)
+	add_child(prep)
+	await get_tree().process_frame
+	assert_true(prep.find_child("MissionPanel", true, false) != null and prep.find_child("PreviewPanel", true, false) != null, "prep: mission column and map preview column")
+	assert_true(prep._count_label.text == "1 / 2" and prep._preview.picked == 1, "prep: the protagonist is picked -> 1 / 2, one filled deploy tile")
+	(prep._checks["unit_demo_knight"] as Button).button_pressed = true
+	assert_true(prep._count_label.text == "2 / 2" and prep._preview.picked == 2 and String((prep._checks["unit_demo_knight"] as Button).text).begins_with("✓"), "prep: picking the Knight -> 2 / 2 and a check mark")
+	assert_true(not prep._preview._markers.is_empty() or prep._preview._state.units.size() > 0, "prep: the preview knows the map's units and markers")
+	var deploys := [{}]
+	prep.deploy_confirmed.connect(func(d: Dictionary) -> void: deploys[0] = d)
+	prep._on_start()
+	assert_true(deploys[0].size() == 2, "prep: Start battle deploys the picked squad")
+	prep.open_shop()
+	await get_tree().process_frame
+	assert_true(prep._dialog is ShopDialog and _find_button_containing(prep._dialog, "10"), "prep: the Shop opens from the prep screen")
+	prep.open_options()
+	await get_tree().process_frame
+	assert_true(prep._dialog is BetweenBattlesOptions and prep._dialog.find_child("SaveProgress", true, false) != null and prep._dialog.find_child("Close", true, false) != null, "prep: Options has Save progress and Close")
+	var opts: BetweenBattlesOptions = prep._dialog
+	opts.set_difficulty("hard")
+	assert_true(GameState.difficulty == "hard", "prep: the difficulty can be switched between battles")
+	opts.set_difficulty("nightmare")
+	assert_true(GameState.difficulty == "hard", "prep: never to Nightmare")
+	var backs := [0]
+	prep.back_pressed.connect(func() -> void: backs[0] += 1)
+	prep.find_children("*", "Button", true, false).filter(func(b: Node) -> bool: return String((b as Button).text).contains("BACK"))[0].pressed.emit()
+	assert_true(backs[0] == 1, "prep: Back is offered")
+	for terrain in DataRegistry.rule("terrain_glyphs", {}).values():
+		assert_true(BattleMapView.TERRAIN_COLORS.has(String(terrain)), "prep: terrain %s has a map colour (no magenta)" % terrain)
+	prep.queue_free()
 	GameState.difficulty = "normal"
 	GameState.new_game()
 

@@ -92,6 +92,12 @@ func _show_prep() -> void:
 	var chapter := GameState.current_chapter()
 	var prep := PrepScene.build(chapter)
 	prep.deploy_confirmed.connect(_start_battle)
+	# F-UI step 3: Back returns to the lobby once the campaign has one, else to the menu.
+	prep.back_pressed.connect(func() -> void:
+		if GameState.completed_chapters.is_empty():
+			_show_menu()
+		else:
+			_show_camp())
 	_swap_to(prep)
 
 

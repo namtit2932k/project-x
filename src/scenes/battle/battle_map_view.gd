@@ -11,6 +11,11 @@ const TERRAIN_COLORS := {
 	"mountain": Color(0.46, 0.42, 0.36),
 	"water": Color(0.2, 0.36, 0.6),
 	"wall": Color(0.12, 0.12, 0.14),
+	# Terrains of the GDD / demo glyph table that had no colour (they drew magenta).
+	"hill": Color(0.55, 0.5, 0.33),
+	"cover": Color(0.4, 0.38, 0.36),
+	"hazard": Color(0.55, 0.3, 0.25),
+	"village": Color(0.72, 0.56, 0.3),
 }
 
 const MOVE_COLOR := Color(0.25, 0.5, 1.0, 0.35)

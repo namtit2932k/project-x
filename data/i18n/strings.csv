@@ -245,3 +245,29 @@ START THE JOURNEY →,START THE JOURNEY →,BẮT ĐẦU HÀNH TRÌNH →
 Choose Nightmare?,Choose Nightmare?,Chọn Nightmare?
 "Nightmare cannot be changed for the rest of this campaign: no rewinds, enemies are four levels stronger, and fallen allies sit out the next map.","Nightmare cannot be changed for the rest of this campaign: no rewinds, enemies are four levels stronger, and fallen allies sit out the next map.","Nightmare không thể đổi trong suốt chiến dịch này: không có quay lại, đối phương mạnh hơn bốn cấp, và đồng đội gục ngã phải nghỉ map kế tiếp."
 Start on Nightmare,Start on Nightmare,Bắt đầu với Nightmare
+Prepare for battle,Prepare for battle,Chuẩn bị ra trận
+BEFORE BATTLE · %s,BEFORE BATTLE · %s,TRƯỚC TRẬN · %s
+SQUAD / MISSION · %s,SQUAD / MISSION · %s,ĐỘI HÌNH / NHIỆM VỤ · %s
+OPTIONS,OPTIONS,TÙY CHỌN
+MISSION,MISSION,NHIỆM VỤ
+DEPLOY LIMIT %d · MAP %d × %d,DEPLOY LIMIT %d · MAP %d × %d,GIỚI HẠN %d QUÂN · BẢN ĐỒ %d × %d
+Choose your squad,Choose your squad,Chọn đội hình
+Units you do not pick stay with the squad.,Units you do not pick stay with the squad.,Quân chưa chọn vẫn ở lại đội hình.
+MAP PREVIEW · %d × %d,MAP PREVIEW · %d × %d,XEM TRƯỚC BẢN ĐỒ · %d × %d
+● Your units   ○ Free tile   ● Enemies   ● NPCs,● Your units   ○ Free tile   ● Enemies   ● NPCs,● Quân mình   ○ Vị trí trống   ● Quân địch   ● NPC
+← BACK,← BACK,← TRỞ LẠI
+SHOP,SHOP,CỬA HÀNG
+START BATTLE →,START BATTLE →,BẮT ĐẦU TRẬN →
+Move,Move,Di chuyển
+Required,Required,Bắt buộc
+Elimination,Elimination,Tiêu diệt
+Protect,Protect,Bảo vệ
+Escort,Escort,Hộ tống
+Retrieve,Retrieve,Thu hồi
+Seize,Seize,Chiếm cứ điểm
+Between battles,Between battles,Giữa các trận
+Current difficulty: %s,Current difficulty: %s,Độ khó hiện tại: %s
+Nightmare is locked for this campaign.,Nightmare is locked for this campaign.,Nightmare đã khoá cho chiến dịch này.
+Difficulty: %s - applies from the next battle.,Difficulty: %s - applies from the next battle.,Độ khó: %s - áp dụng từ trận tiếp theo.
+Save progress,Save progress,Lưu tiến độ
+Save failed,Save failed,Lưu thất bại
