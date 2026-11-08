@@ -219,8 +219,9 @@ func _on_left_click(cell: Vector2i) -> void:
 				return
 			var sel := _selected()
 			if unit != null and unit.id == selected_unit_id:
-				if sel != null and sel.moved:
-					_do_wait()   # click lại chính mình sau khi đã move = chốt hành động
+				# F-MOVE: a second click on the unit = stay on this tile; the action menu opens.
+				if sel != null and sel.side == "player" and not sel.acted and not sel.moved:
+					_commit_move(sel.pos)
 				return
 			if sel != null and sel.side == "player" and not sel.acted and not sel.moved:
 				var move_cells := MovementHandler.compute_move_cells(director.state, sel)
@@ -236,16 +237,13 @@ func _on_left_click(cell: Vector2i) -> void:
 			else:
 				_cancel_selection()
 		Mode.TARGET_SELECT:
-			# Sau khi move: click địch = mở forecast; click ô khác = kết thúc hành động.
+			# After the move: a red enemy opens the forecast. F-MOVE: other clicks do nothing - only
+			# a menu action confirms the turn, right click takes the move back.
 			var target_id := _target_at(cell)
 			if target_id != "":
 				_open_forecast(target_id)
-				return
-			var sel2 := _selected()
-			if sel2 != null and sel2.moved:
-				_do_wait()
-				return
-			_cancel_selection()
+			elif unit != null and unit.side == "player" and unit.id != selected_unit_id:
+				_select_unit(unit)   # switching units takes this unconfirmed move back
 
 
 func _on_right_click(cell: Vector2i) -> void:
@@ -259,9 +257,27 @@ func _on_right_click(cell: Vector2i) -> void:
 		return
 	var sel := _selected()
 	if sel != null and sel.moved and not sel.acted and mode == Mode.TARGET_SELECT:
-		_do_wait()   # T09: right click sau khi move = chốt Wait
-		return
+		if not _action_panel.visible:
+			_show_action_menu(sel)   # back from choosing an Attack target to the menu
+			_refresh_overlays()
+			return
+		# F-MOVE: right click before confirming = the move is taken back, unit still selected.
+		if director.cancel_move(sel.id):
+			_select_unit(director.state.units[sel.id])
+			_refresh_rewind_button()
+			return
 	_cancel_selection()
+
+
+## F-MOVE: takes back a move the player has not confirmed with an action (no-op otherwise).
+func _revert_pending(unit: UnitState) -> bool:
+	if unit == null or unit.side != "player" or not unit.moved or unit.acted:
+		return false
+	var ok := director.cancel_move(unit.id)
+	if ok:
+		_refresh_rewind_button()
+	return ok
+
 
 func _cancel_selection() -> void:
 	if mode == Mode.BUSY:
@@ -272,6 +288,7 @@ func _cancel_selection() -> void:
 		if sel != null:
 			_select_unit(sel)   # quay lại bước trước: chọn unit / chọn mục tiêu
 			return
+	_revert_pending(_selected())   # F-MOVE: deselecting never keeps an unconfirmed move
 	mode = Mode.IDLE
 	selected_unit_id = ""
 	active_targets.clear()
@@ -286,6 +303,11 @@ func _selected() -> UnitState:
 
 
 func _select_unit(unit: UnitState) -> void:
+	# F-MOVE: picking another unit takes back the previous unit's unconfirmed move (the state is
+	# restored from a snapshot, so re-read the unit afterwards).
+	var prev := _selected()
+	if prev != null and prev.id != unit.id and _revert_pending(prev):
+		unit = director.state.units[unit.id]
 	selected_unit_id = unit.id
 	map_view.focus_cell(unit.pos)   # F-UI step 4 camera (only moves on maps larger than the frame)
 	active_targets.clear()
@@ -293,7 +315,11 @@ func _select_unit(unit: UnitState) -> void:
 		# Targets tính từ vị trí hiện tại; unit đã move (đang chờ hành động) vào TARGET_SELECT luôn.
 		active_targets = _compute_targets_for(director.state, unit)
 		mode = Mode.TARGET_SELECT if unit.moved else Mode.UNIT_SELECTED
-		_show_action_menu(unit)
+		# F-MOVE: the action menu only opens after the unit has moved (or chosen to stay).
+		if unit.moved:
+			_show_action_menu(unit)
+		else:
+			_hide_action_menu()
 	else:
 		mode = Mode.IDLE
 	_refresh_overlays()
@@ -327,8 +353,8 @@ func _commit_move(cell: Vector2i) -> void:
 
 func _show_action_menu(unit: UnitState) -> void:
 	_hide_action_menu()
-	if unit.side != "player" or unit.acted or director.state.phase != BattleState.PHASE_PLAYER:
-		return
+	if unit.side != "player" or unit.acted or not unit.moved or director.state.phase != BattleState.PHASE_PLAYER:
+		return   # F-MOVE: no menu before the move
 	# F-BUI Rule 11 (GDD order, illegal entries omitted): Attack, Heal, Use Item, Visit, Encore,
 	# Trade, Wait. Shortcuts of the D01 flow stay: click a red enemy, re-click the unit = Wait.
 	for entry in action_menu_entries(director.state, unit, _compute_targets_for(director.state, unit)):
@@ -578,6 +604,7 @@ func _play_combat(strikes: Array) -> void:
 func _on_end_phase() -> void:
 	if paused or mode == Mode.BUSY or director.state.phase != BattleState.PHASE_PLAYER or not director.state.battle_over.is_empty():
 		return
+	_revert_pending(_selected())   # F-MOVE: an unconfirmed move does not survive End phase
 	mode = Mode.BUSY
 	_cancel_selection()
 	director.end_player_phase()
@@ -644,6 +671,7 @@ func _refresh_rewind_button() -> void:
 func _on_rewind() -> void:
 	if mode == Mode.BUSY or director.state.phase != BattleState.PHASE_PLAYER:
 		return
+	_revert_pending(_selected())   # F-MOVE: a provisional move is taken back for free first
 	if director.rewind.frames.is_empty():
 		return
 	# Rewind always restores the newest valid PLAYER frame; engine phase frames are skipped.
@@ -1015,7 +1043,7 @@ func _on_menu_entry(kind: String, arg: String) -> void:
 		"attack":
 			_hide_action_menu()
 			_enter_target_select()
-			_info_label.text = UIBuilder.t("Choose a target (red tiles), right click to wait.")
+			_info_label.text = UIBuilder.t("Choose a target (red tiles), right click to go back.")
 			_refresh_overlays()
 		"skill":
 			_use_skill(arg)
@@ -1147,6 +1175,8 @@ func _close_trade() -> void:
 func open_rewind_picker() -> void:
 	if mode == Mode.BUSY or paused or director.state.phase != BattleState.PHASE_PLAYER:
 		return
+	if _revert_pending(_selected()):   # F-MOVE: free take-back, never a paid rewind point
+		_cancel_selection()
 	var frames := director.rewind.player_frames()
 	var budget := director.rewind_budget
 	if frames.is_empty() or budget == 0 or (budget > 0 and director.rewind_uses_left <= 0):

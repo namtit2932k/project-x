@@ -45,6 +45,7 @@ func _ready() -> void:
 	await test_results_screens_layout()
 	await test_lobby_pages()
 	await test_placeholder_tileset()
+	await test_move_then_act()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -433,12 +434,16 @@ func test_forecast_confirm_attack() -> void:
 	var combat_calls := [0]
 	EventBus.combat_resolved.connect(func(_s: Array) -> void: combat_calls[0] += 1)
 	var hero: UnitState = director.state.units["unit_swordsman"]
-	battle._on_left_click(hero.pos)                 # select: the GDD Action Menu (Rule 11) opens
+	battle._on_left_click(hero.pos)                 # select: F-MOVE - no menu yet
+	assert_true(not battle._action_panel.visible, "F-MOVE: selecting a unit does not open the action menu")
+	battle._on_left_click(hero.pos)                 # second click = stay: the GDD Action Menu (Rule 11) opens
 	var menu_texts: Array = []
 	for b in battle._action_menu.get_children():
 		if b is Button and not b.is_queued_for_deletion():
 			menu_texts.append((b as Button).text)
 	assert_true(menu_texts.size() >= 2 and menu_texts[0] == "Attack" and menu_texts[-1] == "Wait", "forecast: the Action Menu lists Attack first and Wait last (GDD Rule 11, superseding D01's no-button flow) %s" % str(menu_texts))
+	battle._on_right_click(hero.pos)                # F-MOVE: take the stay back, unit still selected
+	assert_true(battle.mode == BattleScene.Mode.UNIT_SELECTED and not hero.moved and not battle._action_panel.visible, "F-MOVE: right click before confirming takes the stay back")
 	var hp_before: int = defender.hp
 	battle._on_left_click(defender.pos)             # click địch trong ô đỏ → forecast, chưa commit
 	assert_true(battle.mode == BattleScene.Mode.CONFIRM_ATTACK, "forecast: red-cell click opens the confirm state")
@@ -2926,6 +2931,7 @@ func test_battle_hud_layout() -> void:
 	assert_true(battle._terrain_box.visible and battle._terrain_box.get_child_count() > 0, "hud: the hovered tile shows the terrain box")
 	assert_true(BattleScene.terrain_box_lines("forest")[1].contains("+"), "hud: the terrain box lists the Def / Avoid bonus")
 	battle._select_unit(sword)
+	battle._on_left_click(sword.pos)   # F-MOVE: the menu opens once the unit stays / moves
 	await get_tree().process_frame
 	var panel: PanelContainer = battle._action_panel
 	var r := Rect2(panel.position, panel.size)
@@ -3101,6 +3107,66 @@ func test_placeholder_tileset() -> void:
 			if not Rect2i(Vector2i.ZERO, img.get_size()).encloses(r) or img.get_pixelv(r.get_center()).a < 0.9:
 				bad.append("%s %s" % [terrain, str(tile)])
 	assert_true(bad.is_empty(), "tileset: base tiles are inside the texture and opaque (%s)" % str(bad))
+
+
+## F-MOVE (designer 09-11-2026): the menu opens only after a move (or a second click = stay);
+## until an action is confirmed the move is provisional - right click, another unit or End
+## phase put the unit back on its start tile for free (no Rewind use, no rewind point).
+func test_move_then_act() -> void:
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	var battle := BattleScene.new()
+	battle.setup(director)
+	add_child(battle)
+	await get_tree().process_frame
+	var start: Vector2i = director.state.units["unit_swordsman"].pos
+	var frames_before := director.rewind.frames.size()
+	var uses_before := director.rewind_uses_left
+	battle._on_left_click(start)
+	assert_true(battle.mode == BattleScene.Mode.UNIT_SELECTED and not battle._action_panel.visible, "move: selecting shows the range, no menu")
+	var dest := Vector2i(-1, -1)
+	for c in MovementHandler.compute_move_cells(director.state, director.state.units["unit_swordsman"]):
+		if c != start:
+			dest = c
+			break
+	battle._on_left_click(dest)
+	var sword: UnitState = director.state.units["unit_swordsman"]
+	assert_true(sword.pos == dest and sword.moved and battle._action_panel.visible, "move: the menu opens after the move")
+	battle._on_left_click(start)   # an empty tile while the menu is open: nothing happens
+	assert_true(sword.pos == dest and not sword.acted and battle._action_panel.visible, "move: other clicks neither wait nor cancel")
+	battle._on_right_click(dest)
+	sword = director.state.units["unit_swordsman"]
+	assert_true(sword.pos == start and not sword.moved and not sword.acted and battle.selected_unit_id == "unit_swordsman", "move: right click puts the unit back, still selected")
+	assert_true(director.rewind.frames.size() == frames_before and director.rewind_uses_left == uses_before, "move: taking a move back spends no rewind and leaves no rewind point")
+	battle._on_right_click(start)
+	assert_true(battle.mode == BattleScene.Mode.IDLE and battle.selected_unit_id == "", "move: a second right click deselects")
+	# Stay: second click on the unit, then Wait from the menu confirms.
+	battle._on_left_click(start)
+	battle._on_left_click(start)
+	sword = director.state.units["unit_swordsman"]
+	assert_true(sword.pos == start and sword.moved and not sword.acted and battle._action_panel.visible, "move: a second click stays in place and opens the menu")
+	# Picking another unit takes the provisional stay back.
+	var knight: UnitState = director.state.units["unit_knight"]
+	battle._on_left_click(knight.pos)
+	assert_true(not director.state.units["unit_swordsman"].moved and battle.selected_unit_id == "unit_knight", "move: selecting another unit takes the unconfirmed move back")
+	# Confirmed: move + Wait counts as acted and stays.
+	battle._on_left_click(knight.pos)
+	battle._on_menu_entry("wait", "")
+	knight = director.state.units["unit_knight"]
+	assert_true(knight.acted and battle.mode == BattleScene.Mode.IDLE, "move: Wait confirms the action")
+	assert_true(not director.cancel_move("unit_knight"), "move: a confirmed action cannot be taken back for free")
+	# End phase with a provisional move: the unit goes home first.
+	battle._on_left_click(start)
+	battle._on_left_click(dest)
+	battle._revert_pending(battle._selected())
+	assert_true(director.state.units["unit_swordsman"].pos == start, "move: End phase / rewind take a provisional move back first")
+	battle.queue_free()
+	GameState.new_game()
 
 
 func _sides(plan: Dictionary) -> Array:

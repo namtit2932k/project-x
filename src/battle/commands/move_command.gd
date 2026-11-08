@@ -16,6 +16,10 @@ static func check(state: BattleState, unit: UnitState, target: Vector2i) -> Stri
 ## Returns true when applied. Movement through allies, not onto occupied tiles.
 ## One move per unit per phase: the moved flag blocks a second move until rewind.
 static func apply(state: BattleState, unit: UnitState, target: Vector2i) -> bool:
+	# F-MOVE: "stay" - a 0-tile move on the unit's own tile (it then acts from where it stands).
+	if target == unit.pos and not unit.moved:
+		unit.moved = true
+		return true
 	var move_cells := MovementHandler.compute_move_cells(state, unit)
 	if not move_cells.has(target):
 		return false

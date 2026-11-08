@@ -245,6 +245,22 @@ func push_snapshot(label: String, unit_id: String = "") -> void:
 	rewind.push(state, label, unit_id)
 
 
+## F-MOVE (designer 09-11-2026): a player's move stays provisional until an action confirms it.
+## Undoes the newest command when it is this unit's move and nothing has followed it: the state
+## goes back to the snapshot taken before the move and that frame is dropped, so no Rewind use is
+## spent and it never shows as a rewind point. false = nothing to cancel (or already locked in).
+func cancel_move(unit_id: String) -> bool:
+	var unit: UnitState = state.units.get(unit_id, null)
+	if unit == null or not unit.moved or unit.acted or not state.battle_over.is_empty() or not rewind.has_frames():
+		return false
+	var last: Dictionary = rewind.frames.back()
+	if String(last.get("label", "")) != "move" or String(last.get("unit_id", "")) != unit_id:
+		return false
+	rewind.restore_to(state, rewind.frames.size() - 1)
+	_on_state_changed()
+	return true
+
+
 ## Rewinds to the frame chosen by the player; consumes one use if the budget is finite.
 func use_rewind(frame_index: int) -> bool:
 	if rewind_budget == 0 or not rewind.has_frames():
