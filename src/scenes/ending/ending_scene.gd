@@ -1,8 +1,8 @@
 extends Control
 class_name EndingScene
 ## F-UI step 6 (UI doc "End of the six example chapters"): shown when the summary of the last
-## chapter in data is closed. Squad / Bonds lead to the camp (the lobby's own tabs come with
-## F-UI step 7), Main menu is the gold default. The campaign was already autosaved (F-AUTOSAVE).
+## chapter in data is closed. Squad / Bonds open the lobby on those pages (F-UI step 7), Main menu
+## is the gold default. The campaign was already autosaved (F-AUTOSAVE).
 
 signal squad_pressed
 signal bonds_pressed

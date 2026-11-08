@@ -43,6 +43,7 @@ func _ready() -> void:
 	await test_battle_hud_layout()
 	await test_dialogue_vn_layout()
 	await test_results_screens_layout()
+	await test_lobby_pages()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -289,21 +290,24 @@ func test_campaign_merge_d06() -> void:
 	GameState.completed_chapters.clear()
 	ResultStore.last_result = {"status": "lose"}
 	var camp := CampScene.new()
+	camp.page = "squad"
 	add_child(camp)
 	await get_tree().process_frame
-	assert_true(_find_button(camp, "Retry chapter") != null and _find_button(camp, "Next chapter") == null, "camp D06: defeat shows Retry, hides Next chapter")
+	assert_true(_find_button(camp, "Retry chapter") != null and _find_button(camp, "Prepare for battle →") == null, "camp D06: defeat shows Retry, hides Prepare for battle")
 	ResultStore.last_result = {"status": "win"}
 	GameState.completed_chapters[String(chapter.id)] = true
 	var camp2 := CampScene.new()
+	camp2.page = "squad"
 	add_child(camp2)
 	await get_tree().process_frame
-	assert_true(_find_button(camp2, "Next chapter") != null and _find_button(camp2, "Retry chapter") == null, "camp D06: cleared chapter shows Next chapter")
+	assert_true(_find_button(camp2, "Prepare for battle →") != null and _find_button(camp2, "Retry chapter") == null, "camp D06: cleared chapter shows Prepare for battle")
 	ResultStore.last_result = {"status": "win"}
 	GameState.completed_chapters.clear()   # defensive gate: result win but chapter uncleared
 	var camp3 := CampScene.new()
+	camp3.page = "squad"
 	add_child(camp3)
 	await get_tree().process_frame
-	assert_true(_find_button(camp3, "Next chapter") == null, "camp D06: Next chapter hidden while the current chapter is uncleared")
+	assert_true(_find_button(camp3, "Prepare for battle →") == null, "camp D06: Prepare for battle hidden while nothing new was cleared")
 	DataRegistry._cache["chapters"].erase("chapter_ch02")
 	camp.queue_free()
 	camp2.queue_free()
@@ -1070,13 +1074,10 @@ func test_story_flags_and_ending() -> void:
 	# Camp screen shows the state without crashing headless.
 	GameState.current_chapter_id = "chapter_ch01"
 	var camp := CampScene.new()
+	camp.page = "squad"
 	add_child(camp)
 	await get_tree().process_frame
-	var found_note := [false]
-	for c in camp.get_children():
-		if c is Label and String(c.text).find("True ending:") == 0:
-			found_note[0] = true
-	assert_true(found_note[0], "true ending: camp shows the eligibility note")
+	assert_true(_has_label_containing(camp, "True ending: possible"), "true ending: camp shows the eligibility note")
 	camp.queue_free()
 	GameState.completed_chapters.clear()   # keep global test state clean
 
@@ -2623,20 +2624,31 @@ func test_nightmare_lock() -> void:
 	GameState.difficulty = "nightmare"
 	assert_true(GameState.camp_difficulty_choices().is_empty() and GameState.next_camp_difficulty() == "nightmare", "difficulty: a Nightmare campaign cannot switch")
 	var camp := CampScene.new()
+	camp.page = "squad"
 	add_child(camp)
 	await get_tree().process_frame
-	assert_true(camp._diff_btn.disabled and camp._diff_btn.text.contains("locked"), "difficulty: the camp button is locked on Nightmare")
-	camp._on_cycle_difficulty()
-	assert_true(GameState.difficulty == "nightmare", "difficulty: pressing it changes nothing")
+	assert_true(_has_label_containing(camp, "locked"), "difficulty: the lobby strip says Nightmare is locked")
+	camp.open_options()
+	await get_tree().process_frame
+	var opts := camp._dialog as BetweenBattlesOptions
+	assert_true(opts != null and opts.find_child("Tier_hard", true, false) == null, "difficulty: the lobby options offer no tier on Nightmare")
+	opts.set_difficulty("hard")
+	assert_true(GameState.difficulty == "nightmare", "difficulty: switching changes nothing on Nightmare")
 	camp.queue_free()
 	GameState.difficulty = "normal"
 	var camp2 := CampScene.new()
+	camp2.page = "squad"
 	add_child(camp2)
 	await get_tree().process_frame
-	camp2._on_cycle_difficulty()
-	assert_true(GameState.difficulty == "hard" and camp2._diff_btn.text.contains("Hard") and not camp2._diff_btn.disabled, "difficulty: Normal -> Hard in the camp and the label follows")
-	camp2._on_cycle_difficulty()
-	assert_true(GameState.difficulty == "story", "difficulty: Hard wraps to Story, skipping Nightmare")
+	camp2.open_options()
+	await get_tree().process_frame
+	(camp2._dialog as BetweenBattlesOptions).set_difficulty("hard")
+	assert_true(GameState.difficulty == "hard", "difficulty: Normal -> Hard from the lobby options")
+	await get_tree().process_frame
+	var win := camp2._dialog.find_child("OptionsWindow", true, false) as Control
+	assert_true(win != null and Rect2(Vector2.ZERO, UITheme.FRAME).encloses(Rect2(win.position, win.size)) and win.size.x <= 720.0, "options: the between-battles window stays centred inside the frame (%s)" % str(win.size))
+	(camp2._dialog as BetweenBattlesOptions).set_difficulty("nightmare")
+	assert_true(GameState.difficulty == "hard", "difficulty: Nightmare is never offered between battles")
 	camp2.queue_free()
 	# The new-game difficulty screen still reaches Nightmare (after a confirmation).
 	var picker := DifficultyScene.new()
@@ -2703,10 +2715,13 @@ func test_aftermath_scenes() -> void:
 	ResultStore.last_result = {"status": "win", "results": [], "reconcile": {}}
 	main._show_post_battle(true)
 	await get_tree().process_frame
-	assert_true(main._current is DialoguePlayer, "aftermath: Main plays the victory scene first")
+	assert_true(main._current is PostBattleScene, "aftermath: Main shows the summary first (UI doc order)")
+	(main._current as PostBattleScene).continue_pressed.emit()
+	await get_tree().process_frame
+	assert_true(main._current is DialoguePlayer, "aftermath: Continue plays the victory scene")
 	(main._current as DialoguePlayer).finished.emit(true)
 	await get_tree().process_frame
-	assert_true(main._current is PostBattleScene, "aftermath: then the results screen")
+	assert_true(main._current is CampScene or main._current is EndingScene, "aftermath: then the lobby")
 	main.queue_free()
 	await get_tree().process_frame
 	# Saved with the campaign.
@@ -2742,6 +2757,9 @@ func test_autosave_after_aftermath() -> void:
 	ResultStore.last_result = {"status": "win", "results": [], "reconcile": {}}
 	main._show_post_battle(true)
 	await get_tree().process_frame
+	assert_true(main._current is PostBattleScene and not SaveService.has_save(), "autosave: not on the summary")
+	(main._current as PostBattleScene).continue_pressed.emit()
+	await get_tree().process_frame
 	assert_true(main._current is DialoguePlayer and not SaveService.has_save(), "autosave: not while the aftermath plays")
 	(main._current as DialoguePlayer).finished.emit(true)
 	await get_tree().process_frame
@@ -2750,7 +2768,7 @@ func test_autosave_after_aftermath() -> void:
 	assert_true(SaveService.has_save() and int(saved.get("save_version", 0)) == 3, "autosave: written after the aftermath")
 	var gs: Dictionary = saved.get("game_state", {})
 	assert_true(int(gs.get("campaign_checkpoint", 0)) == 1 and String(gs.get("current_chapter_id", "")) != String(chapter.id), "autosave: checkpoint 1 and the next chapter are stored")
-	assert_true(main._current is PostBattleScene and _has_label_containing(main._current, "Progress saved"), "autosave: the results screen says progress was saved")
+	assert_true(main._current is CampScene and _has_label_containing(main._current, "Progress saved"), "autosave: the lobby says progress was saved")
 	main.queue_free()
 	GameState.new_game()
 
@@ -2765,10 +2783,11 @@ func test_camp_roster_menu() -> void:
 	GameState.roster["unit_demo_knight"]["rest"] = 1
 	assert_true(CampScene.active_roster_ids() == ["unit_demo_swordsman"], "roster: resting units are not browsable (AC-RPM1)")
 	var camp := CampScene.new()
+	camp.page = "squad"
 	add_child(camp)
 	await get_tree().process_frame
 	assert_true(_find_button_containing(camp, "EXP 42/100") and _has_label_containing(camp, "Resting this map"), "roster: the row shows EXP 42/100 and the resting line names the Knight")
-	assert_true(not _has_label_containing(camp, "Lancer x Gunner"), "roster: the demo camp lists only its own bond pairs")
+	assert_true(CampScene.roster_pairs().size() == 1 and not CampScene.pair_title(CampScene.roster_pairs()[0]).contains("Gunner"), "roster: the demo camp lists only its own bond pairs")
 	var before := GameState.to_dict().duplicate(true)
 	camp.open_unit_detail("unit_demo_swordsman")
 	await get_tree().process_frame
@@ -2781,6 +2800,7 @@ func test_camp_roster_menu() -> void:
 	camp.queue_free()
 	GameState.roster["unit_demo_swordsman"]["rest"] = 1
 	var camp2 := CampScene.new()
+	camp2.page = "squad"
 	add_child(camp2)
 	await get_tree().process_frame
 	assert_true(_has_label_containing(camp2, "No active units"), "roster: an empty roster says so (AC-RPM8)")
@@ -3005,6 +3025,55 @@ func test_results_screens_layout() -> void:
 	main._after_summary()
 	assert_true(main._current is CampScene, "ending: any other chapter goes back to the camp")
 	main.queue_free()
+	GameState.new_game()
+
+
+## F-UI step 7: the lobby's bond page (nations, relation card, Watch scene), bond list and squad
+## page (strip, companions, profile, bottom actions), all inside the frame.
+func test_lobby_pages() -> void:
+	GameState.new_game()
+	GameState.build_roster()   # demo: Swordsman + Knight, bond C
+	ResultStore.last_result = {"status": "win"}
+	var pair: Resource = CampScene.roster_pairs()[0]
+	GameState.bond_points[String(pair.id)] = 999
+	var camp := CampScene.new()
+	add_child(camp)
+	await get_tree().process_frame
+	assert_true(camp.page == "bonds" and camp.find_child("RelationCard", true, false) != null, "lobby: opens on the bond page with the relation card")
+	var watch := camp.find_child("Watch_%s" % pair.id, true, false) as Button
+	assert_true(watch != null and CampScene.pair_status(pair).contains("!"), "lobby: a ready scene shows Watch scene and the ! new scene mark")
+	var frame := Rect2(Vector2.ZERO, UITheme.FRAME)
+	var inside := true
+	for node_name in ["RelationCard", "MenuButton"]:
+		var c := camp.find_child(node_name, true, false) as Control
+		inside = inside and frame.encloses(Rect2(c.position, c.size))
+	assert_true(inside, "lobby: bond page cards inside the frame")
+	var before := GameState.bond_rank_for(String(pair.id))
+	watch.pressed.emit()
+	await get_tree().process_frame
+	var player: DialoguePlayer = null
+	for child in camp.get_children():
+		if child is DialoguePlayer:
+			player = child
+	assert_true(player != null, "lobby: Watch scene plays the bond scene")
+	player.finished.emit(true)
+	await get_tree().process_frame
+	assert_true(GameState.bond_rank_for(String(pair.id)) != before and camp.page == "bonds", "lobby: the rank rises and the page refreshes")
+	(camp.find_child("BondListButton", true, false) as Button).pressed.emit()
+	await get_tree().process_frame
+	assert_true(camp.page == "bond_list" and _has_label_containing(camp, CampScene.pair_title(pair)), "lobby: the bond list shows the pair")
+	camp.show_page("squad")
+	await get_tree().process_frame
+	inside = true
+	for node_name in ["StatusStrip", "CompanionsCard", "ProfileCard", "OptionsButton"]:
+		var c2 := camp.find_child(node_name, true, false) as Control
+		inside = inside and c2 != null and frame.encloses(Rect2(c2.position, c2.size))
+	assert_true(inside, "lobby: squad page strip / companions / profile / buttons inside the frame")
+	assert_true(_has_label_containing(camp, "STR   ") and camp._detail_panel.find_child("ExpBar", true, false) != null, "lobby: the profile shows stat tiles and the EXP bar")
+	camp.open_unit_detail("unit_demo_knight")
+	await get_tree().process_frame
+	assert_true(camp._selected_unit == "unit_demo_knight" and _has_label_containing(camp._detail_panel, String(DataRegistry.get_unit("unit_demo_knight").display_name)), "lobby: picking a companion fills the profile")
+	camp.queue_free()
 	GameState.new_game()
 
 

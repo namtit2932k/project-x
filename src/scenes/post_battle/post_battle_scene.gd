@@ -2,8 +2,9 @@ extends Control
 class_name PostBattleScene
 ## Post-battle summary (F-UI step 6, UI doc "Victory summary"): serif title + subtitle, a big
 ## restraint-score card with its breakdown (left), a mission card and a squad card (right), one
-## gold Continue button. Reads ResultStore.last_result set by the director. Shown after the
-## aftermath scenes of a victory (F-AFTER); a loss goes to the Game Over screen instead.
+## gold Continue button. Reads ResultStore.last_result set by the director. Shown right after a
+## victory; Continue plays the aftermath scenes (designer 09-11-2026, UI doc order). A loss goes
+## to the Game Over screen instead.
 ## The document's "+N to the shared pool" line is superseded (no stat pool, F-EXP): the card
 ## names the bonus EXP the squad received instead.
 
@@ -42,10 +43,8 @@ func _ready() -> void:
 	_squad_box = _card(786, 398, 437, 138, "SquadCard")
 	_fill_squad(_squad_box, result)
 
-	# F-AUTOSAVE: the victory was saved right after its aftermath.
-	if bool(result.get("autosaved", false)):
-		var saved := UIBuilder.muted(self, UIBuilder.t("Progress saved"), 15)
-		saved.position = Vector2(48, 562)
+	# F-AUTOSAVE: the save comes after the aftermath scenes that follow this screen; the lobby
+	# says "Progress saved".
 	var post := UIBuilder.primary_button(self, UIBuilder.t("Continue →"), 16)
 	post.name = "ContinueButton"
 	post.position = Vector2(938, 550)

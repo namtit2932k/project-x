@@ -97,7 +97,7 @@ func _show_prep() -> void:
 		if GameState.completed_chapters.is_empty():
 			_show_menu()
 		else:
-			_show_camp())
+			_show_camp("squad"))
 	_swap_to(prep)
 
 
@@ -147,10 +147,16 @@ func _show_post_battle(win: bool) -> void:
 	var scenes := Aftermath.scenes(ResultStore.last_result, chapter, map)
 	# D06: the merge itself decides win/lose from the stored result; defeat touches nothing.
 	CampaignMerge.merge(_battle_director.state if _battle_director != null else null, chapter, ResultStore.last_result)
-	_play_scene_queue(scenes, func() -> void: _after_aftermath(win, chapter))
+	if not win:
+		_show_game_over(chapter)   # F-AFTER 6b: no narrative on a loss
+		return
+	# Designer 09-11-2026 (UI doc order): the summary first, then the aftermath scenes.
+	var post := PostBattleScene.build(chapter)
+	post.continue_pressed.connect(func() -> void: _play_scene_queue(scenes, func() -> void: _after_aftermath(chapter)))
+	_swap_to(post)
 
 
-## F-AFTER Rule 7: each scene finishes before the next; then the results / Game Over screen.
+## F-AFTER Rule 7: each scene finishes before the next; then `done` (autosave + lobby).
 func _play_scene_queue(scenes: Array, done: Callable) -> void:
 	if scenes.is_empty():
 		done.call()
@@ -161,22 +167,19 @@ func _play_scene_queue(scenes: Array, done: Callable) -> void:
 	_swap_to(player)
 
 
-func _after_aftermath(win: bool, chapter: Resource) -> void:
-	if not win:
-		_show_game_over(chapter)
-		return
+func _after_aftermath(_chapter: Resource) -> void:
 	# Advance the chapter NOW so any save stores the NEXT chapter: Continue resumes the story
 	# from where the player actually is, never a replay.
 	GameState.advance_chapter()
 	# F-AUTOSAVE (GDD Save Rule 2a): the aftermath has resolved -> checkpoint +1 and autosave.
 	GameState.campaign_checkpoint += 1
 	ResultStore.last_result["autosaved"] = not SaveService.save_campaign().is_empty()
-	var post := PostBattleScene.build(chapter)
-	post.continue_pressed.connect(_after_summary)
-	_swap_to(post)
+	_after_summary()
+	if bool(ResultStore.last_result.get("autosaved", false)) and _current is CampScene:
+		(_current as CampScene).toast(UIBuilder.t("Progress saved"))
 
 
-## F-UI step 6: after the summary, the camp - or the ending screen once the last chapter in
+## F-UI step 6: after the summary and its aftermath, the lobby - or the ending screen once the last chapter in
 ## data is won (the chapter id stays on it, see GameState.advance_chapter).
 func _after_summary() -> void:
 	if GameState.has_next_chapter() or not GameState.completed_chapters.has(String(GameState.current_chapter().id)):
@@ -187,8 +190,8 @@ func _after_summary() -> void:
 
 func _show_ending() -> void:
 	var ending := EndingScene.new()
-	ending.squad_pressed.connect(_show_camp)
-	ending.bonds_pressed.connect(_show_camp)
+	ending.squad_pressed.connect(func() -> void: _show_camp("squad"))
+	ending.bonds_pressed.connect(func() -> void: _show_camp("bonds"))
 	ending.menu_pressed.connect(_show_menu)
 	_swap_to(ending)
 
@@ -226,8 +229,10 @@ func _show_bad_ending_screen(chapter: Resource) -> void:
 	_swap_to(screen)
 
 
-func _show_camp() -> void:
+## F-UI step 7: the between-battles lobby, opened on its bond page (UI doc order) or the squad.
+func _show_camp(page: String = "bonds") -> void:
 	var camp := CampScene.new()
+	camp.page = page
 	camp.next_chapter.connect(_on_next_chapter)
 	camp.retry_chapter.connect(_on_retry_chapter)
 	camp.to_menu.connect(_show_menu)

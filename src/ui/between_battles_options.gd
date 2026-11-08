@@ -9,12 +9,15 @@ signal closed
 
 var _status: Label = null
 var _tier_buttons := {}
+var _panel: PanelContainer = null
 
 
 func _ready() -> void:
 	UIBuilder.fill_screen(self)
 	var root := UIBuilder.modal(self)
 	var panel := UIBuilder.centered_modal_panel(root, 680, 620)
+	panel.name = "OptionsWindow"
+	_panel = panel
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(640, 580)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -32,7 +35,9 @@ func _ready() -> void:
 	for tier in GameState.camp_difficulty_choices():
 		var b := UIBuilder.button(row, "%s\n%s" % [UIBuilder.t(tier.capitalize()), UIBuilder.t("Rewind %s · %s") % [DifficultyScene.rewind_text(tier), DifficultyScene.casualty_sentence(tier)]], 13)
 		b.name = "Tier_%s" % tier
-		b.custom_minimum_size = Vector2(200, 64)
+		b.custom_minimum_size = Vector2(196, 72)
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # keeps the three tiers inside the dialog
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.toggle_mode = true
 		b.button_pressed = tier == GameState.difficulty
 		var chosen := String(tier)
@@ -52,6 +57,13 @@ func _ready() -> void:
 	close.pressed.connect(func() -> void:
 		closed.emit()
 		queue_free())
+	_recenter.call_deferred()
+
+
+## Content wider than planned (long translations) must not push the window off-centre.
+func _recenter() -> void:
+	if _panel != null and is_instance_valid(_panel):
+		_panel.position = ((UITheme.FRAME - _panel.size) / 2.0).max(Vector2.ZERO)
 
 
 ## Story / Normal / Hard only, never on a Nightmare campaign; takes effect next battle.
