@@ -360,6 +360,12 @@ Supersedes the permadeath part of D06 and of `casualty_by_difficulty`.
 - **Dual Restraint (designer, same day):** `zero_ally_deaths` is broken by any player unit falling in the battle, on every tier (+50 points / +15 EXP lost); the HUD squad line follows.
 - UI: prep screen shows a resting unit as disabled with "resting this map"; camp roster line "rests next map".
 
+### F-DLOCK — Nightmare is chosen once (08-11-2026, user request "D1"; `difficulty-system.md` Core Rule 2)
+
+- **Main menu (before New campaign):** cycles all four tiers — the only place Nightmare can be picked.
+- **Camp (between battles):** a non-Nightmare campaign cycles Story → Normal → Hard only; a Nightmare campaign shows "Difficulty: Nightmare (locked)" and the button is disabled. Rules live in `GameState.camp_difficulty_choices()` / `next_camp_difficulty()`.
+- Loading a save keeps the saved tier (a Nightmare save stays Nightmare). The camp switch now also refreshes its own label, and its notice is translated (it was a bare string).
+
 ### Demo maps are reference only (designer 08-11-2026)
 
 The six `demo_0N` maps/chapters are **reference material, not official content**: do not rebalance their layouts, enemy counts or faction thresholds from playtest results (e.g. demo_03's strict persuasion). Playtests on them are for checking rules and systems.
@@ -491,6 +497,8 @@ Milestone 1 target: play one full chapter with the mouse, result recorded, retur
 ## 12. Work Log
 
 Newest first. Format: `YYYY-MM-DD — agent/person — done / in progress / next / issues`.
+
+- 2026-11-08 (31) — Claude (Opus) — done: Nightmare lock (new §7b **F-DLOCK**, GDD Difficulty Rule 2). `GameState.camp_difficulty_choices()` / `next_camp_difficulty()`: the camp cycles Story / Normal / Hard only and is locked on a Nightmare campaign ("Difficulty: Nightmare (locked)"); the main menu (before New campaign) still offers all four. The camp difficulty label now refreshes and its notice is translated (was a bare string). Fixed two camp issues the new test exposed: the toast timer freed a label after the camp closed, and the camp's viewport sizing raised an anchor warning. New `test_nightmare_lock`. Verified: validation 0/0, run_tests **523/523**, smoke_full_battle 21/21 (×2), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: D2 post-battle aftermath scenes, D4 autosave, D6 roster detail. — issues: not pushed (no repo access).
 
 - 2026-11-08 (30) — Claude (Opus) — done: no permadeath (new §7b **F-CAS**, designer). Hard/Nightmare `casualty_by_difficulty` = `sit_out`: a unit that falls in a won battle gets `roster.rest = 1`, is disabled on the next prep screen ("resting this map"), and the next victory frees it; defeats merge nothing (still resting for the retry); Story/Normal unchanged. Dual Restraint `zero_ally_deaths` now breaks on any fallen ally on every tier (designer). Saves with a dead roster unit bring it back (`SaveService.migrate`). Validator rejects `permadeath`. Camp line "rests next map". Also stabilised the Raider part of `test_enemy_ai_profiles` (a random counter could fell the Raider). New `test_no_permadeath_sit_out`. Verified: validation 0/0, run_tests **515/515**, smoke_full_battle 21/21 (×3), smoke_test_maps 10/10, negative 25/25. — in progress: none. — next: D1 Nightmare lock (GDD Difficulty Rule 2), D2 post-battle aftermath scenes, D4 autosave, D6 roster detail. — issues: not pushed (no repo access).
 

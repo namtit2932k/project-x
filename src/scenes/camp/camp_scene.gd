@@ -8,11 +8,13 @@ signal retry_chapter
 signal to_menu
 
 var _scene_box: VBoxContainer = null
+var _diff_btn: Button = null
 
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	if size.x < 1.0:   # under a plain Node the anchors give no rect: take the viewport's
+		set_anchors_preset(Control.PRESET_TOP_LEFT)
 		size = get_viewport_rect().size
 	var bg := ColorRect.new()
 	bg.color = Color(0.07, 0.1, 0.09)
@@ -61,10 +63,11 @@ func _ready() -> void:
 		shop_btn.size = Vector2(180, 50)
 		shop_btn.pressed.connect(open_shop)
 
-	var diff_btn := UIBuilder.button(self, UIBuilder.t("Difficulty: %s (switch)") % UIBuilder.t(GameState.difficulty.capitalize()), 20)
-	diff_btn.position = Vector2(280, 730)
-	diff_btn.size = Vector2(320, 50)
-	diff_btn.pressed.connect(_on_cycle_difficulty)
+	_diff_btn = UIBuilder.button(self, "", 20)
+	_diff_btn.position = Vector2(280, 730)
+	_diff_btn.size = Vector2(320, 50)
+	_diff_btn.pressed.connect(_on_cycle_difficulty)
+	_refresh_difficulty_button()
 
 	if String(ResultStore.last_result.get("status", "")) == "lose":
 		# Defeat: the chapter was NOT advanced; the squad stays in camp to retry it.
@@ -208,18 +211,30 @@ func _on_save() -> void:
 	toast(UIBuilder.t("Saved - manual saves sit between battles only."))
 
 
+## F-DLOCK: Story / Normal / Hard switch freely between battles; Nightmare is locked.
 func _on_cycle_difficulty() -> void:
-	var order: Array[String] = ["story", "normal", "hard", "nightmare"]
-	var idx := order.find(GameState.difficulty)
-	GameState.difficulty = order[(idx + 1) % order.size()]
-	toast("Difficulty: %s (rewind %s / casualty %s)" % [GameState.difficulty, DataRegistry.rule("rewind_per_difficulty", {}).get(GameState.difficulty, "?"), DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "?")])
+	if GameState.camp_difficulty_choices().is_empty():
+		return
+	GameState.difficulty = GameState.next_camp_difficulty()
+	_refresh_difficulty_button()
+	var rewind_text := str(DataRegistry.rule("rewind_per_difficulty", {}).get(GameState.difficulty, "?"))
+	toast(UIBuilder.t("Difficulty: %s (rewind %s / casualty %s)") % [UIBuilder.t(GameState.difficulty.capitalize()), rewind_text, UIBuilder.t(String(DataRegistry.rule("casualty_by_difficulty", {}).get(GameState.difficulty, "?")))])
+
+
+func _refresh_difficulty_button() -> void:
+	if GameState.camp_difficulty_choices().is_empty():
+		_diff_btn.text = UIBuilder.t("Difficulty: %s (locked)") % UIBuilder.t(GameState.difficulty.capitalize())
+		_diff_btn.disabled = true
+	else:
+		_diff_btn.text = UIBuilder.t("Difficulty: %s (switch)") % UIBuilder.t(GameState.difficulty.capitalize())
+		_diff_btn.disabled = false
 
 
 func toast(text: String) -> void:
 	var t := UIBuilder.label(self, text, 16)
 	t.position = Vector2(60, 900)
 	var timer := get_tree().create_timer(2.5)
-	timer.timeout.connect(func() -> void: t.queue_free())
+	timer.timeout.connect(t.queue_free)   # bound to the label: dropped if the camp closes first
 
 
 # ------------------------------------------------------------ F-ITEM shop

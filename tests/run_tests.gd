@@ -34,6 +34,7 @@ func _ready() -> void:
 	await test_battle_ui_gdd()
 	await test_save_migration_v3()
 	await test_no_permadeath_sit_out()
+	await test_nightmare_lock()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2607,6 +2608,43 @@ func test_no_permadeath_sit_out() -> void:
 	GameState.roster["unit_knight"]["alive"] = false
 	var notes := SaveService.migrate(3)
 	assert_true(bool(GameState.roster["unit_knight"]["alive"]) and notes.size() == 1, "casualty: a save with a dead unit brings it back (no permadeath)")
+	GameState.difficulty = "normal"
+	GameState.new_game()
+
+
+## F-DLOCK (GDD Difficulty Rule 2): Nightmare only at New campaign and permanent; the camp
+## switches Story / Normal / Hard only.
+func test_nightmare_lock() -> void:
+	GameState.new_game()
+	GameState.difficulty = "hard"
+	assert_true(GameState.camp_difficulty_choices() == ["story", "normal", "hard"], "difficulty: the camp offers Story / Normal / Hard")
+	assert_true(GameState.next_camp_difficulty() == "story", "difficulty: Hard -> Story in the camp cycle, never Nightmare")
+	GameState.difficulty = "nightmare"
+	assert_true(GameState.camp_difficulty_choices().is_empty() and GameState.next_camp_difficulty() == "nightmare", "difficulty: a Nightmare campaign cannot switch")
+	var camp := CampScene.new()
+	add_child(camp)
+	await get_tree().process_frame
+	assert_true(camp._diff_btn.disabled and camp._diff_btn.text.contains("locked"), "difficulty: the camp button is locked on Nightmare")
+	camp._on_cycle_difficulty()
+	assert_true(GameState.difficulty == "nightmare", "difficulty: pressing it changes nothing")
+	camp.queue_free()
+	GameState.difficulty = "normal"
+	var camp2 := CampScene.new()
+	add_child(camp2)
+	await get_tree().process_frame
+	camp2._on_cycle_difficulty()
+	assert_true(GameState.difficulty == "hard" and camp2._diff_btn.text.contains("Hard") and not camp2._diff_btn.disabled, "difficulty: Normal -> Hard in the camp and the label follows")
+	camp2._on_cycle_difficulty()
+	assert_true(GameState.difficulty == "story", "difficulty: Hard wraps to Story, skipping Nightmare")
+	camp2.queue_free()
+	# The main menu still reaches Nightmare before a new campaign.
+	var menu := MenuScene.new()
+	add_child(menu)
+	await get_tree().process_frame
+	GameState.difficulty = "hard"
+	menu._on_cycle_difficulty()
+	assert_true(GameState.difficulty == "nightmare", "difficulty: the main menu can pick Nightmare")
+	menu.queue_free()
 	GameState.difficulty = "normal"
 	GameState.new_game()
 

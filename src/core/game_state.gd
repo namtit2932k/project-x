@@ -95,6 +95,25 @@ func build_roster() -> void:
 	_apply_starting_bonds()
 
 
+## F-DLOCK (GDD Difficulty Rule 2): tiers the camp may switch between - Story / Normal / Hard,
+## none at all once the campaign is on Nightmare (chosen only at New campaign, permanently).
+const DIFFICULTIES_ALL: Array[String] = ["story", "normal", "hard", "nightmare"]
+
+
+func camp_difficulty_choices() -> Array[String]:
+	if difficulty == "nightmare":
+		return []
+	return ["story", "normal", "hard"]
+
+
+## The tier after the current one in the camp cycle (the current one when locked).
+func next_camp_difficulty() -> String:
+	var choices := camp_difficulty_choices()
+	if choices.is_empty():
+		return difficulty
+	return choices[(choices.find(difficulty) + 1) % choices.size()]
+
+
 ## F-CAS: a unit that fell on the last map (Hard / Nightmare) cannot be picked for this one.
 func is_resting(unit_id: String) -> bool:
 	return int((roster.get(unit_id, {}) as Dictionary).get("rest", 0)) > 0

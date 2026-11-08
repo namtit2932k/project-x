@@ -86,8 +86,9 @@ func _reset_options_and_emit(kind: String) -> void:
 		continue_game.emit()
 
 
+## F-DLOCK: the main menu is the only place Nightmare can be chosen (before New campaign).
 func _on_cycle_difficulty() -> void:
-	var order: Array[String] = ["story", "normal", "hard", "nightmare"]
+	var order: Array[String] = GameState.DIFFICULTIES_ALL
 	var idx := order.find(GameState.difficulty)
 	GameState.difficulty = order[(idx + 1) % order.size()]
 	if _diff_button != null:
