@@ -14,6 +14,7 @@ func _ready() -> void:
 	await test_class_passives()
 	await test_bard_encore()
 	await test_skill_target_selection()
+	await test_heal_formula()
 	await test_objectives()
 	await test_rewind()
 	await test_bond_and_reconcile()
@@ -1478,8 +1479,9 @@ func test_skill_target_selection() -> void:
 	add_child(main)
 	var map := DataRegistry.get_map(String(GameState.current_chapter().map_id))
 	var director := BattleDirector.new()
-	# deploy cells: (2,8) (3,8) (4,8) ... (2,9): healer next to swordsman, knight at range 2, bard below.
-	director.setup(map, {"unit_healer": map.deploy_cells[0], "unit_swordsman": map.deploy_cells[1], "unit_knight": map.deploy_cells[2], "unit_bard": map.deploy_cells[4]}, "normal")
+	# deploy cells: (2,8) (3,8) (4,8) (5,8) (2,9) (3,9): healer at (3,8) with the swordsman, knight and
+	# bard all adjacent (the demo staff heals at range 1 only, F-HEAL).
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_healer": map.deploy_cells[1], "unit_knight": map.deploy_cells[2], "unit_bard": map.deploy_cells[5]}, "normal")
 	var battle := BattleScene.new()
 	battle.setup(director)
 	main._swap_to(battle)
@@ -1498,8 +1500,9 @@ func test_skill_target_selection() -> void:
 	battle._on_right_click(healer.pos)
 	assert_true(battle.mode != BattleScene.Mode.SKILL_TARGET and not healer.acted and sword.hp == sword_hp, "skill target: right click cancels, nothing spent")
 	battle._use_skill("skill_heal")
+	assert_true(battle.heal_preview_text(healer, sword, "skill_heal").contains("+12 HP"), "heal preview: shows the real gain before commit (%s)" % battle.heal_preview_text(healer, sword, "skill_heal"))
 	battle._on_left_click(sword.pos)
-	assert_true(sword.hp > sword_hp and knight.hp == knight_hp and healer.acted, "skill target: Heal lands on the clicked ally (the Swordsman), not the most hurt one")
+	assert_true(sword.hp == sword.max_hp and knight.hp == knight_hp and healer.acted, "skill target: Heal lands on the clicked ally (the Swordsman), not the most hurt one")
 	# Encore: the Bard picks the healer (adjacent, already acted).
 	battle._on_left_click(bard.pos)
 	battle._use_skill("skill_encore")
@@ -1507,6 +1510,35 @@ func test_skill_target_selection() -> void:
 	battle._on_left_click(healer.pos)
 	assert_true(not healer.acted and bard.acted, "skill target: Encore refreshes the clicked ally")
 	main.queue_free()
+
+
+## F-HEAL (GDD F-CC9): Heal = healer Mag + staff heal_might, capped at max HP, range from the
+## staff's heal_range, no Hit/Crit roll; the skill's own power is only a no-weapon fallback.
+func test_heal_formula() -> void:
+	await 0.0
+	var state: BattleState = _plain_map_enemy_state()
+	var healer := _spawn(state, "medic", "faction_p", Vector2i(0, 0), false, false, "player")
+	healer.weapon_id = "weapon_healing_staff"   # heal_might 8, heal_range [1, 2]
+	healer.magic = 12
+	var skill := DataRegistry.get_data("skills", "skill_heal")
+	assert_true(CombatResolver.heal_amount(healer, skill) == 20, "heal: Mag 12 + heal_might 8 = 20")
+	var patient := _spawn(state, "patient", "faction_p", Vector2i(2, 0), false, false, "player")
+	patient.max_hp = 50
+	patient.hp = 20
+	assert_true(SkillCommand.check(state, healer, "skill_heal", patient) == "", "heal: range 2 allowed by the staff's heal_range")
+	var far := _spawn(state, "far", "faction_p", Vector2i(3, 0), false, false, "player")
+	far.hp = 5
+	assert_true(SkillCommand.check(state, healer, "skill_heal", far) != "", "heal: range 3 is out of the staff's heal_range")
+	var seed_before := state.rng().state
+	SkillCommand.apply(state, healer, "skill_heal", patient)
+	assert_true(patient.hp == 40, "heal: 20 HP restored (hp %d)" % patient.hp)
+	assert_true(state.rng().state == seed_before, "heal: no Hit/Crit roll (RNG untouched)")
+	var nearly := _spawn(state, "nearly", "faction_p", Vector2i(1, 1), false, false, "player")
+	nearly.hp = nearly.max_hp - 3
+	var preview := CombatResolver.heal_preview(healer, nearly, skill)
+	assert_true(int(preview["raw"]) == 20 and int(preview["gain"]) == 3 and int(preview["hp_after"]) == nearly.max_hp, "heal: capped at max HP (raw 20, gain 3)")
+	var plain := _spawn(state, "plain", "faction_p", Vector2i(0, 2), false, false, "player")
+	assert_true(CombatResolver.heal_amount(plain, skill) == int(skill.power), "heal: no Heal weapon falls back to the skill's power")
 
 
 func _sides(plan: Dictionary) -> Array:

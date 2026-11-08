@@ -106,6 +106,37 @@ static func _damage(state: BattleState, attacker: UnitState, defender: UnitState
 	return maxi(_round_value(raw), int(DataRegistry.rule("min_damage", 0)))
 
 
+## F-CC9 / F-HEAL: raw heal of a Heal action = healer Mag + heal_might of its Heal weapon. No
+## Hit/Crit roll. A unit without a Heal weapon falls back to the skill's own power.
+static func heal_amount(healer: UnitState, skill: Resource) -> int:
+	var weapon := _heal_weapon(healer)
+	if weapon != null:
+		return maxi(healer.eff("magic") + int(weapon.heal_might), 0)
+	return int(skill.power) if skill != null else 0
+
+
+## Heal range [min, max] from the Heal weapon (heal_range); skill range as the fallback.
+static func heal_range(healer: UnitState, skill: Resource) -> Vector2i:
+	var weapon := _heal_weapon(healer)
+	if weapon != null:
+		return weapon.heal_range
+	return Vector2i(int(skill.range_min), int(skill.range_max)) if skill != null else Vector2i.ONE
+
+
+## Preview of one Heal for the UI and combat screen: raw amount, real gain, HP before/after.
+static func heal_preview(healer: UnitState, target: UnitState, skill: Resource) -> Dictionary:
+	var raw := heal_amount(healer, skill)
+	var after := mini(target.hp + raw, target.max_hp)
+	return {"raw": raw, "gain": after - target.hp, "hp_before": target.hp, "hp_after": after}
+
+
+static func _heal_weapon(healer: UnitState) -> Resource:
+	if healer.weapon_id == "":
+		return null
+	var weapon: Resource = DataRegistry.get_weapon(healer.weapon_id)
+	return weapon if weapon != null and weapon.is_heal() else null
+
+
 static func _round_value(value: int) -> int:
 	match String(DataRegistry.rule("rounding", "floor")):
 		"round":

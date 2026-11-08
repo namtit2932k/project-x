@@ -24,7 +24,9 @@ static func check(state: BattleState, unit: UnitState, skill_id: String, target:
 				return "Heal targets an ally."
 			if target.hp >= target.max_hp:
 				return "Target already at full HP."
-			if dist < int(skill.range_min) or dist > int(skill.range_max):
+			# F-HEAL: range from the Heal weapon's heal_range (min 0 would allow self-heal).
+			var heal_range := CombatResolver.heal_range(unit, skill)
+			if dist < heal_range.x or dist > heal_range.y:
 				return "Target out of skill range."
 		"encore":
 			# F-PAS / GDD Core Rule 3b (Bard Diễn Tấu): an adjacent ally that already acted.
@@ -48,7 +50,8 @@ static func apply(state: BattleState, unit: UnitState, skill_id: String, target:
 	unit.acted = true
 	match String(skill.effect_type):
 		"heal":
-			target.heal(int(skill.power))
+			# F-CC9 / F-HEAL: Mag + heal_might, capped at max HP, no Hit/Crit roll.
+			target.heal(CombatResolver.heal_amount(unit, skill))
 			BondSystem.reward_heal(state, unit, target)
 			# F-CC13 (F-EXP): a Heal pays the healer the same flat EXP as an Attack.
 			ExpSystem.grant_action_exp(state, unit)

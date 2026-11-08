@@ -19,6 +19,8 @@
 - **Class passives (F-PAS):** `PassiveSystem` (`src/battle/systems/passive_system.gd`) implements the 12
   GDD effect types; class → `passive_id` → `rules_config.passive_catalog`. Bard: no weapon,
   `can_attack = false`, Encore skill (`effect_type = "encore"`). Healer cannot attack (Heal weapon).
+- **Heal (F-HEAL, GDD F-CC9):** Heal = healer Mag + staff `heal_might` (no Hit/Crit), range from the
+  staff's `heal_range`, capped at max HP; `CombatResolver.heal_amount/heal_range/heal_preview`.
 - **Game Over (designer):** a lost battle opens `GameOverScene` (Retry chapter / Main menu)
   instead of post-battle + camp. No weapon triangle; `hit_base` stays 70 for every weapon.
   `UnitState.stat_bonus` now holds only the current battle's gains, and rewind snapshots

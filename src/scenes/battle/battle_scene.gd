@@ -354,11 +354,12 @@ func _commit_skill(target_id: String) -> void:
 		_cancel_skill_target()
 		return
 	var target: UnitState = director.state.units[target_id]
+	var hp_before: int = target.hp
 	mode = Mode.BUSY
 	director.commit("skill", {"unit_id": sel.id, "skill_id": _pending_skill_id, "target_id": target_id})
-	# Only a heal has a number to show on the combat screen; Encore just refreshes the ally.
+	# Only a heal has a number to show on the combat screen (the real HP gain, F-HEAL).
 	if String(skill.effect_type) == "heal":
-		_last_strikes = [{"side": "skill", "attacker_id": sel.id, "target_id": target_id, "hit": true, "crit": false, "damage": -int(skill.power), "target_hp_after": target.hp, "slain": ""}]
+		_last_strikes = [{"side": "skill", "attacker_id": sel.id, "target_id": target_id, "hit": true, "crit": false, "damage": -(target.hp - hp_before), "target_hp_after": target.hp, "slain": ""}]
 	else:
 		_last_strikes = []
 	_pending_skill_id = ""
@@ -639,12 +640,27 @@ func _update_hover_info() -> void:
 	var u := director.state.unit_at(hover_cell) if director.state != null else null
 	var defs: Dictionary = DataRegistry.rule("terrain_defs", {})
 	var terr: Dictionary = defs.get(director.state.terrain_at(hover_cell), {})
+	# F-HEAL preview (GDD Pillar 2): hovering a Heal target shows the raw amount and real gain.
+	if mode == Mode.SKILL_TARGET and u != null and _skill_targets.has(u.id):
+		var heal_text := heal_preview_text(_selected(), u, _pending_skill_id)
+		if heal_text != "":
+			_info_label.text = heal_text
+			return
 	if u != null:
 		_info_label.text = "%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid" % [
 			u.display_name, u.hp, u.max_hp, u.power, u.defense, u.resistance, u.speed,
 			int(terr.get("def_bonus", 0)), int(terr.get("avoid_bonus", 0))]
 	else:
 		_info_label.text = "terrain: %s (+%d def, +%d avoid)" % [director.state.terrain_at(hover_cell), int(terr.get("def_bonus", 0)), int(terr.get("avoid_bonus", 0))]
+
+
+## "Heal 20 -> +12 HP (36->48)" for a heal skill, "" for other skills (numbers from CombatResolver).
+func heal_preview_text(healer: UnitState, target: UnitState, skill_id: String) -> String:
+	var skill := DataRegistry.get_data("skills", skill_id)
+	if healer == null or target == null or skill == null or String(skill.effect_type) != "heal":
+		return ""
+	var p := CombatResolver.heal_preview(healer, target, skill)
+	return "%s: Heal %d -> +%d HP (%d->%d)" % [target.display_name, int(p["raw"]), int(p["gain"]), int(p["hp_before"]), int(p["hp_after"])]
 
 
 func _update_objective_label() -> void:
