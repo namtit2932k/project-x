@@ -32,6 +32,12 @@ static func record_spared_units(state: BattleState) -> void:
 			record_event(state, u.faction_id, String(u.reconcile_event_key))
 
 
+## F-PS1 effective_kill_count: kills committed by earlier victories + this battle's kills.
+static func effective_kills(state: BattleState, faction_id: String) -> int:
+	var rs: Dictionary = state.reconcile_state.get(faction_id, {})
+	return int(rs.get("prior_kills", 0)) + int(rs.get("kills", 0))
+
+
 ## Final evaluation after map victory: threshold + required events. Recomputed from the
 ## same data every call (idempotent), always returning the same result schema:
 ## {faction_id: {persuaded: bool, kills: int, missing_events: Array[String]}}.
@@ -46,7 +52,7 @@ static func evaluate(state: BattleState) -> Dictionary:
 			continue
 		var cond: Dictionary = f.reconcile
 		var threshold := int(cond.get("kill_threshold", 0))
-		var ok := kills < threshold
+		var ok := effective_kills(state, String(faction_id)) < threshold
 		var missing: Array[String] = []
 		for ev in cond.get("required_events", []):
 			if String(ev) not in rs.get("events", []):
@@ -63,14 +69,13 @@ static func evaluate(state: BattleState) -> Dictionary:
 
 ## F-PS4: the one kill value the HUD may read, 0.0-1.0. 1.0 exactly when kills reach the
 ## threshold (the same test evaluate() uses), and always 1.0 for a threshold of 0.
-## No cross-chapter persistent kill count exists yet, so only this battle's kills count.
+## Counts earlier victories' kills too (effective_kills).
 static func kill_pressure_ratio(state: BattleState, faction_id: String) -> float:
 	var f := DataRegistry.get_faction(faction_id)
 	var threshold := int(f.reconcile.get("kill_threshold", 0)) if f != null else 0
 	if threshold <= 0:
 		return 1.0
-	var kills := int(state.reconcile_state.get(faction_id, {}).get("kills", 0))
-	return clampf(float(kills) / float(threshold), 0.0, 1.0)
+	return clampf(float(effective_kills(state, faction_id)) / float(threshold), 0.0, 1.0)
 
 
 ## Attitude used for the feedback dialogues (FactionData.feedback): safe/neutral/lost.
@@ -79,7 +84,7 @@ static func attitude(state: BattleState, faction_id: String) -> String:
 	var f := DataRegistry.get_faction(String(faction_id))
 	if f == null or f.reconcile.is_empty():
 		return "neutral"
-	var kills := int(rs.get("kills", 0))
+	var kills := effective_kills(state, String(faction_id))
 	var threshold := int(f.reconcile.get("kill_threshold", 0))
 	var missing: int = 0
 	for ev in f.reconcile.get("required_events", []):

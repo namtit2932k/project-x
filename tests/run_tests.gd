@@ -22,6 +22,7 @@ func _ready() -> void:
 	await test_retrieve_rules()
 	await test_objective_markers()
 	await test_dual_restraint()
+	await test_persistent_faction_kills()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -1845,6 +1846,52 @@ func test_dual_restraint() -> void:
 	lost.state.units["unit_swordsman"].alive = false
 	lost.commit("wait", {"unit_id": "unit_knight"})
 	assert_true(String(lost.state.battle_over.get("status", "")) == "lose" and int(lost.state.units["unit_knight"].exp) == 0, "drs: no bonus EXP on a defeat")
+
+
+## F-PSI / F-PS3: kills committed by earlier victories carry into later battles of the
+## same faction (ratio, persuasion), are never rewound, and only a victory commits them.
+func test_persistent_faction_kills() -> void:
+	await 0.0
+	GameState.new_game()
+	GameState.campaign_tag = "legacy"
+	GameState.build_roster()
+	assert_true(GameState.faction_kill_counts.is_empty(), "kills: a new campaign starts with no committed kills")
+	var fid := "faction_rebel_ch01"
+	GameState.faction_kill_counts[fid] = 2
+	var chapter := GameState.current_chapter()
+	var map := DataRegistry.get_map(String(chapter.map_id))
+	var director := BattleDirector.new()
+	director.setup(map, {"unit_swordsman": map.deploy_cells[0], "unit_knight": map.deploy_cells[1]}, "normal")
+	var state := director.state
+	assert_true(int(state.reconcile_state[fid]["prior_kills"]) == 2 and ReconcileSystem.effective_kills(state, fid) == 2, "kills: earlier kills loaded at battle start")
+	assert_true(is_equal_approx(ReconcileSystem.kill_pressure_ratio(state, fid), 0.5), "kills: 2 earlier kills of 4 -> the bar starts at 0.5")
+	var snap := state.to_dict()
+	state.reconcile_state[fid]["kills"] = 1
+	assert_true(is_equal_approx(ReconcileSystem.kill_pressure_ratio(state, fid), 0.75), "kills: 2 earlier + 1 now -> 0.75 (GDD example)")
+	state.from_dict(snap)
+	assert_true(int(state.reconcile_state[fid]["prior_kills"]) == 2 and int(state.reconcile_state[fid]["kills"]) == 0, "kills: rewind restores this battle's kills only (AC-RW9)")
+	# 2 earlier + 2 now reaches the threshold of 4: no persuasion even with the event met.
+	state.reconcile_state[fid]["kills"] = 2
+	ReconcileSystem.record_event(state, fid, "spared_commander")
+	assert_true(not bool(ReconcileSystem.evaluate(state)[fid]["persuaded"]), "kills: earlier kills count toward the threshold (F-PS1)")
+	state.reconcile_state[fid]["kills"] = 1
+	assert_true(bool(ReconcileSystem.evaluate(state)[fid]["persuaded"]), "kills: 2 earlier + 1 now stays under 4 -> persuaded")
+	# Dual Restraint still judges this battle only.
+	assert_true(int(DualRestraint.result(state)["battle_kill_count"]) == 1, "kills: restraint score counts this battle's kills only")
+	# Defeat commits nothing (designer: game over keeps nothing); a victory adds this battle's kills.
+	CampaignMerge.merge(state, chapter, {"status": "lose"})
+	assert_true(int(GameState.faction_kill_counts[fid]) == 2, "kills: a defeat commits no kills")
+	CampaignMerge.merge(state, chapter, {"status": "win"})
+	assert_true(int(GameState.faction_kill_counts[fid]) == 3, "kills: a victory adds this battle's kills (F-PS3)")
+	var saved := GameState.to_dict().duplicate(true)   # a real save is written to disk first
+	GameState.new_game()
+	assert_true(GameState.faction_kill_counts.is_empty(), "kills: New campaign clears them")
+	GameState.from_dict(saved)
+	assert_true(int(GameState.faction_kill_counts.get(fid, 0)) == 3, "kills: saved and loaded with the campaign")
+	saved.erase("faction_kill_counts")
+	GameState.from_dict(saved)
+	assert_true(GameState.faction_kill_counts.is_empty(), "kills: an old save without the field loads as 0")
+	GameState.new_game()
 
 
 func _sides(plan: Dictionary) -> Array:

@@ -37,6 +37,10 @@ static func merge(battle_state: BattleState, chapter: Resource, result: Dictiona
 	for pair_id in battle_state.bond_points:
 		GameState.bond_points[pair_id] = int(GameState.bond_points.get(pair_id, 0)) + int(battle_state.bond_points[pair_id])
 	GameState.completed_chapters[String(chapter.id)] = true
+	# F-PS3: this battle's kills join the faction's cumulative count (victory only, see F-PSI).
+	for faction_id in battle_state.reconcile_state:
+		var battle_kills := int(battle_state.reconcile_state[faction_id].get("kills", 0))
+		GameState.faction_kill_counts[String(faction_id)] = int(GameState.faction_kill_counts.get(String(faction_id), 0)) + battle_kills
 	if result.has("reconcile"):
 		var outcomes := {}
 		for faction_id in result["reconcile"]:

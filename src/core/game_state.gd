@@ -20,6 +20,8 @@ var s_lock_unit: String = ""                      # unit that confirmed the S lo
 ## reconcile_outcomes: chapter_id -> {faction_id: {persuaded: bool, kills: int, events: Array}}
 var reconcile_outcomes: Dictionary = {}
 var completed_chapters: Dictionary = {}           # chapter_id -> true
+## F-PS3 persistent_kill_count: faction_id -> kills committed by earlier victories (never rewound).
+var faction_kill_counts: Dictionary = {}
 ## Story branch id (work in progress: filled by event/dialogue choices; saved with the game).
 var story_branch: String = ""
 ## Story flags set by DialoguePlayer lines with set_flag (D09); the same dictionary is
@@ -68,6 +70,7 @@ func new_game() -> void:
 	s_lock_unit = ""
 	reconcile_outcomes.clear()
 	completed_chapters.clear()
+	faction_kill_counts.clear()
 	# The UI language is a player setting, it survives a new campaign.
 	options = {"volume": 0.8, "fullscreen": false, "language": language()}
 
@@ -189,6 +192,7 @@ func to_dict() -> Dictionary:
 		"s_lock_unit": s_lock_unit,
 		"reconcile_outcomes": reconcile_outcomes,
 		"completed_chapters": completed_chapters,
+		"faction_kill_counts": faction_kill_counts,
 		"story_branch": story_branch,
 		"story_flags": story_flags,
 		"options": options,
@@ -210,6 +214,8 @@ func from_dict(d: Dictionary) -> void:
 	s_lock_unit = String(d.get("s_lock_unit", ""))
 	reconcile_outcomes = d.get("reconcile_outcomes", {})
 	completed_chapters = d.get("completed_chapters", {})
+	# Saves written before F-PSI have no cumulative kills: they start from 0.
+	faction_kill_counts = d.get("faction_kill_counts", {})
 	story_branch = String(d.get("story_branch", ""))
 	story_flags = d.get("story_flags", {})
 	options = d.get("options", {"volume": 0.8, "fullscreen": false})

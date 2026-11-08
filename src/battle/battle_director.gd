@@ -18,6 +18,7 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: 
 	state = BattleState.new()
 	state.setup(p_map, deploy, seed_value)
 	state.difficulty = difficulty
+	_load_prior_kills()
 	rewind = SnapshotStack.new()
 	objectives.clear()
 	for cfg in state.objectives_config:
@@ -30,6 +31,13 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: 
 	# F-PAS: turn 1 opens on the player phase (Magician burst readiness etc.).
 	PassiveSystem.on_phase_started(state, "player")
 	_scale_enemies(difficulty)
+
+
+## F-PS3: kills committed by earlier victories join this battle as a constant per faction
+## (part of the snapshot, never changed in battle, so rewind cannot touch them).
+func _load_prior_kills() -> void:
+	for faction_id in state.reconcile_state:
+		state.reconcile_state[faction_id]["prior_kills"] = int(GameState.faction_kill_counts.get(String(faction_id), 0))
 
 
 ## F-DIFF: enemies only, once at deploy, multiplier per difficulty tier (unknown tier = 1.0).
