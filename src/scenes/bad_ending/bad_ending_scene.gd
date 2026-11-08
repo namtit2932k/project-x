@@ -3,6 +3,7 @@ class_name BadEndingScene
 ## F-BAD (designer, 08-11-2026): a victory while a remnant faction's pressure bar is red ends
 ## the run here. Names the factions, then Retry chapter (pre-battle state) or Main menu.
 ## Nothing from that battle is merged into the campaign (provisional, see AGENTS.md F-BAD).
+## F-UI step 6: same end-of-run layout as the Game Over screen.
 
 signal retry_pressed
 signal menu_pressed
@@ -18,23 +19,16 @@ static func build(chapter: Resource) -> BadEndingScene:
 
 func _ready() -> void:
 	UIBuilder.fill_screen(self)
-	var bg := ColorRect.new()
-	bg.color = UITheme.BG
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-
-	var box := UIBuilder.vbox(UIBuilder.panel(self, 240, 110, 800, 500), 14)
-	UIBuilder.label(box, UIBuilder.t("Bad Ending"), 64)
+	var lines: Array = []
+	lines.append_array(faction_lines(ResultStore.last_result))
+	lines.append(UIBuilder.t("The campaign ends here. Retry the chapter to change the outcome."))
+	var tag_text := UIBuilder.t("Bad ending")
 	if _chapter != null:
-		UIBuilder.label(box, UIBuilder.t("Chapter: %s") % _chapter.display_name, 22)
-	for line in faction_lines(ResultStore.last_result):
-		UIBuilder.label(box, line, 22)
-	UIBuilder.label(box, UIBuilder.t("The campaign ends here. Retry the chapter to change the outcome."), 18)
-
-	var retry := UIBuilder.button(box, UIBuilder.t("Retry chapter"), 26)
-	retry.pressed.connect(func() -> void: retry_pressed.emit())
-	var menu := UIBuilder.button(box, UIBuilder.t("Main menu"), 26)
-	menu.pressed.connect(func() -> void: menu_pressed.emit())
+		tag_text += " · " + String(_chapter.display_name)
+	UIBuilder.verdict_screen(self, UIBuilder.t("Bad Ending"), lines, tag_text, [
+		[UIBuilder.t("Main menu"), false, func() -> void: menu_pressed.emit()],
+		[UIBuilder.t("Retry chapter"), true, func() -> void: retry_pressed.emit()],
+	])
 
 
 ## One player-facing line per red faction (display name, never a kill count).

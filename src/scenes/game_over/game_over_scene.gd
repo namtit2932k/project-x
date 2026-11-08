@@ -3,6 +3,7 @@ class_name GameOverScene
 ## Game Over screen (designer, 08-11-2026): a lost battle ends here instead of the post-battle
 ## results + camp. Offers Retry chapter (same chapter, pre-battle roster) or Main menu.
 ## Reads the defeat reason from ResultStore.last_result; nothing is merged into the campaign.
+## F-UI step 6: the UI doc's layout (title, reason, gold tag, Main menu + gold Retry).
 
 signal retry_pressed
 signal menu_pressed
@@ -18,26 +19,20 @@ static func build(chapter: Resource) -> GameOverScene:
 
 func _ready() -> void:
 	UIBuilder.fill_screen(self)
-	var bg := ColorRect.new()
-	bg.color = UITheme.BG
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-
-	var box := UIBuilder.vbox(UIBuilder.panel(self, 240, 120, 800, 480), 14)
-	UIBuilder.label(box, UIBuilder.t("Game Over"), 64)
+	var tag_text := UIBuilder.t("The journey ends here")
 	if _chapter != null:
-		UIBuilder.label(box, UIBuilder.t("Chapter: %s") % _chapter.display_name, 22)
-	UIBuilder.label(box, reason_text(ResultStore.last_result), 22)
-	UIBuilder.label(box, UIBuilder.t("Progress from this battle is not kept."), 18)
+		tag_text += " · " + String(_chapter.display_name)
+	var column := UIBuilder.verdict_screen(self, UIBuilder.t("Game Over"), [reason_text(ResultStore.last_result) + " " + UIBuilder.t("The battle ends here.")], tag_text, [
+		[UIBuilder.t("Main menu"), false, func() -> void: menu_pressed.emit()],
+		[UIBuilder.t("Retry chapter"), true, func() -> void: retry_pressed.emit()],
+	])
+	var notes := UIBuilder.vbox(column, 4)
+	notes.add_theme_constant_override("separation", 4)
+	UIBuilder.muted(notes, UIBuilder.t("Progress from this battle is not kept."), 15)
 	# F-DRS / GDD Battle UI: the restraint score still shows on a loss, marked as not awarded.
 	var restraint: Dictionary = ResultStore.last_result.get("restraint", {})
 	if not restraint.is_empty():
-		UIBuilder.label(box, UIBuilder.t("Restraint score: %d (not awarded - battle lost)") % int(restraint.get("restraint_points_awarded", 0)), 18)
-
-	var retry := UIBuilder.button(box, UIBuilder.t("Retry chapter"), 26)
-	retry.pressed.connect(func() -> void: retry_pressed.emit())
-	var menu := UIBuilder.button(box, UIBuilder.t("Main menu"), 26)
-	menu.pressed.connect(func() -> void: menu_pressed.emit())
+		UIBuilder.muted(notes, UIBuilder.t("Restraint score: %d (not awarded - battle lost)") % int(restraint.get("restraint_points_awarded", 0)), 15)
 
 
 ## Player-facing line for why the battle was lost (critical unit down or an objective failure).

@@ -42,6 +42,7 @@ func _ready() -> void:
 	await test_prep_screen_layout()
 	await test_battle_hud_layout()
 	await test_dialogue_vn_layout()
+	await test_results_screens_layout()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -1852,7 +1853,7 @@ func test_dual_restraint() -> void:
 	var post := PostBattleScene.build(GameState.current_chapter())
 	add_child(post)
 	await get_tree().process_frame
-	assert_true(_has_label_containing(post, "Restraint score: %d" % int(locked["restraint_points_awarded"])), "drs: post-battle shows the restraint score")
+	assert_true(post._score_label.text == str(int(locked["restraint_points_awarded"])), "drs: post-battle shows the restraint score")
 	post.queue_free()
 	ResultStore.last_result = {"status": "lose", "restraint": {"restraint_points_awarded": 75}}
 	var over := GameOverScene.build(null)
@@ -2946,6 +2947,65 @@ func test_dialogue_vn_layout() -> void:
 	player.finished.connect(func(s: bool) -> void: skipped[0] = s)
 	(player.find_child("SkipButton", true, false) as Button).pressed.emit()
 	assert_true(skipped[0], "dialogue: Skip finishes the scene as skipped")
+
+
+## F-UI step 6: summary cards inside the frame with the score, mission and squad; Game Over /
+## Bad Ending / ending button rows; the last chapter's summary leads to the ending screen.
+func test_results_screens_layout() -> void:
+	GameState.new_game()
+	GameState.difficulty = "hard"
+	GameState.build_roster()
+	ResultStore.last_result = {"status": "win", "results": [{"id": "elimination", "progress": "3/3", "status": "complete"}],
+		"restraint": {"zero_ally_deaths": false, "kill_restraint_eligible": false, "swift_clear_met": true, "ally_points": 0, "swift_bonus": 25, "restraint_points_awarded": 25, "bonus_exp": 0},
+		"turn": 4, "turn_par": 6, "squad": [{"unit_id": "unit_demo_swordsman", "alive": true}, {"unit_id": "unit_demo_knight", "alive": false}],
+		"gold": {"total": 120, "victory": 100, "retrieve": 0, "persuasion": 20, "villages": 0}, "exp": {"unit_demo_swordsman": 30}, "level_ups": []}
+	var post := PostBattleScene.build(DataRegistry.chapters_sorted("demo")[0])
+	add_child(post)
+	await get_tree().process_frame
+	var frame := Rect2(Vector2.ZERO, UITheme.FRAME)
+	var inside := true
+	for card_name in ["ScoreCard", "MissionCard", "SquadCard", "ContinueButton"]:
+		var c := post.find_child(card_name, true, false) as Control
+		inside = inside and c != null and frame.encloses(Rect2(c.position, c.size))
+	assert_true(inside, "results: score / mission / squad cards and Continue sit inside the frame")
+	var card_style := (post.find_child("ScoreCard", true, false) as PanelContainer).get_theme_stylebox("panel") as StyleBoxFlat
+	assert_true(card_style != null and card_style.border_color == UITheme.PANEL_BORDER, "theme: a screen under a plain Node still gets the shared panel style")
+	assert_true(post._score_label.text == "25" and _has_label_containing(post, "Swift clear · turn 4 / par 6"), "results: big score and the swift-clear row with turn / par")
+	var lines := PostBattleScene.squad_lines(ResultStore.last_result)
+	assert_true(lines.size() >= 2 and lines[0].contains("sits out the next map") and lines[1].contains("+30"), "results: squad card says who sits out (Hard) and the EXP (%s)" % str(lines))
+	assert_true(_has_label_containing(post, "+120") and _has_label_containing(post, "4 / 6"), "results: mission card shows gold and turn ended")
+	post.queue_free()
+	GameState.difficulty = "normal"
+	assert_true(PostBattleScene.squad_lines({"squad": [{"unit_id": "unit_demo_knight", "alive": false}]})[0].contains("back for the next map"), "results: on Normal the fallen unit is back next map")
+	var over := GameOverScene.build(null)
+	add_child(over)
+	await get_tree().process_frame
+	var row := over.find_child("VerdictButtons", true, false) as HBoxContainer
+	assert_true(row != null and row.get_child_count() == 2 and (row.get_child(1) as Button).text.begins_with("Retry chapter"), "game over: Main menu + gold Retry in one row")
+	over.queue_free()
+	var ending := EndingScene.new()
+	add_child(ending)
+	await get_tree().process_frame
+	var erow := ending.find_child("VerdictButtons", true, false) as HBoxContainer
+	assert_true(erow != null and erow.get_child_count() == 3 and _find_button(ending, "Main menu") != null, "ending: Squad / View bonds / Main menu")
+	ending.queue_free()
+	# The last chapter in data: Continue on its summary opens the ending screen.
+	var main: Node = load("res://src/scenes/main/main.gd").new()
+	add_child(main)
+	await get_tree().process_frame
+	GameState.new_game()
+	GameState.build_roster()
+	var chapters := DataRegistry.chapters_sorted("demo")
+	GameState.current_chapter_id = String(chapters[chapters.size() - 1].id)
+	GameState.completed_chapters[GameState.current_chapter_id] = true
+	main._after_summary()
+	assert_true(main._current is EndingScene, "ending: the last chapter's summary leads to the ending screen")
+	GameState.current_chapter_id = String(chapters[0].id)
+	GameState.completed_chapters.clear()
+	main._after_summary()
+	assert_true(main._current is CampScene, "ending: any other chapter goes back to the camp")
+	main.queue_free()
+	GameState.new_game()
 
 
 func _sides(plan: Dictionary) -> Array:

@@ -290,6 +290,15 @@ func _on_state_changed() -> void:
 		if won or bool(DataRegistry.rule("action_exp_commits_on_defeat", false)):
 			result["exp"] = state.exp_gained.duplicate()
 			result["level_ups"] = state.level_ups.duplicate()
+		# F-UI step 6: the summary's mission and squad cards (turn ended vs par, who deployed).
+		if not result.has("squad"):
+			result["turn"] = state.turn
+			result["turn_par"] = int(state.map.turn_par) if state.map != null and "turn_par" in state.map else 0
+			var squad: Array = []
+			for u in state.units.values():
+				if u.side == "player":
+					squad.append({"unit_id": String(u.id), "alive": bool(u.alive)})
+			result["squad"] = squad
 		ResultStore.last_result = result
 
 

@@ -9,7 +9,7 @@ var _battle_director: BattleDirector = null
 
 
 func _ready() -> void:
-	get_tree().root.theme = UITheme.build()   # F-UI: one shared look for every screen
+	get_tree().root.theme = UITheme.shared()   # F-UI: one shared look for every screen
 	_apply_options()
 	_show_menu()
 
@@ -172,8 +172,25 @@ func _after_aftermath(win: bool, chapter: Resource) -> void:
 	GameState.campaign_checkpoint += 1
 	ResultStore.last_result["autosaved"] = not SaveService.save_campaign().is_empty()
 	var post := PostBattleScene.build(chapter)
-	post.continue_pressed.connect(_show_camp)
+	post.continue_pressed.connect(_after_summary)
 	_swap_to(post)
+
+
+## F-UI step 6: after the summary, the camp - or the ending screen once the last chapter in
+## data is won (the chapter id stays on it, see GameState.advance_chapter).
+func _after_summary() -> void:
+	if GameState.has_next_chapter() or not GameState.completed_chapters.has(String(GameState.current_chapter().id)):
+		_show_camp()
+	else:
+		_show_ending()
+
+
+func _show_ending() -> void:
+	var ending := EndingScene.new()
+	ending.squad_pressed.connect(_show_camp)
+	ending.bonds_pressed.connect(_show_camp)
+	ending.menu_pressed.connect(_show_menu)
+	_swap_to(ending)
 
 
 ## Designer (F-EXP, 08-11-2026): losing is a game over — Game Over screen with Retry chapter

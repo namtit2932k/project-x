@@ -97,9 +97,67 @@ static func background(parent: Control) -> ColorRect:
 ## F-UI: make a screen root cover the whole frame. Screens live under plain Nodes (Main,
 ## CanvasLayers, the battle Node2D), where full-rect anchors give a 0 x 0 rect - so the
 ## background, centred panels and anchored children would collapse. Size it explicitly then.
+## A theme set on the root window does not reach Controls below a plain Node either, so such a
+## screen root carries the shared theme itself (panel borders / padding, buttons).
 static func fill_screen(screen: Control) -> void:
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	if not (screen.get_parent() is Control):
+		if screen.theme == null:
+			screen.theme = UITheme.shared()
 		screen.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		screen.position = Vector2.ZERO
 		screen.size = screen.get_viewport_rect().size
+
+
+## F-UI: small gold capitals tag (card headings, subtitles).
+static func tag(parent: Control, text: String, size: int = 13) -> Label:
+	var l := label(parent, text.to_upper(), size)
+	l.add_theme_color_override("font_color", UITheme.ACCENT)
+	return l
+
+
+## F-UI: muted secondary text.
+static func muted(parent: Control, text: String, size: int = 16) -> Label:
+	var l := label(parent, text, size)
+	l.add_theme_color_override("font_color", UITheme.MUTED)
+	return l
+
+
+## F-UI: the gold-filled main action of a screen (UI doc: "Continue", "Retry", "Main menu").
+static func primary_button(parent: Control, text: String, size: int = 16) -> Button:
+	var b := button(parent, text, size)
+	b.add_theme_stylebox_override("normal", UITheme._box(UITheme.ACCENT, UITheme.ACCENT))
+	b.add_theme_stylebox_override("hover", UITheme._box(UITheme.ACCENT.lightened(0.15), UITheme.ACCENT))
+	b.add_theme_stylebox_override("focus", UITheme._box(Color(0, 0, 0, 0), UITheme.TEXT))
+	for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
+		b.add_theme_color_override(c, UITheme.BG)
+	return b
+
+
+## F-UI step 6: the end-of-run layout of the UI doc (Game Over, bad ending, demo ending) on the
+## contour backdrop - serif title, muted lines, a gold tag, then one row of buttons. `buttons` is
+## [[text, primary, callable], ...]; returns the column so callers can add notes below.
+static func verdict_screen(screen: Control, title_text: String, lines: Array, tag_text: String, buttons: Array) -> VBoxContainer:
+	var backdrop := ContourBackdrop.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.size = UITheme.FRAME
+	screen.add_child(backdrop)
+	var column := vbox(screen, 10)
+	column.name = "VerdictColumn"
+	column.position = Vector2(UITheme.MARGIN, 28)
+	column.custom_minimum_size = Vector2(UITheme.FRAME.x - 2 * UITheme.MARGIN, 0)
+	title(column, title_text, 55)
+	for line in lines:
+		var l := muted(column, String(line), 18)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if tag_text != "":
+		tag(column, tag_text)
+	var row := HBoxContainer.new()
+	row.name = "VerdictButtons"
+	row.add_theme_constant_override("separation", 4)
+	column.add_child(row)
+	for spec in buttons:
+		var b := primary_button(row, String(spec[0])) if bool(spec[1]) else button(row, String(spec[0]), 16)
+		b.custom_minimum_size = Vector2(maxf(185.0, 16.0 * String(spec[0]).length() * 0.62 + 40.0), 46)
+		b.pressed.connect(spec[2])
+	return column

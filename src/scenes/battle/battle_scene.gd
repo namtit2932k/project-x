@@ -165,6 +165,7 @@ func _ui_root() -> Control:
 	var c := Control.new()
 	c.set_anchors_preset(Control.PRESET_FULL_RECT)
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.theme = UITheme.shared()   # a CanvasLayer does not pass the window theme down
 	_canvas().add_child(c)
 	_ui_root_node = c
 	return c
@@ -513,6 +514,7 @@ func _play_combat(strikes: Array) -> void:
 	_combat_layer.add_child(bg)
 	var overlay := Control.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.theme = UITheme.shared()
 	_combat_layer.add_child(overlay)
 	var v := UIBuilder.vbox(overlay, 12)
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -671,6 +673,7 @@ func _show_result_banner() -> void:
 	layer.add_child(bg)
 	var overlay := Control.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.theme = UITheme.shared()
 	layer.add_child(overlay)
 	var v := UIBuilder.vbox(overlay, 20)
 	v.set_anchors_preset(Control.PRESET_CENTER)

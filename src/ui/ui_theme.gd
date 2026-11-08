@@ -16,6 +16,16 @@ const MUTED := Color("8aa0a0")
 const SELECTED := Color("2d4a45")
 
 
+static var _shared: Theme = null
+
+
+## One Theme instance for every screen (built on first use).
+static func shared() -> Theme:
+	if _shared == null:
+		_shared = build()
+	return _shared
+
+
 static func build() -> Theme:
 	var theme := Theme.new()
 	theme.default_font_size = 16
