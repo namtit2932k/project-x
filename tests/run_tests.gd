@@ -41,6 +41,7 @@ func _ready() -> void:
 	await test_ui_start_flow()
 	await test_prep_screen_layout()
 	await test_battle_hud_layout()
+	await test_dialogue_vn_layout()
 	await test_rewind()
 	await test_bond_and_reconcile()
 	await test_bond_cap()
@@ -2918,6 +2919,33 @@ func test_battle_hud_layout() -> void:
 	assert_true(right_cell.x > 0.0 and right_cell.x < 1280.0, "hud: focusing a far tile scrolls it into view")
 	battle.queue_free()
 	GameState.new_game()
+
+
+## F-UI step 5: visual-novel dialogue - tag + title, bottom box inside 7-93 % / 504-692, gold
+## speaker, progress dots that follow the lines, Skip.
+func test_dialogue_vn_layout() -> void:
+	var dlg := DialogueData.new()
+	dlg.id = "dlg_bond_test_c"
+	dlg.display_name = "Swordsman & Knight"
+	dlg.lines = [{"speaker": "Knight", "text": "One."}, {"speaker": "Swordsman", "text": "Two."}, {"speaker": "Knight", "text": "Three - a long line that has to wrap onto a second row inside the box without pushing the box past the bottom of the frame at all."}]
+	var player := DialoguePlayer.build(dlg)
+	add_child(player)
+	await get_tree().process_frame
+	assert_true(player._tag_label.text == "BOND SCENE" and player._title_label.text == "Swordsman & Knight", "dialogue: bond tag and the scene title")
+	var r := Rect2(player._box.position, player._box.size)
+	assert_true(r.position.x >= 89.0 and r.end.x <= 1191.0 and r.position.y >= 503.0 and r.end.y <= 693.0, "dialogue: the box sits at x 7-93 %%, y 504-692 (%s)" % str(r))
+	assert_true(player._name_label.text == "KNIGHT" and player._dots.text == "●○○", "dialogue: gold capital speaker and progress dots")
+	player._advance()
+	assert_true(player._name_label.text == "SWORDSMAN" and player._dots.text == "○●○" and player._text_label.text == "Two.", "dialogue: advancing moves the text and the dots")
+	player._advance()
+	await get_tree().process_frame
+	var r2 := Rect2(player._box.position, player._box.size)
+	assert_true(r2.end.y <= 693.0 and player._dots.text == "○○●", "dialogue: a two-row line keeps the box inside the frame (%s)" % str(r2))
+	assert_true(DialoguePlayer.progress_text(4, 12) == "5 / 12" and DialoguePlayer.progress_text(0, 1) == "" and DialoguePlayer.scene_tag(DataRegistry.get_dialogue("dlg_aftermath_victory")) == "AFTERMATH", "dialogue: long scenes count, aftermath tag")
+	var skipped := [false]
+	player.finished.connect(func(s: bool) -> void: skipped[0] = s)
+	(player.find_child("SkipButton", true, false) as Button).pressed.emit()
+	assert_true(skipped[0], "dialogue: Skip finishes the scene as skipped")
 
 
 func _sides(plan: Dictionary) -> Array:
