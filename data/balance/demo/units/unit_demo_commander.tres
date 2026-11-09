@@ -9,15 +9,16 @@ display_name = "Thủ lĩnh"
 class_id = "class_commander"
 faction_id = "faction_river_guard"
 controllable = true
+level = 6
 base_stats = {
-"hp": 26,
-"str": 8,
+"hp": 22,
+"str": 6,
 "mag": 0,
-"skill": 23,
-"speed": 8,
-"luck": 6,
-"def": 5,
-"res": 4,
+"skill": 5,
+"speed": 6,
+"luck": 5,
+"def": 4,
+"res": 3,
 "move": 4
 }
 carried_items = Array[String]([])

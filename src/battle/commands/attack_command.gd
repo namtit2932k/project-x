@@ -10,9 +10,11 @@ static func check(state: BattleState, unit: UnitState, target_id: String) -> Str
 		return "No valid target."
 	if target.side == unit.side:
 		return "Cannot attack an ally."
+	if not unit.can_attack:
+		return "This unit cannot attack."
 	# Attack must be done from inside the weapon range measured at the CURRENT position.
 	var dist := RangeHandler.manhattan(unit.pos, target.pos)
-	if dist < unit.attack_range_min or dist > unit.attack_range_max:
+	if dist < unit.attack_range_min or dist > unit.attack_max():
 		return "Target out of weapon range."
 	# Retrieve objective: while carrying, the unit may only move (no attack/skill).
 	if _is_move_only(state, unit):
@@ -21,28 +23,20 @@ static func check(state: BattleState, unit: UnitState, target_id: String) -> Str
 
 
 static func _is_move_only(state: BattleState, unit: UnitState) -> bool:
-	if unit.carried_item == "":
-		return false
-	for cfg in state.objectives_config:
-		if String(cfg.get("type", "")) == "retrieve" and String(cfg.get("params", {}).get("item_id", "")) == unit.carried_item:
-			return true
-	return false
+	return state.is_move_only_carrier(unit)
 
 
 static func apply(state: BattleState, unit: UnitState, target_id: String) -> Array:
 	var target: UnitState = state.units[target_id]
 	var strikes: Array = CombatResolver.execute(state, unit, target)
 	unit.acted = true
-	BondSystem.reward_combat_pairs(state, unit, target)
+	BondSystem.reward_action(state, unit)   # F-BOND: the attacker's adjacent partners
 	for strike in strikes:
 		if String(strike.get("slain", "")) != "":
 			_on_slain(state, state.units[String(strike["slain"])])
 	return strikes
 
 
-static func _on_slain(state: BattleState, slain: UnitState) -> void:
-	# Item drops back to the ground if the carrier dies (retrieve objective keeps its item).
-	if slain.carried_item != "":
-		state.item_ground["%d,%d" % [slain.pos.x, slain.pos.y]] = slain.carried_item
-		slain.carried_item = ""
+static func _on_slain(_state: BattleState, slain: UnitState) -> void:
+	# F-OBJ: a dead carrier keeps the item — the Retrieve objective reads it as an instant loss.
 	EventBus.unit_died.emit(slain.id, "")

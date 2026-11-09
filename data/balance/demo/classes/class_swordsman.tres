@@ -12,3 +12,14 @@ attack_range_min = 1
 attack_range_max = 1
 weapon_id = "weapon_sword"
 damage_type = "physical"
+growths = {
+"hp": 65,
+"str": 45,
+"mag": 5,
+"skill": 50,
+"speed": 40,
+"luck": 35,
+"def": 30,
+"res": 20
+}
+passive_id = "disarming_strike"

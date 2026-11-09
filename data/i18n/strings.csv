@@ -1,0 +1,350 @@
+keys,en,vi
+Tactical turn-based RPG - vertical slice build,Tactical turn-based RPG - vertical slice build,RPG chiến thuật theo lượt - bản vertical slice
+New campaign,New campaign,Chiến dịch mới
+Continue,Continue,Tiếp tục
+Difficulty: %s (switch),Difficulty: %s (switch),Độ khó: %s (đổi)
+Test maps,Test maps,Map thử nghiệm
+Legacy chapter (ch01),Legacy chapter (ch01),Chương cũ (ch01)
+Quit,Quit,Thoát
+Test maps (debug build only),Test maps (debug build only),Map thử nghiệm (chỉ bản debug)
+Story,Story,Cốt truyện
+Normal,Normal,Thường
+Hard,Hard,Khó
+Nightmare,Nightmare,Ác mộng
+Options,Options,Tùy chọn
+Volume,Volume,Âm lượng
+Fullscreen,Fullscreen,Toàn màn hình
+Language: %s,Language: %s,Ngôn ngữ: %s
+Paused,Paused,Tạm dừng
+Resume,Resume,Chơi tiếp
+Quit to menu,Quit to menu,Về menu chính
+Current battle progress will be lost. Only your latest manual save is kept. Quit anyway?,Current battle progress will be lost. Only your latest manual save is kept. Quit anyway?,Tiến độ trận hiện tại sẽ mất. Chỉ bản lưu thủ công gần nhất được giữ lại. Vẫn thoát?
+Back to battle,Back to battle,Quay lại trận
+Objectives,Objectives,Mục tiêu
+Fail: protagonist down = game over.,Fail: protagonist down = game over.,Thất bại: nhân vật chính gục = game over.
+Turn limit: %d,Turn limit: %d,Giới hạn lượt: %d
+Note: limit your kills if you want to persuade the remnants.,Note: limit your kills if you want to persuade the remnants.,Lưu ý: hạn chế giết địch nếu muốn thuyết phục tàn quân.
+Deploy (max %d),Deploy (max %d),Triển khai (tối đa %d)
+Start battle,Start battle,Bắt đầu trận
+Skip scene,Skip scene,Bỏ qua cảnh
+Game Over,Game Over,Game Over
+Chapter: %s,Chapter: %s,Chương: %s
+%s has fallen.,%s has fallen.,%s đã gục ngã.
+The mission objective failed.,The mission objective failed.,Nhiệm vụ đã thất bại.
+Progress from this battle is not kept.,Progress from this battle is not kept.,Tiến độ trận này không được giữ lại.
+Retry chapter,Retry chapter,Chơi lại chương
+Main menu,Main menu,Menu chính
+Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait,Click unit: move range - click red enemy: Forecast - Confirm to attack - after move: click unit / other cell / right-click = Wait,Click unit: xem tầm đi - click địch ô đỏ: Dự báo - Xác nhận để đánh - sau khi đi: click lại unit / ô khác / chuột phải = Chờ
+End phase,End phase,Kết thúc phase
+%s is OUT of reach of %s (unit acted? one action per phase — use another unit or Rewind).,%s is OUT of reach of %s (unit acted? one action per phase — use another unit or Rewind).,%s NGOÀI tầm của %s (unit đã hành động? mỗi phase một hành động — dùng unit khác hoặc Tua lại).
+Skill: %s,Skill: %s,Kỹ năng: %s
+Choose a target for %s (right click to cancel).,Choose a target for %s (right click to cancel).,Chọn mục tiêu cho %s (chuột phải để hủy).
+Skip,Skip,Bỏ qua
+%s %s %d dmg -> %s (HP %d),%s %s %d dmg -> %s (HP %d),%s %s %d sát thương -> %s (HP %d)
+critical,critical,chí mạng
+misses,misses,trượt
+hits,hits,trúng
+Rewind,Rewind,Tua lại
+Rewind %d,Rewind %d,Tua lại %d
+Victory,Victory,Chiến thắng
+Defeat,Defeat,Thất bại
+"%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid","%s | HP %d/%d | Pow %d Def %d Res %d Spd %d | terrain +%d def, +%d avoid","%s | HP %d/%d | Công %d Thủ %d Kháng %d Tốc %d | địa hình +%d thủ, +%d né"
+"terrain: %s (+%d def, +%d avoid)","terrain: %s (+%d def, +%d avoid)","địa hình: %s (+%d thủ, +%d né)"
+%s: Heal %d -> +%d HP (%d->%d),%s: Heal %d -> +%d HP (%d->%d),%s: Hồi %d -> +%d HP (%d->%d)
+Limit your kills if you want to persuade the remnants - watch the pressure colour.,Limit your kills if you want to persuade the remnants - watch the pressure colour.,Hạn chế giết địch nếu muốn thuyết phục tàn quân - để ý màu áp lực.
+Confirm attack,Confirm attack,Xác nhận tấn công
+Cancel,Cancel,Hủy
+NOT committed yet - Confirm to fight. Cancel / right-click to step back.,NOT committed yet - Confirm to fight. Cancel / right-click to step back.,CHƯA thực hiện - Xác nhận để đánh. Hủy / chuột phải để quay lại.
+No counter,No counter,Không phản đòn
+Strike %d: Hit %d%% / Crit %d%% / Dmg %d,Strike %d: Hit %d%% / Crit %d%% / Dmg %d,Đòn %d: Trúng %d%% / Chí mạng %d%% / ST %d
+on hit: target %s -%d for %d turns,on hit: target %s -%d for %d turns,khi trúng: mục tiêu %s -%d trong %d lượt
+on hit: heals %d HP per hit (more on a crit),on hit: heals %d HP per hit (more on a crit),khi trúng: hồi %d HP mỗi đòn (nhiều hơn khi chí mạng)
+strikes twice before the counter,strikes twice before the counter,đánh 2 lần trước khi bị phản
+ignores the target's terrain Avoid (+%d),ignores the target's terrain Avoid (+%d),bỏ qua Né địa hình của mục tiêu (+%d)
++%d damage on the first strike,+%d damage on the first strike,+%d sát thương ở đòn đầu
+target has not acted yet: no counter,target has not acted yet: no counter,mục tiêu chưa hành động: không phản đòn
+heals %d HP after attacking,heals %d HP after attacking,hồi %d HP sau khi tấn công
+deals %d damage back if it survives,deals %d damage back if it survives,phản %d sát thương nếu còn sống
+survives one lethal blow at 1 HP (not used yet),survives one lethal blow at 1 HP (not used yet),sống sót một đòn chí tử với 1 HP (chưa dùng)
+range +%d at high HP,range +%d at high HP,tầm +%d khi máu cao
++%d Avoid from an adjacent Bard,+%d Avoid from an adjacent Bard,+%d Né nhờ Bard đứng kề
+Debuffed: %s -%d (%d turns left),Debuffed: %s -%d (%d turns left),Bị suy yếu: %s -%d (còn %d lượt)
+Def,Def,Thủ
+Res,Res,Kháng
+Str,Str,Sức
+Mag,Mag,Phép
+Skill,Skill,Kỹ năng
+Speed,Speed,Tốc
+Luck,Luck,May mắn
+Disarming Strike,Disarming Strike,Giải Giáp
+Iron Retaliation,Iron Retaliation,Phản Đòn Giáp Sắt
+Battle Bloodlust,Battle Bloodlust,Hút Máu Chiến Trận
+Twin Lance Strike,Twin Lance Strike,Song Thương
+Cover-Piercing Shot,Cover-Piercing Shot,Bắn Xuyên Giáp
+Survival Instinct,Survival Instinct,Bản Năng Sinh Tồn
+Feral Regeneration,Feral Regeneration,Tái Tạo Bản Năng
+Fragile Magic Circle,Fragile Magic Circle,Pháp Trận Mong Manh
+Inspiring Melody,Inspiring Melody,Giai Điệu Khích Lệ
+Devoted Mentor,Devoted Mentor,Người Thầy Tận Tâm
+Extended Reach,Extended Reach,Tầm Đánh Mở Rộng
+Silent Assassination,Silent Assassination,Ám Sát Không Dấu Vết
+Heal,Heal,Hồi máu
+Encore,Encore,Diễn Tấu
+Camp - manage the squad,Camp - manage the squad,Doanh trại - quản lý đội
+Roster,Roster,Đội hình
+alive,alive,còn sống
+fallen,fallen,đã ngã
+%s | %s | Lv %d | exp %d | %s,%s | %s | Lv %d | exp %d | %s,%s | %s | Cấp %d | exp %d | %s
+possible,possible,có thể
+locked,locked,đang khóa
+"True ending: %s (every true-ending chapter finished, remnants persuaded)","True ending: %s (every true-ending chapter finished, remnants persuaded)","Kết thúc thật: %s (hoàn thành mọi chương cần thiết, thuyết phục được tàn quân)"
+Save,Save,Lưu
+Campaign complete,Campaign complete,Hoàn thành chiến dịch
+No further chapters in data yet.,No further chapters in data yet.,Chưa có chương tiếp theo trong dữ liệu.
+Next chapter,Next chapter,Chương tiếp
+Bonds (eligibility is designer data),Bonds (eligibility is designer data),Liên kết (danh sách cặp do designer quy định)
+%s x %s | %d pts | rank %s,%s x %s | %d pts | rank %s,%s x %s | %d điểm | hạng %s
+View %s scene,View %s scene,Xem cảnh %s
+Lock S pair,Lock S pair,Khóa cặp S
+Saved - manual saves sit between battles only.,Saved - manual saves sit between battles only.,Đã lưu - chỉ lưu thủ công giữa các trận.
+Objectives:,Objectives:,Mục tiêu:
+Casualty policy (%s): %s,Casualty policy (%s): %s,Chính sách thương vong (%s): %s
+Kills by faction (threshold hidden):,Kills by faction (threshold hidden):,Số địch bị hạ theo phe (ngưỡng ẩn):
+- %s: %d kills -> %s,- %s: %d kills -> %s,- %s: hạ %d -> %s
+persuaded,persuaded,đã thuyết phục
+not persuaded,not persuaded,chưa thuyết phục
+EXP earned:,EXP earned:,EXP nhận được:
+LEVEL UP: %s -> Lv %d (%s),LEVEL UP: %s -> Lv %d (%s),LÊN CẤP: %s -> Cấp %d (%s)
+temp_injury,temporary injury,bị thương tạm thời
+permadeath,permadeath,chết vĩnh viễn
+none,none,không
+escort,Escort,Hộ tống
+retrieve,Retrieve,Thu hồi
+ongoing,ongoing,đang diễn ra
+win,win,đạt
+lose,lose,thất bại
+Rout: defeat all enemies (or the marked targets).,Rout: defeat all enemies (or the marked targets).,Tiêu diệt: hạ toàn bộ địch (hoặc các mục tiêu được đánh dấu).
+Escort: the marked NPC must reach the destination tile alive.,Escort: the marked NPC must reach the destination tile alive.,Hộ tống: NPC được đánh dấu phải tới ô đích an toàn.
+Escort (turns): keep %s alive through %s enemy phases.,Escort (turns): keep %s alive through %s enemy phases.,Hộ tống (lượt): giữ %s sống qua %s phase địch.
+Retrieve: grab the marked item and return to the exit zone. Carrier can only move.,Retrieve: grab the marked item and return to the exit zone. Carrier can only move.,Thu hồi: lấy vật phẩm được đánh dấu và mang về vùng thoát. Người mang chỉ được di chuyển.
+%s scene: %d more pts,%s scene: %d more pts,Cảnh %s: cần thêm %d điểm
+%s scene: waiting on the story,%s scene: waiting on the story,Cảnh %s: chờ cốt truyện
+S locked,S locked,Đã chốt S
+S closed,S closed,Đã đóng S
+Lock this S pair? Both characters will never be able to lock S with anyone else.,Lock this S pair? Both characters will never be able to lock S with anyone else.,Chốt cặp S này? Cả hai nhân vật sẽ không thể chốt S với bất kỳ ai khác.
+elimination,Elimination,Tiêu diệt
+protect,Protect,Bảo vệ
+seize,Seize,Chiếm giữ
+Protect: keep every enemy out of the marked zone for %s enemy phases.,Protect: keep every enemy out of the marked zone for %s enemy phases.,Bảo vệ: không để địch vào vùng đánh dấu trong %s phase địch.
+Protect: keep %s alive for %s enemy phases.,Protect: keep %s alive for %s enemy phases.,Bảo vệ: giữ %s sống trong %s phase địch.
+Seize: hold the marked point through %s consecutive enemy phases.,Seize: hold the marked point through %s consecutive enemy phases.,Chiếm giữ: giữ điểm đánh dấu qua %s phase địch liên tiếp.
+Squad: no ally lost,Squad: no ally lost,Đội hình: chưa mất ai
+Squad: an ally has fallen,Squad: an ally has fallen,Đội hình: đã có đồng đội ngã xuống
+yes,yes,có
+no,no,không
+Restraint score: %d,Restraint score: %d,Điểm kiềm chế: %d
+- No ally lost: %s (+%d),- No ally lost: %s (+%d),- Không mất đồng đội: %s (+%d)
+"- Few kills of the holdout faction (%d, limit %d): %s (+%d)","- Few kills of the holdout faction (%d, limit %d): %s (+%d)","- Ít hạ quân phe cần thuyết phục (%d, giới hạn %d): %s (+%d)"
+- Perfect restraint: +%d,- Perfect restraint: +%d,- Kiềm chế hoàn hảo: +%d
+- Swift clear (turn par): %s (+%d),- Swift clear (turn par): %s (+%d),- Hoàn thành nhanh (turn par): %s (+%d)
+Bonus EXP +%d to every deployed unit,Bonus EXP +%d to every deployed unit,EXP thưởng +%d cho mọi quân đã triển khai
+Restraint score: %d (not awarded - battle lost),Restraint score: %d (not awarded - battle lost),Điểm kiềm chế: %d (không được tính - thua trận)
+Bad Ending,Bad Ending,Kết cục xấu
+%s will never accept the peace.,%s will never accept the peace.,%s sẽ không bao giờ chấp nhận hòa bình.
+The campaign ends here. Retry the chapter to change the outcome.,The campaign ends here. Retry the chapter to change the outcome.,Chiến dịch kết thúc tại đây. Chơi lại chương để thay đổi kết cục.
+Use: %s,Use: %s,Dùng: %s
+Visit village,Visit village,Ghé làng
+Trade with %s,Trade with %s,Trao đổi với %s
+Trade with %s - choose:,Trade with %s - choose:,Trao đổi với %s - chọn:
+Give %s,Give %s,Đưa %s
+Take %s,Take %s,Lấy %s
+Swap %s for %s,Swap %s for %s,Đổi %s lấy %s
+Close,Close,Đóng
+Items: %s,Items: %s,Vật phẩm: %s
+"Gold earned: +%d (victory %d, retrieve bonus %d, persuasion %d, villages %d)","Gold earned: +%d (victory %d, retrieve bonus %d, persuasion %d, villages %d)","Vàng nhận được: +%d (thắng trận %d, thưởng thu hồi %d, thuyết phục %d, làng %d)"
+Gold: %d,Gold: %d,Vàng: %d
+Shop,Shop,Cửa hàng
+Shop - gold: %d,Shop - gold: %d,Cửa hàng - vàng: %d
+%s - %s - %d gold,%s - %s - %d gold,%s - %s - %d vàng
+Buy %s for whom?,Buy %s for whom?,Mua %s cho ai?
+No unit has a free item slot.,No unit has a free item slot.,Không còn quân nào có ô vật phẩm trống.
+%s (%d/%d items),%s (%d/%d items),%s (%d/%d vật phẩm)
+Bought %s for %s.,Bought %s for %s.,Đã mua %s cho %s.
+restores %d HP,restores %d HP,hồi %d HP
++%d %s for %d turns,+%d %s for %d turns,+%d %s trong %d lượt
+Rewind to which point? (costs 1 use),Rewind to which point? (costs 1 use),Quay lại mốc nào? (tốn 1 lượt)
+Undo last action,Undo last action,Hoàn tác hành động vừa rồi
+Turn %d - start of turn,Turn %d - start of turn,Lượt %d - đầu lượt
+Turn %d - before: %s%s,Turn %d - before: %s%s,Lượt %d - trước: %s%s
+move,move,di chuyển
+attack,attack,tấn công
+wait,wait,chờ
+skill,skill,kỹ năng
+use_item,use item,dùng vật phẩm
+trade,trade,trao đổi
+visit,visit,ghé làng
+pickup,pick up,nhặt đồ
+end_phase,end phase,kết thúc lượt
+Attack,Attack,Tấn công
+Wait,Wait,Chờ
+Trade,Trade,Trao đổi
+Trade with whom?,Trade with whom?,Trao đổi với ai?
+"Choose a target (red tiles), right click to wait.","Choose a target (red tiles), right click to wait.","Chọn mục tiêu (ô đỏ), chuột phải để chờ."
+%s receives: %s · %s receives: %s,%s receives: %s · %s receives: %s,%s nhận: %s · %s nhận: %s
+nothing,nothing,không có gì
+Squad,Squad,Đội hình
+Fallen,Fallen,Đã ngã
+Back,Back,Quay lại
+HP %d/%d,HP %d/%d,HP %d/%d
+Active bonds: %s,Active bonds: %s,Gắn kết đang có: %s
+%s +%d (%d turns),%s +%d (%d turns),%s +%d (%d lượt)
+Buffs: %s,Buffs: %s,Hiệu ứng tăng: %s
+Traits: updating,Traits: updating,Đặc điểm nhân vật: đang cập nhật
+sit_out,sit out the next map,nghỉ map kế tiếp
+resting this map,resting this map,nghỉ map này
+rests next map,rests next map,nghỉ map kế tiếp
+Difficulty: %s (locked),Difficulty: %s (locked),Độ khó: %s (đã khoá)
+Difficulty: %s (rewind %s / casualty %s),Difficulty: %s (rewind %s / casualty %s),Độ khó: %s (rewind %s / thương vong: %s)
+Progress saved,Progress saved,Đã tự động lưu
+No active units,No active units,Không có quân nào đang hoạt động
+Resting this map: %s,Resting this map: %s,Nghỉ map này: %s
+%s | %s | Lv %d | EXP %d/%d,%s | %s | Lv %d | EXP %d/%d,%s | %s | Lv %d | EXP %d/%d
+Level %d,Level %d,Cấp %d
+EXP %d/%d,EXP %d/%d,EXP %d/%d
+Bonds: %s,Bonds: %s,Gắn kết: %s
+New game,New game,Trò chơi mới
+Debug:,Debug:,Debug:
+Display,Display,Hiển thị
+Window mode,Window mode,Chế độ màn hình
+Windowed,Windowed,Cửa sổ
+Sound,Sound,Âm thanh
+Master volume,Master volume,Âm lượng tổng
+Music,Music,Nhạc
+Effects,Effects,Hiệu ứng
+How do you want to fight?,How do you want to fight?,Bạn muốn chiến đấu thế nào?
+"Difficulty sets enemy strength, how often you can rewind and what happens when an ally falls.","Difficulty sets enemy strength, how often you can rewind and what happens when an ally falls.","Độ khó quyết định sức mạnh đối phương, số lần quay lại và hậu quả khi đồng đội gục ngã."
+NEW GAME / STEP 01,NEW GAME / STEP 01,TRÒ CHƠI MỚI / BƯỚC 01
+01 / STORY,01 / STORY,01 / CỐT TRUYỆN
+02 / BALANCED,02 / BALANCED,02 / CÂN BẰNG
+03 / HARSH,03 / HARSH,03 / KHẮC NGHIỆT
+04 / MERCILESS,04 / MERCILESS,04 / KHÔNG KHOAN NHƯỢNG
+Follow the story with many chances to fix mistakes.,Follow the story with many chances to fix mistakes.,Đi theo câu chuyện với nhiều cơ hội sửa sai.
+Enough challenge for every decision to matter.,Enough challenge for every decision to matter.,Đủ thử thách để từng quyết định có sức nặng.
+Fewer chances to fix mistakes; enemies are stronger.,Fewer chances to fix mistakes; enemies are stronger.,Ít cơ hội sửa sai; đối phương mạnh hơn.
+No rewinds. The enemy shows no mercy.,No rewinds. The enemy shows no mercy.,Không quay lại. Đối phương không nương tay.
+REWIND %s,REWIND %s,QUAY LẠI %s
+FALLEN ALLIES SIT OUT THE NEXT MAP,FALLEN ALLIES SIT OUT THE NEXT MAP,ĐỒNG ĐỘI GỤC NGÃ NGHỈ MAP KẾ
+FALLEN ALLIES RETURN AFTER THE BATTLE,FALLEN ALLIES RETURN AFTER THE BATTLE,ĐỒNG ĐỘI GỤC NGÃ TRỞ LẠI SAU TRẬN
+fallen allies sit out the next map,fallen allies sit out the next map,đồng đội gục ngã nghỉ map kế tiếp
+fallen allies return after the battle,fallen allies return after the battle,đồng đội gục ngã trở lại sau trận
+Normal · recommended for a first run,Normal · recommended for a first run,Normal · đề xuất cho lần đầu
+Rewind %s · %s,Rewind %s · %s,Quay lại %s · %s
+START THE JOURNEY →,START THE JOURNEY →,BẮT ĐẦU HÀNH TRÌNH →
+← Back to menu,← Back to menu,← Quay lại menu
+Choose Nightmare?,Choose Nightmare?,Chọn Nightmare?
+"Nightmare cannot be changed for the rest of this campaign: no rewinds, enemies are four levels stronger, and fallen allies sit out the next map.","Nightmare cannot be changed for the rest of this campaign: no rewinds, enemies are four levels stronger, and fallen allies sit out the next map.","Nightmare không thể đổi trong suốt chiến dịch này: không có quay lại, đối phương mạnh hơn bốn cấp, và đồng đội gục ngã phải nghỉ map kế tiếp."
+Start on Nightmare,Start on Nightmare,Bắt đầu với Nightmare
+Prepare for battle,Prepare for battle,Chuẩn bị ra trận
+BEFORE BATTLE · %s,BEFORE BATTLE · %s,TRƯỚC TRẬN · %s
+SQUAD / MISSION · %s,SQUAD / MISSION · %s,ĐỘI HÌNH / NHIỆM VỤ · %s
+OPTIONS,OPTIONS,TÙY CHỌN
+MISSION,MISSION,NHIỆM VỤ
+DEPLOY LIMIT %d · MAP %d × %d,DEPLOY LIMIT %d · MAP %d × %d,GIỚI HẠN %d QUÂN · BẢN ĐỒ %d × %d
+Choose your squad,Choose your squad,Chọn đội hình
+Units you do not pick stay with the squad.,Units you do not pick stay with the squad.,Quân chưa chọn vẫn ở lại đội hình.
+MAP PREVIEW · %d × %d,MAP PREVIEW · %d × %d,XEM TRƯỚC BẢN ĐỒ · %d × %d
+● Your units   ○ Free tile   ● Enemies   ● NPCs,● Your units   ○ Free tile   ● Enemies   ● NPCs,● Quân mình   ○ Vị trí trống   ● Quân địch   ● NPC
+← BACK,← BACK,← TRỞ LẠI
+SHOP,SHOP,CỬA HÀNG
+START BATTLE →,START BATTLE →,BẮT ĐẦU TRẬN →
+Move,Move,Di chuyển
+Required,Required,Bắt buộc
+Elimination,Elimination,Tiêu diệt
+Protect,Protect,Bảo vệ
+Escort,Escort,Hộ tống
+Retrieve,Retrieve,Thu hồi
+Seize,Seize,Chiếm cứ điểm
+Between battles,Between battles,Giữa các trận
+Current difficulty: %s,Current difficulty: %s,Độ khó hiện tại: %s
+Nightmare is locked for this campaign.,Nightmare is locked for this campaign.,Nightmare đã khoá cho chiến dịch này.
+Difficulty: %s - applies from the next battle.,Difficulty: %s - applies from the next battle.,Độ khó: %s - áp dụng từ trận tiếp theo.
+Save progress,Save progress,Lưu tiến độ
+Save failed,Save failed,Lưu thất bại
+Pause,Pause,Tạm dừng
+Player phase,Player phase,Lượt quân mình
+Enemy phase,Enemy phase,Lượt địch
+NPC phase,NPC phase,Lượt NPC
+Turn %d · %s,Turn %d · %s,Lượt %d · %s
+Lv %d · %s,Lv %d · %s,Cấp %d · %s
+Def +%d · Avoid +%d,Def +%d · Avoid +%d,Phòng thủ +%d · Né +%d
+Move cost %s,Move cost %s,Chi phí đi %s
+Blocked,Blocked,Không đi được
+Plain,Plain,Đồng bằng
+Road,Road,Đường
+Forest,Forest,Rừng
+Mountain,Mountain,Núi
+Water,Water,Nước
+Wall,Wall,Tường
+Hill,Hill,Đồi
+Cover,Cover,Công sự
+Hazard,Hazard,Địa hình nguy hiểm
+Village,Village,Làng
+→ Skip,→ Skip,→ Bỏ qua
+BOND SCENE,BOND SCENE,CẢNH BOND
+AFTERMATH,AFTERMATH,HẬU TRẬN
+ENDING,ENDING,KẾT THÚC
+STORY,STORY,CỐT TRUYỆN
+Battle summary · %s,Battle summary · %s,Tổng kết trận · %s
+Continue →,Continue →,Tiếp tục →
+Restraint score,Restraint score,Điểm kiềm chế
+Mission complete. The result is recorded when the battle ends.,Mission complete. The result is recorded when the battle ends.,Nhiệm vụ hoàn thành. Kết quả được ghi nhận sau khi trận đấu kết thúc.
+Mission not complete. This battle's score is not awarded.,Mission not complete. This battle's score is not awarded.,Nhiệm vụ chưa hoàn thành. Điểm trận này không được tính.
+No bonus EXP this battle,No bonus EXP this battle,Trận này không có EXP thưởng
+No ally lost,No ally lost,Không có đồng đội ngã
+Few kills of the holdout faction · %d / limit %d,Few kills of the holdout faction · %d / limit %d,Ít hạ quân phe cứng đầu · %d / giới hạn %d
+Perfect restraint,Perfect restraint,Kiềm chế hoàn hảo
+Swift clear · turn %d / par %d,Swift clear · turn %d / par %d,Hoàn thành nhanh · lượt %d / mốc %d
+Points are counted after a victory.,Points are counted after a victory.,Điểm được cộng sau chiến thắng.
+Mission,Mission,Nhiệm vụ
+Result,Result,Kết quả
+Complete,Complete,Hoàn thành
+Not complete,Not complete,Chưa hoàn thành
+Turn ended,Turn ended,Lượt kết thúc
+Gold,Gold,Vàng
+Victory %d · retrieve %d · persuasion %d · villages %d,Victory %d · retrieve %d · persuasion %d · villages %d,Thắng %d · thu hồi %d · thuyết phục %d · làng %d
+%s fell and sits out the next map.,%s fell and sits out the next map.,%s đã ngã và phải nghỉ map kế.
+%s fell and is back for the next map.,%s fell and is back for the next map.,%s đã ngã và trở lại ở map kế.
+The whole squad came back.,The whole squad came back.,Toàn đội trở về sau trận.
+EXP: %s,EXP: %s,EXP: %s
+The journey ends here,The journey ends here,Hành trình kết thúc
+The battle ends here.,The battle ends here.,Trận đấu kết thúc ngay tại đây.
+Bad ending,Bad ending,Kết thúc xấu
+End of the demo,End of the demo,Hết phần demo
+The example chapters are complete. The full campaign is still being built.,The example chapters are complete. The full campaign is still being built.,Các màn ví dụ đã hoàn thành. Nội dung chiến dịch đầy đủ đang được xây dựng.
+View bonds,View bonds,Xem bond
+Bond conversations,Bond conversations,Hội thoại bond
+Fight on adjacent tiles to earn Support points. Watch an unlocked scene to raise the rank; story milestones only gate when a scene unlocks.,Fight on adjacent tiles to earn Support points. Watch an unlocked scene to raise the rank; story milestones only gate when a scene unlocks.,Phối hợp ở ô kề để tích điểm Support. Xem cảnh đã mở để tăng hạng; mốc truyện chỉ khóa thời điểm mở.
+Characters · %d,Characters · %d,Nhân vật · %d
+Squad →,Squad →,Đội hình →
+Relations,Relations,Quan hệ
+No bond pairs in this squad yet.,No bond pairs in this squad yet.,Đội hiện chưa có cặp bond nào.
+Bond list,Bond list,Danh sách bond đã có
+Watch scene →,Watch scene →,Xem hội thoại →
+Bond rank %s,Bond rank %s,Bond cấp %s
+! new scene,! new scene,! cảnh mới
+Support points: %d / %d to unlock %s,Support points: %d / %d to unlock %s,Điểm Support: %d / %d để mở cảnh %s
+A member is not with the squad.,A member is not with the squad.,Một thành viên không còn trong đội.
+Highest normal rank reached.,Highest normal rank reached.,Đã đạt hạng thường cao nhất.
+Relationships of the current squad.,Relationships of the current squad.,Các quan hệ đã mở trong đội hình hiện tại.
+Relationships in the squad,Relationships in the squad,Quan hệ trong đội
+← Bond conversations,← Bond conversations,← Hội thoại bond
+Next: %s,Next: %s,Tiếp theo: %s
+See the companions who joined and get ready for the next battle.,See the companions who joined and get ready for the next battle.,Xem đồng đội đã gia nhập và chuẩn bị cho trận kế tiếp.
+Difficulty,Difficulty,Độ khó
+Joined · %d,Joined · %d,Đã gia nhập · %d
+Companions,Companions,Đồng đội
+Prepare for battle →,Prepare for battle →,Chuẩn bị trận →
+%s · Lv %d · EXP %d/%d,%s · Lv %d · EXP %d/%d,%s · Lv %d · EXP %d/%d
+Profile,Profile,Hồ sơ nhân vật
+Not bonded yet,Not bonded yet,Chưa có bond
+"Choose a target (red tiles), right click to go back.","Choose a target (red tiles), right click to go back.","Chọn mục tiêu (ô đỏ), chuột phải để quay lại."

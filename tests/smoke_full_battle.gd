@@ -71,7 +71,8 @@ func run() -> void:
 	ok(String(director.state.battle_over.get("status", "")) == "win", "smoke: battle won by AI pressure (status=%s)" % String(director.state.battle_over.get("status", "none")))
 	ok(director.state.reconcile_state.has("faction_rebel_ch01"), "smoke: reconcile tracked for remnant faction")
 	var kills := int(director.state.reconcile_state["faction_rebel_ch01"]["kills"])
-	ok(kills == 4, "smoke: 4 rebels defeated (kills=%d)" % kills)
+	# D03: the objective targets the three soldiers; the commander may or may not fall first.
+	ok(kills >= 3, "smoke: at least the 3 target soldiers defeated (kills=%d)" % kills)
 	ok(bool(director.state.reconcile_state["faction_rebel_ch01"].get("evaluated", false)), "smoke: reconcile evaluated at battle end")
 
 	# Rewind sanity inside a real battle history.
@@ -140,6 +141,13 @@ func _run_ch01_scenario(protect: bool, seed_value: int = -1) -> Dictionary:
 		deploy[ids[i]] = map.deploy_cells[i]
 	var director := BattleDirector.new()
 	director.setup(map, deploy, "normal", seed_value)
+	# Spared branch: the player script never targets the commander, but he still attacks the
+	# heroes and their counters could kill him (random seed). Give him a large HP pool so the
+	# scenario tests "win while sparing him", not luck.
+	if protect:
+		var spared: UnitState = director.state.units["unit_rebel_commander"]
+		spared.max_hp += 500
+		spared.hp = spared.max_hp
 	# The rout branch must actually reach the distant commander before the win fires
 	# (the ch01 objective only needs the three soldiers), so mirror the main-run buff.
 	if not protect:

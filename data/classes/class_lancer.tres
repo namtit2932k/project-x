@@ -22,3 +22,14 @@ hit_bonus = 0
 damage_type = "physical"
 weapon_id = "weapon_iron_lance"
 skill_ids = []
+growths = {
+"hp": 65,
+"str": 50,
+"mag": 0,
+"skill": 50,
+"speed": 35,
+"luck": 30,
+"def": 30,
+"res": 20
+}
+passive_id = "twin_lance_strike"

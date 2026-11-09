@@ -6,7 +6,7 @@
 script = ExtResource("1_rules")
 balance_profile = "demo"
 combat_formula_set = "gdd"
-exp_enabled = false
+exp_enabled = true
 shop_enabled = false
 fog_enabled = false
 bond_bonus_targets = Array[String](["accuracy", "avoid", "crit", "damage"])

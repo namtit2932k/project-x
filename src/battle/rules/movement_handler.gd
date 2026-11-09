@@ -28,6 +28,47 @@ static func compute_reachable(state: BattleState, unit: UnitState) -> Dictionary
 	return best
 
 
+## Walking cost from every cell to `goal` over terrain only (units ignored, blocked tiles
+## impassable unless flying). AI uses it to approach along real paths: picking the cell with
+## the smallest straight-line distance gets stuck in front of water or walls.
+static func distance_field(state: BattleState, unit: UnitState, goal: Vector2i) -> Dictionary:
+	var flying := unit.move_type == "flying"
+	var dist: Dictionary = {goal: 0.0}
+	var frontier: Array[Vector2i] = [goal]
+	var defs: Dictionary = DataRegistry.rule("terrain_defs", {})
+	while not frontier.is_empty():
+		frontier.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return dist[a] < dist[b])
+		var current: Vector2i = frontier.pop_front()
+		# Walking A -> current costs current's entry cost (reverse Dijkstra from the goal).
+		var enter := _step_cost(state, current, flying)
+		for dir: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+			var prev: Vector2i = current + dir
+			if not state.in_bounds(prev):
+				continue
+			var td: Dictionary = defs.get(state.terrain_at(prev), {"blocked": true})
+			if bool(td.get("blocked", false)) and not flying:
+				continue
+			var cost: float = float(dist[current]) + enter
+			if cost < float(dist.get(prev, INF)):
+				dist[prev] = cost
+				frontier.append(prev)
+	return dist
+
+
+## Of `cells`, the one with the shortest real walk to `goal` (straight-line distance breaks
+## ties; unreachable goals fall back to straight-line distance).
+static func closest_by_path(state: BattleState, unit: UnitState, cells: Array, goal: Vector2i) -> Vector2i:
+	var field := distance_field(state, unit, goal)
+	var best: Vector2i = unit.pos
+	var best_key := Vector2(float(field.get(unit.pos, INF)), RangeHandler.manhattan(unit.pos, goal))
+	for cell in cells:
+		var key := Vector2(float(field.get(cell, INF)), RangeHandler.manhattan(cell, goal))
+		if key.x < best_key.x or (is_equal_approx(key.x, best_key.x) and key.y < best_key.y):
+			best_key = key
+			best = cell
+	return best
+
+
 ## Reachable tiles the unit may actually stop on (never an occupied cell).
 static func compute_move_cells(state: BattleState, unit: UnitState) -> Dictionary:
 	var reach := compute_reachable(state, unit)
@@ -43,6 +84,9 @@ static func _passable(state: BattleState, unit: UnitState, cell: Vector2i, flyin
 	if occ != null and occ.id != unit.id:
 		# May walk through same-side units; never through others (mixed squads share a side).
 		if occ.side == unit.side:
+			return true
+		# Designer 08-11-2026: escort / NPC actors may walk through the player's units.
+		if unit.side == "npc" and occ.side == "player":
 			return true
 		return false
 	var defs: Dictionary = DataRegistry.rule("terrain_defs", {})

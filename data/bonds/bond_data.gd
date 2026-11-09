@@ -6,9 +6,20 @@ class_name BondData
 @export var id: String = ""
 @export var unit_a: String = ""
 @export var unit_b: String = ""
-## Points needed to unlock each rank's scene (rank rises only after scene watched/skipped).
-@export var scene_thresholds: Dictionary = {"C": 20, "B": 40, "A": 60}
+## F-BOND: cumulative support points that make each rank's scene choosable (GDD provisional
+## 2/5/9); the rank itself rises only after the scene is watched or skipped.
+@export var scene_thresholds: Dictionary = {"C": 2, "B": 5, "A": 9}
+## F-BOND: earliest chapter id at which each rank's scene may open ({rank: chapter_id}, "" or
+## missing = no story gate). Writer content.
+@export var scene_earliest_chapter: Dictionary = {}
 ## Scene dialogue id per rank: {rank: dialogue_id}
 @export var scene_dialogue_ids: Dictionary = {}
-## Story milestone flag gating S (extends Resource; leave "" when not yet in story data).
+## F-BOND: designer whitelist — only pairs marked here can ever reach rank S (GDD Core Rule 4b).
+@export var s_eligible: bool = false
+## The GDD's s_earliest_chapter: S cannot be locked before the campaign reaches this chapter
+## ("" = no gate). Field name kept from D05 (ids/fields are not renamed casually).
 @export var s_milestone_chapter_id: String = ""
+## P-11: rank and points the pair already has when a campaign starts ("" / 0 = none).
+## Ranks up to start_rank count as seen. Never "S" (S needs the in-game lock).
+@export var start_rank: String = ""
+@export var start_points: int = 0

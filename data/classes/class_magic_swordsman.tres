@@ -22,3 +22,14 @@ hit_bonus = 0
 damage_type = "magic"
 weapon_id = "weapon_spell_blade"
 skill_ids = []
+growths = {
+"hp": 55,
+"str": 35,
+"mag": 40,
+"skill": 40,
+"speed": 35,
+"luck": 30,
+"def": 25,
+"res": 30
+}
+passive_id = "extended_reach"

@@ -22,3 +22,14 @@ hit_bonus = 0
 damage_type = "physical"
 weapon_id = "weapon_claws"
 skill_ids = []
+growths = {
+"hp": 55,
+"str": 45,
+"mag": 5,
+"skill": 45,
+"speed": 60,
+"luck": 35,
+"def": 25,
+"res": 15
+}
+passive_id = "feral_regeneration"

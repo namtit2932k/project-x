@@ -37,16 +37,5 @@ enemy_placements = Array[Dictionary]([{
 }])
 npc_placements = Array[Dictionary]([])
 item_placements = Array[Dictionary]([])
-objectives = Array[Dictionary]([{
-"type": "capture",
-"params": {
-"zones": Array[Dictionary]([{
-"x": 5,
-"y": 4,
-"w": 1,
-"h": 1
-}]),
-"turns_required": 2
-}
-}])
+objectives = Array[Dictionary]([{"type": "seize", "params": {"control_x": 5, "control_y": 4, "hold_enemy_phases": 2}}])
 result_priority = "lose"

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="DialogueData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/dialogues/dialogue_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "dlg_aftermath_engaged"
+display_name = "Aftermath: pressure continues"
+lines = Array[Dictionary]([{
+"speaker": "Narrator",
+"text": "They fall back, but this is not over. [Placeholder pressure-continues beat.]",
+}])

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://data/skills/skill_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "skill_encore"
+display_name = "Encore"
+effect_type = "encore"
+power = 0
+range_min = 1
+range_max = 1
+description = "Diễn Tấu: refresh one adjacent ally that has already acted (Move + Action again this phase). Not on another Encore user."

@@ -16,14 +16,62 @@ const SEARCH_FOLDERS := {
 }
 
 const RULES_PATH := "res://data/rules/rules_config.tres"
+## UI text in every language (I18N): CSV "key,en,vi,..."; the key is the English source text.
+## Imported as "keep" so it ships as a plain file and is read here, no generated files.
+const I18N_PATH := "res://data/i18n/strings.csv"
 
 var _rules: Resource = null
 var _cache := {}
+## key -> {locale: text} as read from I18N_PATH (validator/tests read it back).
+var _i18n: Dictionary = {}
+var _i18n_locales: Array[String] = []
 
 
 func _ready() -> void:
 	_rules = load(RULES_PATH)
 	_scan_all()
+	_load_translations()
+
+
+## Reads the UI string table and registers one Translation per language column with the
+## engine's TranslationServer; empty cells fall back to the key (English source text).
+func _load_translations() -> void:
+	_i18n.clear()
+	_i18n_locales.clear()
+	var file := FileAccess.open(I18N_PATH, FileAccess.READ)
+	if file == null:
+		push_warning("DataRegistry: missing %s, UI stays in English" % I18N_PATH)
+		return
+	var header := file.get_csv_line()
+	var translations: Array[Translation] = []
+	for col in range(1, header.size()):
+		var tr_res := Translation.new()
+		tr_res.locale = header[col].strip_edges()
+		translations.append(tr_res)
+		_i18n_locales.append(tr_res.locale)
+	while not file.eof_reached():
+		var row := file.get_csv_line()
+		if row.size() < 2 or row[0].strip_edges() == "":
+			continue
+		var key := row[0]
+		var texts := {}
+		for col in range(1, mini(row.size(), header.size())):
+			texts[_i18n_locales[col - 1]] = row[col]
+			if row[col] != "":
+				translations[col - 1].add_message(key, row[col])
+		_i18n[key] = texts
+	for tr_res in translations:
+		TranslationServer.add_translation(tr_res)
+
+
+## The loaded UI string table: {key: {locale: text}}.
+func i18n_table() -> Dictionary:
+	return _i18n
+
+
+## Language codes that have a column in the UI string table ("en", "vi", ...).
+func i18n_locales() -> Array[String]:
+	return _i18n_locales
 
 
 ## Loads every base layer folder, then applies the configured balance profile overlay
@@ -134,6 +182,11 @@ func all_weapons() -> Array[Resource]:
 
 func get_battle_class(id: String) -> Resource:
 	return get_data("classes", id)
+
+
+## F-ITEM: item records (objective relics and consumables).
+func get_item(id: String) -> ItemData:
+	return get_data("items", id) as ItemData
 
 
 func get_unit(id: String) -> Resource:

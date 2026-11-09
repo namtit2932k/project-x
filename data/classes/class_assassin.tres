@@ -22,3 +22,14 @@ hit_bonus = 0
 damage_type = "physical"
 weapon_id = "weapon_twin_daggers"
 skill_ids = []
+growths = {
+"hp": 45,
+"str": 0,
+"mag": 35,
+"skill": 65,
+"speed": 65,
+"luck": 45,
+"def": 15,
+"res": 15
+}
+passive_id = "silent_assassination"

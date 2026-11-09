@@ -12,3 +12,14 @@ attack_range_min = 1
 attack_range_max = 1
 weapon_id = "weapon_staff"
 damage_type = "physical"
+growths = {
+"hp": 50,
+"str": 5,
+"mag": 60,
+"skill": 35,
+"speed": 30,
+"luck": 35,
+"def": 15,
+"res": 45
+}
+passive_id = "devoted_mentor"

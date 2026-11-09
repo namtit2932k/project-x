@@ -11,22 +11,72 @@ class_name RulesConfig
 
 @export var damage_flat: int = 0                          # sai số ngẫu nhiên trên damage
 @export var min_damage: int = 0
-@export var hit_base: int = 100
-@export var hit_variance: int = 10
-@export var crit_base: int = 5
-@export var crit_multiplier: float = 2.0
-@export var double_attack_speed_gap: int = 5
-@export var hit_scale_skill: int = 3
-@export var hit_scale_speed_avoid: int = 2
-@export var crit_scale_skill: int = 2
+## F-CC + F-CC-FE (AGENTS.md): Accuracy = hit_base + skill*accuracy_skill_mult + luck*accuracy_luck_mult
+## + hit_bonus + weapon_accuracy_mod + bond; Avoid = speed*avoid_speed_mult + luck*avoid_luck_mult
+## + terrain_avoid + bond; Hit% = clamp(Accuracy - Avoid, 0, 100). One roll, no 2RN.
+## hit_base stands in for Fire Emblem's weapon Hit; 70 for every weapon, designer-confirmed (no triangle).
+@export var hit_base: int = 70
+@export var accuracy_skill_mult: float = 2.0
+@export var accuracy_luck_mult: float = 0.5
+@export var avoid_speed_mult: float = 2.0
+## Fire Emblem: full Luck in Avoid (GDD had 0.5).
+@export var avoid_luck_mult: float = 1.0
+## Crit% = clamp(skill*crit_skill_mult + weapon_crit_mod + crit_bonus - defender.luck*crit_luck_mult + bond, 0, 100).
+@export var crit_skill_mult: float = 0.5
+## Fire Emblem: crit evade = full Luck (GDD had 0.5).
+@export var crit_luck_mult: float = 1.0
+## CritDamage = floor(Damage * crit_multiplier); Fire Emblem ×3 (GDD had 2.5).
+@export var crit_multiplier: float = 3.0
 
-## EXP (D08): only the player side earns; a full batch per level; level cap. Numbers TBD
-## final, designer-tunable.
-@export var exp_gain_hit: int = 10
-@export var exp_gain_kill: int = 30
-@export var exp_gain_nonlethal_loss: int = 4
+## EXP (F-EXP, GDD core-combat Core Rule 12 / F-CC13): a player unit performing an Attack
+## or a Heal earns this flat amount, hit or miss, kill or not. Nothing else pays EXP.
+@export var exp_per_action: int = 25
+## F-CC14: EXP per level (excess rolls into the next level) and the level cap (EXP at the
+## cap is discarded, never banked).
 @export var exp_per_level: int = 100
 @export var level_cap: int = 20
+## F-CC14 stat ceilings for level-up rolls (GDD Core Rule 1: HP 15–60, other stats 0–30);
+## a successful roll on a stat already at its cap is wasted. GDD stat keys.
+@export var stat_caps: Dictionary = {
+	"hp": 60, "str": 30, "mag": 30, "skill": 30, "speed": 30, "luck": 30, "def": 30, "res": 30,
+}
+## ------------------------------------------------------------ dual restraint (F-DRS)
+## GDD F-DRS1 (display-only score, 0-150) and F-DRS2 (victory bonus EXP). First pass numbers.
+@export var drs_kill_tolerance: int = 2
+@export var drs_ally_points: int = 50
+@export var drs_kill_points: int = 50
+@export var drs_perfect_bonus: int = 25
+@export var drs_swift_bonus: int = 25
+@export var drs_ally_bonus_exp: int = 15
+@export var drs_kill_restraint_bonus_exp: int = 15
+## F-BAD: dialogue played before the Bad Ending screen when a faction has no own one.
+@export var bad_ending_dialogue_id: String = "dlg_bad_ending"
+## F-AFTER: placeholder aftermath scenes when neither the faction, the map nor the chapter has one.
+@export var aftermath_dialogue_ids: Dictionary = {
+	"victory": "dlg_aftermath_victory", "persuaded": "dlg_aftermath_persuaded", "engaged": "dlg_aftermath_engaged",
+}
+
+## ------------------------------------------------------------ class passives (F-PAS)
+## GDD Authored Passive Catalog: passive_id -> {name (UI text key; the Vietnamese GDD names live in data/i18n/strings.csv), effect_type, numbers}. Effect types are code
+## (PassiveSystem); numbers and which class uses which passive are data.
+@export var passive_catalog: Dictionary = {
+	"disarming_strike": {"name": "Disarming Strike", "effect_type": "debuff_target_stat", "stat": "defense", "amount": 3, "duration": 2},
+	"iron_retaliation": {"name": "Iron Retaliation", "effect_type": "thorns_damage", "damage": 4, "min_hp_ratio": 0.5},
+	"battle_bloodlust": {"name": "Battle Bloodlust", "effect_type": "lifesteal", "ratio": 0.3},
+	"twin_lance_strike": {"name": "Twin Lance Strike", "effect_type": "force_double"},
+	"cover_piercing_shot": {"name": "Cover-Piercing Shot", "effect_type": "ignore_defender_terrain"},
+	"survival_instinct": {"name": "Survival Instinct", "effect_type": "survive_once"},
+	"feral_regeneration": {"name": "Feral Regeneration", "effect_type": "flat_self_heal", "amount": 5},
+	"fragile_magic_circle": {"name": "Fragile Magic Circle", "effect_type": "burst_damage", "bonus": 5},
+	"inspiring_melody": {"name": "Inspiring Melody", "effect_type": "adjacency_aura_avoid", "bonus": 3},
+	"devoted_mentor": {"name": "Devoted Mentor", "effect_type": "grant_target_exp", "exp": 10},
+	"extended_reach": {"name": "Extended Reach", "effect_type": "extended_range", "bonus": 1, "min_hp_ratio": 0.75},
+	"silent_assassination": {"name": "Silent Assassination", "effect_type": "suppress_retaliation"},
+}
+
+## Designer (08-11-2026): losing is a game over, so a lost battle keeps nothing, EXP included
+## (false). true = the GDD Dual Restraint edge case (action EXP survives a defeat).
+@export var action_exp_commits_on_defeat: bool = false
 
 ## ------------------------------------------------------------ terrain
 ## terrain_costs: địa hình × movement_type -> chi phí (bảng đúng schema交接; movement type từ ClassDef).
@@ -78,13 +128,19 @@ class_name RulesConfig
 }
 
 ## ------------------------------------------------------------ P-13 feature flags (data-only)
-## Trainer công thức chiến đấu mặc định (P-05): "gdd" (F-CC1…F-CC7) | "legacy" (công thức cũ).
-## CombatResolver xử lý cả hai nhánh; dữ liệu cũ chỉ dùng "legacy".
+## Bộ công thức chiến đấu (P-05): "gdd" | "legacy". Hiện CombatResolver chỉ có MỘT công thức (GDD,
+## xem AGENTS.md F-CC) và chưa đọc field này; giữ lại cho validator và dùng sau.
 @export var combat_formula_set: String = "gdd"
-## EXP và level-up chỉ áp dụng cho campaign demo khi bật (P-04); tắt = ẩn dòng EXP hậu trận.
-@export var exp_enabled: bool = false
+## EXP và level-up (F-EXP): bật mặc định — GDD dùng EXP làm cơ chế phát triển nhân vật (P-04 đã bị thay).
+@export var exp_enabled: bool = true
 ## Cửa hàng (P-03): bật cho campaign demo; chương legacy giữ stub.
 @export var shop_enabled: bool = false
+## F-ITEM (GDD Gold/Shop Authored Balance): victory-only gold rewards, never from kills or difficulty.
+@export var gold_per_victory: int = 15
+@export var gold_per_persuasion: int = 20
+@export var gold_retrieve_bonus: int = 15
+## F-ITEM: items the camp shop sells (price = ItemData.price; only listed ids are sold).
+@export var shop_catalog: Array[String] = ["item_potion", "item_vulnerary", "item_elixir", "item_vigor_tonic", "item_focus_tonic"]
 ## Fog of war (W6): tắt tới khi hệ thống fog hoàn tất.
 @export var fog_enabled: bool = false
 ## D-B2 placeholder: default base vision khi unit không khai báo (0 = inherit).
@@ -100,7 +156,7 @@ class_name RulesConfig
 ## ------------------------------------------------------------ casualties
 ## Thương vong theo độ khó (chờ chốt): "temp_injury" (về đội sau trận) | "permadeath" | "none".
 @export var casualty_by_difficulty: Dictionary = {
-	"story": "temp_injury", "normal": "temp_injury", "hard": "permadeath", "nightmare": "permadeath",
+	"story": "temp_injury", "normal": "temp_injury", "hard": "sit_out", "nightmare": "sit_out",
 }
 
 ## ------------------------------------------------------------ battle outcome
@@ -112,7 +168,7 @@ class_name RulesConfig
 
 ## ------------------------------------------------------------ T2.6: numbers luật GDD/demo (data-only)
 ## Đánh thêm vì chênh lệnh Speed (GDD-Combat §5, F-CC7): chỉ một bên đủ điều kiện một exchange.
-## Demo/GDD dùng 4; số cũ của lớp ch01 dùng double_attack_speed_gap.
+## Giá trị GDD chốt = 4; CombatResolver đọc trực tiếp field này (field cũ double_attack_speed_gap=5 đã bỏ).
 @export var double_threshold: int = 4
 ## Số nguồn bonus bond kề cùng lúc (GDD-Combat §5, tối đa 4 đối tác; tổng vẫn chặn ở max_adjacent_bond_bonus).
 @export var bond_stack_max: int = 4
@@ -125,13 +181,22 @@ class_name RulesConfig
 @export var hp_blink_band: float = 0.25
 ## Nhân chỉ số địch khi Deploy theo độ khó: nhân Str/Mag/Skill/Speed/Def/Res, lấy phần nguyên xuống;
 ## KHÔNG nhân HP/Luck (GDD-Combat §5). Quyết định tạm theo Phụ lục D.
+## F-DIFF (superseded 08-11-2026): kept as a knob, 1.0 everywhere - difficulty now adds levels.
 @export var enemy_stat_multiplier_by_difficulty: Dictionary = {
-	"story": 1.0, "normal": 1.0, "hard": 1.08, "nightmare": 1.15,
+	"story": 1.0, "normal": 1.0, "hard": 1.0, "nightmare": 1.0,
+}
+## F-DIFF / F-ELV (designer 08-11-2026): extra enemy levels per difficulty, Fire Emblem style.
+@export var enemy_bonus_levels_by_difficulty: Dictionary = {
+	"story": 0, "normal": 0, "hard": 2, "nightmare": 4,
 }
 ## Restraint (C11) bật theo độ khó; Nightmare tắt (Phụ lục D, quyết định tạm).
 @export var restraint_rule_active_by_difficulty: Dictionary = {
 	"story": true, "normal": true, "hard": true, "nightmare": false,
 }
+## F-AI Protect/Persuade AI (GDD F-PPA2 / F-PPA4 defaults): key unit "critically wounded" at or
+## below this share of max HP; an ally within this many tiles means the unit is not isolated.
+@export var protect_hp_threshold: float = 0.3
+@export var rally_radius: int = 3
 ## balance_profile mechanism (D-A1/T2.7): DataRegistry nạp data/<profile>/ classes/units/weapons/items/maps
 ## đè các id trùng của lớp gốc. "" = tắt overlay (chạy dữ liệu ch01 gốc nguyên vẹn).
 @export var balance_profile: String = "demo"
@@ -144,5 +209,6 @@ class_name RulesConfig
 ## Bonus theo rank (designer đã chốt); tổng bonus kề ô tối đa +16 (ràng buộc test bằng test).
 @export var bond_bonus_by_rank: Dictionary = {"C": 3, "B": 5, "A": 8, "S": 10}
 @export var max_adjacent_bond_bonus: int = 16
-@export var bond_point_limit_per_pair_per_map: int = 20
-@export var bond_points_combat_action: int = 2
+## F-BOND (GDD F-BA3): +1 support point per qualifying Attack/Heal, max 2 per pairing per map.
+@export var bond_point_limit_per_pair_per_map: int = 2
+@export var bond_points_combat_action: int = 1

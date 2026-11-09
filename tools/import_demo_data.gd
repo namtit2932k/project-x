@@ -18,6 +18,25 @@ extends SceneTree
 ## (carried_items, priority_target_id, key_unit_id, bonds...) uses the same prefix.
 
 const REF_DIR := "res://docs/reference/demo/data/"
+## Designer-approved numbers that replace the scenario JSON on every rerun (the JSON is the
+## old demo scale). F-EXP: GDD growth rows of the overlay classes. F-ELV: enemy level-1
+## stats + levels, enemy class growths, and the roster-scale Skill of the other demo units.
+const CLASS_GROWTHS := {
+	"class_swordsman": {"hp": 65, "str": 45, "mag": 5, "skill": 50, "speed": 40, "luck": 35, "def": 30, "res": 20},
+	"class_knight": {"hp": 85, "str": 40, "mag": 0, "skill": 25, "speed": 20, "luck": 25, "def": 55, "res": 25},
+	"class_healer": {"hp": 50, "str": 5, "mag": 60, "skill": 35, "speed": 30, "luck": 35, "def": 15, "res": 45},
+	"class_guard": {"hp": 70, "str": 40, "mag": 0, "skill": 35, "speed": 35, "luck": 20, "def": 30, "res": 15},
+	"class_commander": {"hp": 75, "str": 45, "mag": 0, "skill": 40, "speed": 30, "luck": 30, "def": 35, "res": 20},
+}
+const ENEMY_LEVEL_1 := {
+	"raider": [5, {"hp": 20, "str": 7, "mag": 0, "skill": 4, "speed": 5, "luck": 3, "def": 4, "res": 2, "move": 4}],
+	"guard": [5, {"hp": 20, "str": 7, "mag": 0, "skill": 4, "speed": 5, "luck": 3, "def": 4, "res": 2, "move": 4}],
+	"river_guard": [5, {"hp": 20, "str": 7, "mag": 0, "skill": 4, "speed": 5, "luck": 3, "def": 4, "res": 2, "move": 4}],
+	"messenger_raider": [5, {"hp": 20, "str": 7, "mag": 0, "skill": 4, "speed": 5, "luck": 3, "def": 4, "res": 2, "move": 4}],
+	"river_pursuer": [5, {"hp": 20, "str": 7, "mag": 0, "skill": 6, "speed": 5, "luck": 3, "def": 4, "res": 2, "move": 4}],
+	"commander": [6, {"hp": 22, "str": 6, "mag": 0, "skill": 5, "speed": 6, "luck": 5, "def": 4, "res": 3, "move": 4}],
+}
+const SKILL_ONLY := {"swordsman": 10, "knight": 6, "evacuee": 4, "messenger": 4}
 const OUT_WEAPONS := "res://data/weapons"
 const OUT_BALANCE := "res://data/balance/demo"
 const OUT_MAPS := "res://data/maps"
@@ -261,6 +280,8 @@ func _generate_demo_profile(demo: Dictionary, goods: Dictionary) -> void:
 			"weapon_id": "weapon_" + weapon_key,
 			"damage_type": "physical",
 		}
+		if CLASS_GROWTHS.has(cid):
+			props["growths"] = CLASS_GROWTHS[cid]
 		_write_tres("res://data/classes/class_data.gd", "BattleClassData", props,
 				"%s/classes/%s.tres" % [OUT_BALANCE, cid])
 
@@ -277,7 +298,8 @@ func _generate_demo_profile(demo: Dictionary, goods: Dictionary) -> void:
 		"id": "faction_river_guard",
 		"display_name": "Đội gác sông",
 		"remnant_id": "river_guard",
-		"reconcile": {"kill_threshold": 2, "required_events": ["spared_commander"]},
+		# F-PCOND: GDD condition - the commander must survive (was required_events spared_commander).
+		"reconcile": {"kill_threshold": 2, "persuasion_condition": {"type": "named_unit_alive", "unit_id": "unit_demo_commander"}, "required_events": []},
 	}
 	_write_tres("res://data/factions/faction_data.gd", "FactionData", river,
 			"%s/factions/faction_river_guard.tres" % OUT_BALANCE)
@@ -314,6 +336,13 @@ func _generate_demo_profile(demo: Dictionary, goods: Dictionary) -> void:
 		# Swordsman (dying ends the battle).
 		props["is_protagonist"] = key == "swordsman"
 		props["in_roster"] = key == "swordsman" or key == "knight"
+		if ENEMY_LEVEL_1.has(key):
+			props["level"] = int(ENEMY_LEVEL_1[key][0])
+			props["base_stats"] = ENEMY_LEVEL_1[key][1]
+		elif SKILL_ONLY.has(key):
+			props["base_stats"]["skill"] = int(SKILL_ONLY[key])
+		# F4.2: tag the roster units so they never join the legacy campaign roster.
+		props["campaign_tag"] = "demo"
 		_write_tres("res://data/units/unit_data.gd", "UnitData", props,
 				"%s/units/unit_demo_%s.tres" % [OUT_BALANCE, key])
 
@@ -407,7 +436,7 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 	var obj_type := str(m.get("objective_type", "Elimination"))
 	match obj_type:
 		"Elimination":
-			objectives.append({"type": "eliminate", "params": {"target_unit_ids": enemy_target_ids}})
+			objectives.append({"type": "elimination", "params": {"target_unit_ids": enemy_target_ids}})
 		"Escort":
 			# F2.2: the escort target must resolve to the placed instance, which carries the
 			# same name as the demo deployment id (e.g. messenger).
@@ -424,7 +453,7 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 				})
 			if int(m.get("escort_turns_required", 0)) > 0:
 				objectives.append({
-					"type": "escort_turns",
+					"type": "escort",
 					"params": {
 						"npc_unit_id": escort_instance,
 						"turns_required": int(m.get("escort_turns_required", 1)),
@@ -433,14 +462,13 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 		"Protect":
 			var zone: Dictionary = m.get("protect_zone", {})
 			objectives.append({
-				"type": "defend",
+				"type": "protect",
 				"params": {
 					"zone_x": int(zone.get("x", 0)),
 					"zone_y": int(zone.get("y", 0)),
 					"zone_w": int(zone.get("width", 1)),
 					"zone_h": int(zone.get("height", 1)),
-					"turns_required": int(m.get("survive_enemy_phases", 1)),
-					"policy": "block",
+					"survive_enemy_phases": int(m.get("survive_enemy_phases", 1)),
 				},
 			})
 		"Retrieve":
@@ -463,10 +491,11 @@ func _write_map(id: String, m: Dictionary, path: String) -> void:
 		"Seize":
 			var cp: Dictionary = m.get("control_point", {})
 			objectives.append({
-				"type": "capture",
+				"type": "seize",
 				"params": {
-					"zones": [{"x": int(cp.get("x", 0)), "y": int(cp.get("y", 0)), "w": 1, "h": 1}],
-					"turns_required": int(m.get("hold_enemy_phases", 1)),
+					"control_x": int(cp.get("x", 0)),
+					"control_y": int(cp.get("y", 0)),
+					"hold_enemy_phases": int(m.get("hold_enemy_phases", 1)),
 				},
 			})
 

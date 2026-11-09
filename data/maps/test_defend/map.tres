@@ -25,17 +25,7 @@ enemy_placements = Array[Dictionary]([{
 "cell": Vector2i(10, 5),
 }])
 npc_placements = Array[Dictionary]([])
-objectives = Array[Dictionary]([{
-"type": "defend",
-"params": {
-"zone_x": 2,
-"zone_y": 2,
-"zone_w": 2,
-"zone_h": 2,
-"turns_required": 2,
-"policy": "block",
-},
-}])
+objectives = Array[Dictionary]([{"type": "protect", "params": {"zone_x": 2, "zone_y": 2, "zone_w": 2, "zone_h": 2, "survive_enemy_phases": 2}}])
 item_placements = Array[Dictionary]([])
 turn_limit = 0
 result_priority = "lose"

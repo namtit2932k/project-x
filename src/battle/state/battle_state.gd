@@ -8,6 +8,8 @@ const PHASE_ENEMY := 1
 const PHASE_NPC := 2
 
 var map: Resource = null                 # MapData
+## Difficulty tier of this battle (set by the director): F-DRS reads its casualty policy.
+var difficulty: String = "normal"
 var width: int = 0
 var height: int = 0
 var terrain: Array = []                  # terrain[String] per cell: terrain_field[y][x] -> String
@@ -27,6 +29,10 @@ var level_ups: Array = []                # [{unit_id, level, gains:{stat:+n}}] f
 
 var reconcile_state: Dictionary = {}     # faction_id -> {kills:int, events:Array[String], evaluated:bool, persuaded:bool}
 var npc_unit_ids: Array = []             # escort-style NPC actors of this map
+## F-ITEM: villages {"x,y": {gold, item_id, state: open|claimed|destroyed}} and the gold claimed
+## from them this battle (merged into the campaign on a victory only).
+var villages: Dictionary = {}
+var gold_earned: int = 0
 var item_ground: Dictionary = {}         # {unit_id? no, "x,y" -> item_id}
 
 var rng_seed: int = 0
@@ -95,6 +101,12 @@ func setup(p_map: Resource, deploy: Dictionary, seed_value: int = -1) -> void:
 			# F2.2: player units keep the template id as the instance id — every campaign
 		# reference (roster, bonds, prep) already speaks template ids for them.
 			units[String(unit_id)] = u
+	# F-ITEM villages (GDD Battle/Map Core Rule 15): one reward each, inert once claimed/destroyed.
+	villages.clear()
+	gold_earned = 0
+	for v in p_map.villages:
+		var vc: Vector2i = v.get("cell", Vector2i(-1, -1))
+		villages["%d,%d" % [vc.x, vc.y]] = {"gold": int(v.get("gold_amount", 0)), "item_id": String(v.get("item_id", "")), "state": "open"}
 	# Items on ground
 	for item in p_map.item_placements:
 		var cell2: Vector2i = item.cell
@@ -109,7 +121,11 @@ func setup(p_map: Resource, deploy: Dictionary, seed_value: int = -1) -> void:
 		seen[u.faction_id] = true
 		var f := DataRegistry.get_faction(String(u.faction_id))
 		if f != null and String(f.remnant_id) != "":
-			reconcile_state[String(u.faction_id)] = {"kills": 0, "events": [], "evaluated": false, "persuaded": false}
+			reconcile_state[String(u.faction_id)] = {"kills": 0, "events": [], "evaluated": false, "persuaded": false, "deployed": 0}
+	# F-PCOND units_spared_pct: faction units deployed at battle start (reinforcements excluded).
+	for u in units.values():
+		if reconcile_state.has(String(u.faction_id)):
+			reconcile_state[String(u.faction_id)]["deployed"] = int(reconcile_state[String(u.faction_id)]["deployed"]) + 1
 	_resolve_priority_targets()
 
 
@@ -153,7 +169,8 @@ func _deploy_map_units(p_map: Resource, side: String, placements: Array) -> void
 			continue
 		var cell: Vector2i = placement.cell
 		if can_place(cell):
-			var u := UnitState.from_data(ud, cell, -1, _instance_id_from_placement(placement))
+			# F-ELV: a placement may set the enemy's level; otherwise the template's level.
+			var u := UnitState.from_data(ud, cell, int(placement.get("level", -1)), _instance_id_from_placement(placement))
 			u.side = side
 			# faction_override lets a map place a unit on a different lore faction (e.g. an
 			# empire defector fighting for the rebels) without a duplicate unit entry.
@@ -206,6 +223,17 @@ func exp_gained_set(unit_id: String, amount: int) -> void:
 		exp_gained[unit_id] = int(exp_gained.get(unit_id, 0)) + amount
 
 
+## F-OBJ Retrieve: the unit carries the map's retrieve item, so it may only move (no attack,
+## heal or counterattack).
+func is_move_only_carrier(unit: UnitState) -> bool:
+	if unit == null or unit.carried_item == "":
+		return false
+	for cfg in objectives_config:
+		if String(cfg.get("type", "")) == "retrieve" and String(cfg.get("params", {}).get("item_id", "")) == unit.carried_item:
+			return true
+	return false
+
+
 func alive_units() -> Array:
 	return units.values().filter(func(u: UnitState) -> bool: return u.alive)
 
@@ -252,6 +280,8 @@ func to_dict() -> Dictionary:
 		"level_ups": _deep_copy(level_ups),
 		"reconcile_state": _deep_copy(reconcile_state),
 		"item_ground": _deep_copy(item_ground),
+		"villages": _deep_copy(villages),
+		"gold_earned": gold_earned,
 		"rng_seed": rng_seed,
 	}
 
@@ -266,6 +296,8 @@ func from_dict(d: Dictionary) -> void:
 	level_ups = _deep_copy(d.get("level_ups", []))
 	reconcile_state = _deep_copy(d.get("reconcile_state", {}))
 	item_ground = _deep_copy(d.get("item_ground", {}))
+	villages = _deep_copy(d.get("villages", villages))
+	gold_earned = int(d.get("gold_earned", gold_earned))
 	# RNG state is NOT snapshot-restored (D04/N04): a rewind continues the same random
 	# sequence, so replaying the same actions after a rewind gives different rolls.
 	var seeds := int(d.get("rng_seed", rng_seed))
@@ -274,3 +306,9 @@ func from_dict(d: Dictionary) -> void:
 	for unit_id in units_dict:
 		if units.has(unit_id):
 			units[unit_id].from_dict(units_dict[unit_id])
+
+
+## F-ITEM: the open (unclaimed, not destroyed) village at `cell`, or {} when there is none.
+func open_village_at(cell: Vector2i) -> Dictionary:
+	var v: Dictionary = villages.get("%d,%d" % [cell.x, cell.y], {})
+	return v if String(v.get("state", "")) == "open" else {}

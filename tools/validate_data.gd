@@ -16,7 +16,14 @@ var profile_active: bool = false
 
 const OLD_UNIT_STAT_KEYS := ["hp", "atk", "def", "res", "skl", "spd", "mov", "crit", "hit"]
 const GDD_UNIT_STAT_KEYS := ["hp", "str", "mag", "skill", "speed", "luck", "def", "res", "move", "base_vision"]
-const OBJECTIVE_TYPES := ["eliminate", "escort", "escort_turns", "defend", "retrieve", "capture", "evacuate"]
+## Stats a level-up can raise (F-EXP): the 8 GDD growth stats plus the legacy aliases.
+## F-PAS: effect types PassiveSystem implements (GDD Core Rule 11b).
+const PASSIVE_EFFECT_TYPES := ["debuff_target_stat", "burst_damage", "thorns_damage", "lifesteal", "force_double",
+		"ignore_defender_terrain", "survive_once", "flat_self_heal", "grant_target_exp", "adjacency_aura_avoid",
+		"extended_range", "suppress_retaliation"]
+const GROWTH_STAT_KEYS := ["hp", "str", "mag", "skill", "speed", "luck", "def", "res", "atk", "skl", "spd"]
+## F-OBJ: the GDD objective enum (same list as ObjectiveBase.TYPES).
+const OBJECTIVE_TYPES := ["elimination", "protect", "escort", "retrieve", "seize"]
 const EVENT_TRIGGERS := ["enter_zone", "leave_zone", "pickup", "unit_dead", "turn_start", "turn_end", "talk", "faction_change"]
 const EVENT_ACTIONS := ["spawn", "dialogue", "change_team", "set_flag", "win", "lose"]
 const DIFFICULTIES := ["story", "normal", "hard", "nightmare"]
@@ -108,6 +115,7 @@ func run_checks(layer: String) -> void:
 	check_dialogues()
 	check_bonds()
 	check_reconcile_keys()
+	check_translations()
 	print("pass %s: %d errors, %d warnings" % [layer, errors - int(before["e"]), warnings - int(before["w"])])
 
 
@@ -141,7 +149,8 @@ func check_rules() -> void:
 			_err("rules: rewind_per_difficulty missing difficulty '%s'" % difficulty)
 		if not casualty_table.has(difficulty):
 			_err("rules: casualty_by_difficulty missing difficulty '%s'" % difficulty)
-		elif String(casualty_table[difficulty]) not in ["temp_injury", "permadeath", "none"]:
+		# F-CAS: there is no permadeath any more.
+		elif String(casualty_table[difficulty]) not in ["temp_injury", "sit_out", "none"]:
 			_err("rules: casualty value '%s' invalid for '%s'" % [casualty_table[difficulty], difficulty])
 	var enemy_mult: Dictionary = DataRegistry.rule("enemy_stat_multiplier_by_difficulty", {})
 	for difficulty in DIFFICULTIES:
@@ -151,12 +160,87 @@ func check_rules() -> void:
 		var mult := float(enemy_mult.get(difficulty, 1.0))
 		if mult < 1.0 or mult > 2.0:
 			_err("rules: enemy_stat_multiplier '%s' out of [1.0, 2.0]" % difficulty)
+	var bonus_levels: Dictionary = DataRegistry.rule("enemy_bonus_levels_by_difficulty", {})
+	for difficulty in DIFFICULTIES:
+		if not bonus_levels.has(difficulty):
+			_err("rules: enemy_bonus_levels_by_difficulty missing '%s'" % difficulty)
+		elif int(bonus_levels[difficulty]) < 0:
+			_err("rules: enemy_bonus_levels '%s' < 0" % difficulty)
+	# F-AFTER: the placeholder aftermath scenes exist.
+	var aftermath: Dictionary = DataRegistry.rule("aftermath_dialogue_ids", {})
+	for key in ["victory", "persuaded", "engaged"]:
+		if DataRegistry.get_dialogue(String(aftermath.get(key, ""))) == null:
+			_err("rules: aftermath_dialogue_ids '%s' names no dialogue" % key)
+	# F-EXP: EXP/level numbers must keep the level-up loop meaningful; caps use GDD stat keys.
+	if int(DataRegistry.rule("exp_per_action", 25)) < 0:
+		_err("rules: exp_per_action < 0")
+	if int(DataRegistry.rule("exp_per_level", 100)) <= 0:
+		_err("rules: exp_per_level must be > 0")
+	if int(DataRegistry.rule("level_cap", 20)) < 1:
+		_err("rules: level_cap must be >= 1")
+	var stat_caps: Dictionary = DataRegistry.rule("stat_caps", {})
+	for stat_key in stat_caps:
+		if str(stat_key) not in GROWTH_STAT_KEYS:
+			_err("rules: stat_caps unknown stat '%s'" % str(stat_key))
+	# F-PAS: every catalog entry names an effect type the code implements.
+	var catalog: Dictionary = DataRegistry.rule("passive_catalog", {})
+	for passive_id in catalog:
+		var effect := String((catalog[passive_id] as Dictionary).get("effect_type", ""))
+		if effect not in PASSIVE_EFFECT_TYPES:
+			_err("rules: passive '%s' has unknown effect_type '%s'" % [passive_id, effect])
 	# Bond bonus constraint from the deck: total adjacent bonus caps at +16.
 	var bonuses: Dictionary = DataRegistry.rule("bond_bonus_by_rank", {})
 	var cap := int(DataRegistry.rule("max_adjacent_bond_bonus", 16))
 	for rank in bonuses:
 		if int(bonuses[rank]) > cap:
 			_err("rules: bond bonus rank '%s' (%d) exceeds max_adjacent_bond_bonus %d" % [rank, int(bonuses[rank]), cap])
+
+
+## I18N: every UI string needs text in every language column; passive names and skill
+## display names are UI keys too.
+func check_translations() -> void:
+	var table: Dictionary = DataRegistry.i18n_table()
+	if table.is_empty():
+		_err("i18n: data/i18n/strings.csv missing or empty")
+		return
+	for locale in ["en", "vi"]:
+		if locale not in DataRegistry.i18n_locales():
+			_err("i18n: no '%s' column" % locale)
+	for key in table:
+		for locale in DataRegistry.i18n_locales():
+			if String((table[key] as Dictionary).get(locale, "")).strip_edges() == "":
+				_err("i18n: '%s' has no %s text" % [key, locale])
+	var catalog: Dictionary = DataRegistry.rule("passive_catalog", {})
+	for passive_id in catalog:
+		var name := String((catalog[passive_id] as Dictionary).get("name", ""))
+		if not table.has(name):
+			_err("i18n: passive '%s' name '%s' has no translation row" % [passive_id, name])
+	for skill_id in DataRegistry.all_ids("skills"):
+		var skill := DataRegistry.get_data("skills", skill_id)
+		if String(skill.display_name) != "" and not table.has(String(skill.display_name)):
+			_err("i18n: skill '%s' display name '%s' has no translation row" % [skill_id, skill.display_name])
+
+
+## F-OBJ: each objective type's required params (GDD Core Rules 10-14).
+func _check_objective_params(map_id: String, cfg: Dictionary) -> void:
+	var p: Dictionary = cfg.get("params", {})
+	match String(cfg.get("type", "")):
+		"protect":
+			if int(p.get("survive_enemy_phases", 0)) <= 0:
+				_err("map %s: protect needs survive_enemy_phases > 0" % map_id)
+			if String(p.get("unit_id", "")) == "" and not p.has("zone_x"):
+				_err("map %s: protect needs a unit_id or a zone" % map_id)
+		"escort":
+			if String(p.get("npc_unit_id", "")) == "":
+				_err("map %s: escort needs npc_unit_id" % map_id)
+			if p.has("target_cell_x") == (int(p.get("turns_required", 0)) > 0):
+				_err("map %s: escort needs exactly one of a destination tile or turns_required" % map_id)
+		"retrieve":
+			if String(p.get("item_id", "")) == "":
+				_err("map %s: retrieve needs item_id" % map_id)
+		"seize":
+			if int(p.get("hold_enemy_phases", 0)) <= 0 or not p.has("control_x"):
+				_err("map %s: seize needs control_x/y and hold_enemy_phases > 0" % map_id)
 
 
 func check_classes() -> void:
@@ -179,6 +263,15 @@ func check_classes() -> void:
 		for skill_id in c.skill_ids:
 			if DataRegistry.get_data("skills", String(skill_id)) == null:
 				_err("class %s: unknown skill %s" % [id, skill_id])
+		# F-PAS: the class passive must exist in rules_config.passive_catalog.
+		if String(c.passive_id) != "" and not (DataRegistry.rule("passive_catalog", {}) as Dictionary).has(String(c.passive_id)):
+			_err("class %s: unknown passive_id '%s'" % [id, c.passive_id])
+		# F-EXP: class growth table (GDD Authored Growth Rate Table) — known stats, 0–100%.
+		for key in c.growths:
+			if str(key) not in GROWTH_STAT_KEYS:
+				_err("class %s: unknown growths key '%s'" % [id, str(key)])
+			elif int(c.growths[key]) < 0 or int(c.growths[key]) > 100:
+				_err("class %s: growth '%s' = %d is outside 0–100" % [id, str(key), int(c.growths[key])])
 
 
 const SHARED_UNIT_STAT_KEYS := ["hp", "def", "res"]
@@ -203,8 +296,15 @@ func check_units() -> void:
 	_ids("units")
 	for id in DataRegistry.all_ids("units"):
 		var u := DataRegistry.get_unit(id)
-		if DataRegistry.get_battle_class(String(u.class_id)) == null:
+		var unit_class := DataRegistry.get_battle_class(String(u.class_id))
+		if unit_class == null:
 			_err("unit %s: unknown class %s" % [id, u.class_id])
+		elif not bool(u.in_roster) and int(u.level) > 1 and unit_class.growths.is_empty() and u.growths.is_empty():
+			# F-ELV: a levelled enemy needs a growth table, or its level silently does nothing.
+			_err("unit %s: level %d but class %s has no growth rates" % [id, int(u.level), u.class_id])
+		elif bool(u.in_roster) and unit_class.growths.is_empty() and u.growths.is_empty():
+			# F-EXP: without a class table (or unit fallback) level-ups raise nothing.
+			_warn("unit %s: no growth rates (class %s has no table)" % [id, u.class_id])
 		var strict := _is_strict_layer(u)
 		if not strict and DataRegistry.get_faction(String(u.faction_id)) == null:
 			# Demo overlay ships its own sideless faction; base units must resolve theirs.
@@ -232,6 +332,9 @@ func check_units() -> void:
 		if String(u.priority_target_id) != "" and DataRegistry.get_unit(String(u.priority_target_id)) == null:
 			_err("unit %s: unknown priority target %s" % [id, u.priority_target_id])
 		# T2.9: carried item slots cap.
+		# F-AI: only the profiles the enemy AI knows.
+		if String(u.ai_profile) not in ["", "StandardAggressive", "Raider", "ProtectPersuade"]:
+			_err("unit %s: unknown ai_profile '%s'" % [id, u.ai_profile])
 		if u.carried_items.size() > int(DataRegistry.rule("max_item_slots", 2)):
 			_err("unit %s: carried %d items, cap is %d" % [id, u.carried_items.size(), int(DataRegistry.rule("max_item_slots", 2))])
 		for item_id in u.carried_items:
@@ -299,6 +402,18 @@ func check_reconcile_keys() -> void:
 		var f := DataRegistry.get_faction(faction_id)
 		if f == null or String(f.remnant_id) == "":
 			continue
+		# F-BAD: threshold 0 means the bar is red from the start - every victory would end badly.
+		if int(f.reconcile.get("kill_threshold", 0)) <= 0:
+			_warn("faction %s: kill_threshold 0 - any victory on its maps triggers the bad ending" % faction_id)
+		if String(f.bad_ending_dialogue_id) != "" and DataRegistry.get_dialogue(String(f.bad_ending_dialogue_id)) == null:
+			_err("faction %s: unknown bad_ending_dialogue_id %s" % [faction_id, f.bad_ending_dialogue_id])
+		# F-AFTER: the faction's aftermath scenes must exist.
+		var scene_ids: Array = [String(f.persuaded_dialogue_id)] + Array(f.engaged_dialogue_ids)
+		for scene_id in scene_ids:
+			if String(scene_id) != "" and DataRegistry.get_dialogue(String(scene_id)) == null:
+				_err("faction %s: unknown aftermath dialogue %s" % [faction_id, scene_id])
+		# F-PCOND (AC-PS9b): a valid condition record, naming a real unit of this faction.
+		_check_persuasion_condition("faction %s" % faction_id, faction_id, f.reconcile.get("persuasion_condition", {}))
 		var known: Array = keys_by_faction.get(faction_id, [])
 		for ev in f.reconcile.get("required_events", []):
 			if str(ev) not in known:
@@ -306,6 +421,18 @@ func check_reconcile_keys() -> void:
 
 
 func check_items() -> void:
+	# F-ITEM: the shop only sells known consumables with a price; gold rewards are not negative.
+	# Only a campaign with a shop sells anything (the legacy base layer has no consumables).
+	var catalog: Array = DataRegistry.rule("shop_catalog", []) if bool(DataRegistry.rule("shop_enabled", false)) else []
+	for item_id in catalog:
+		var sold := DataRegistry.get_item(String(item_id))
+		if sold == null:
+			_err("rules: shop_catalog item '%s' is not in the catalog" % item_id)
+		elif not sold.is_consumable() or int(sold.price) <= 0:
+			_err("rules: shop_catalog item '%s' must be a consumable with a price > 0" % item_id)
+	for key in ["gold_per_victory", "gold_per_persuasion", "gold_retrieve_bonus"]:
+		if int(DataRegistry.rule(key, 0)) < 0:
+			_err("rules: %s < 0" % key)
 	_ids("items")
 	for id in DataRegistry.all_ids("items"):
 		var item := DataRegistry.get_data("items", id)
@@ -378,6 +505,8 @@ func check_maps() -> void:
 				_err("map %s: unknown objective type '%s'" % [id, cfg.get("type", "?")])
 			elif ObjectiveBase.create(cfg) == null:
 				_err("map %s: objective plugin failed (type %s)" % [id, cfg.get("type", "?")])
+			else:
+				_check_objective_params(id, cfg)
 		for cfg in m.fail_conditions:
 			if String(cfg.get("type", "")) not in OBJECTIVE_TYPES:
 				_err("map %s: unknown fail condition type '%s'" % [id, cfg.get("type", "?")])
@@ -462,6 +591,8 @@ func _check_map_strict(id: String, m: Resource) -> void:
 		_err("map %s: key_unit_id unknown" % id)
 	if String(m.faction.get("faction_id", "")) != "" and DataRegistry.get_faction(String(m.faction.get("faction_id"))) == null:
 		_err("map %s: faction_id unknown" % id)
+	elif String(m.faction.get("faction_id", "")) != "":
+		_check_persuasion_condition("map %s" % id, String(m.faction.get("faction_id")), m.faction.get("persuasion_condition", {}))
 
 
 func _cell_in_map(cell: Vector2i, rows: Array) -> bool:
@@ -522,6 +653,13 @@ func check_bonds() -> void:
 	_ids("bonds")
 	for id in DataRegistry.all_ids("bonds"):
 		var b := DataRegistry.get_data("bonds", id)
+		# P-11 starting state: a normal rank only, with at least that rank's points.
+		var start_rank := String(b.start_rank)
+		if start_rank != "":
+			if start_rank not in ["C", "B", "A"]:
+				_err("bond %s: start_rank must be C, B or A (S needs the in-game lock)" % id)
+			elif int(b.start_points) < int(b.scene_thresholds.get(start_rank, 0)):
+				_err("bond %s: start_points %d below the %s threshold" % [id, int(b.start_points), start_rank])
 		if DataRegistry.get_unit(String(b.unit_a)) == null or DataRegistry.get_unit(String(b.unit_b)) == null:
 			_err("bond %s: unknown unit(s)" % id)
 		for rank in b.scene_dialogue_ids:
@@ -532,3 +670,38 @@ func check_bonds() -> void:
 		for rank_key in b.scene_thresholds:
 			if not b.scene_dialogue_ids.has(rank_key) or String(b.scene_dialogue_ids[rank_key]) == "":
 				_err("bond %s: rank %s has a threshold but no scene dialogue id" % [id, rank_key])
+		# F-BOND: thresholds strictly rise C < B < A; story gates name real chapters.
+		var prev := 0
+		for rank_key in ["C", "B", "A"]:
+			if b.scene_thresholds.has(rank_key):
+				if int(b.scene_thresholds[rank_key]) <= prev:
+					_err("bond %s: threshold %s must be above the previous rank" % [id, rank_key])
+				prev = int(b.scene_thresholds[rank_key])
+		for rank_key in b.scene_earliest_chapter:
+			var chapter_id := String(b.scene_earliest_chapter[rank_key])
+			if chapter_id != "" and DataRegistry.get_data("chapters", chapter_id) == null:
+				_err("bond %s: scene %s gate names unknown chapter %s" % [id, rank_key, chapter_id])
+		if String(b.s_milestone_chapter_id) != "" and DataRegistry.get_data("chapters", String(b.s_milestone_chapter_id)) == null:
+			_err("bond %s: S gate names unknown chapter %s" % [id, b.s_milestone_chapter_id])
+		# F-BOND S: a whitelisted S pair needs its S scene.
+		if bool(b.s_eligible) and String(b.scene_dialogue_ids.get("S", "")) == "":
+			_err("bond %s: s_eligible but no S scene dialogue" % id)
+
+
+## F-PCOND: {} (none), named_unit_alive {unit_id of this faction} or units_spared_pct {threshold 0-1}.
+func _check_persuasion_condition(where: String, faction_id: String, cond: Variant) -> void:
+	if not (cond is Dictionary) or (cond as Dictionary).is_empty():
+		return
+	match String(cond.get("type", "")):
+		"named_unit_alive":
+			var ud := DataRegistry.get_unit(String(cond.get("unit_id", "")))
+			if ud == null:
+				_err("%s: named_unit_alive names unknown unit '%s'" % [where, cond.get("unit_id", "")])
+			elif String(ud.faction_id) != faction_id:
+				_err("%s: named_unit_alive unit '%s' is not in faction %s" % [where, cond.get("unit_id", ""), faction_id])
+		"units_spared_pct":
+			var t := float(cond.get("threshold", -1.0))
+			if t < 0.0 or t > 1.0:
+				_err("%s: units_spared_pct threshold must be 0-1" % where)
+		_:
+			_err("%s: unknown persuasion_condition type '%s'" % [where, cond.get("type", "")])

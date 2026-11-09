@@ -17,6 +17,9 @@ var player_sides: Array = ["player"]
 func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: int = -1) -> void:
 	state = BattleState.new()
 	state.setup(p_map, deploy, seed_value)
+	state.difficulty = difficulty
+	_drop_terminal_factions()
+	_load_prior_kills()
 	rewind = SnapshotStack.new()
 	objectives.clear()
 	for cfg in state.objectives_config:
@@ -26,6 +29,42 @@ func setup(p_map: Resource, deploy: Dictionary, difficulty: String, seed_value: 
 	rewind_budget = SnapshotStack.budget_for_difficulty(difficulty)
 	rewind_uses_left = rewind_budget
 	player_sides = ["player"]
+	# F-PAS: turn 1 opens on the player phase (Magician burst readiness etc.).
+	PassiveSystem.on_phase_started(state, "player")
+	# F-ELV first (level gains on the base stats), then F-DIFF's multiplier on the result.
+	var bonus_levels := int(DataRegistry.rule("enemy_bonus_levels_by_difficulty", {}).get(difficulty, 0))
+	var level_cap := int(DataRegistry.rule("level_cap", 20))
+	for u in state.units.values():
+		if u.side == "enemy":
+			u.level = mini(u.level + bonus_levels, level_cap)   # Hard / Nightmare: +levels
+			u.apply_enemy_levels()
+	_scale_enemies(difficulty)
+
+
+## F-FST: a faction already persuaded / unpersuadable in the campaign is not tracked again
+## (GDD Persuasion Core Rule 1): no kill count, no pressure chip, no evaluation, no bad ending.
+func _drop_terminal_factions() -> void:
+	for faction_id in state.reconcile_state.keys():
+		if GameState.is_faction_terminal(String(faction_id)):
+			state.reconcile_state.erase(faction_id)
+
+
+## F-PS3: kills committed by earlier victories join this battle as a constant per faction
+## (part of the snapshot, never changed in battle, so rewind cannot touch them).
+func _load_prior_kills() -> void:
+	for faction_id in state.reconcile_state:
+		state.reconcile_state[faction_id]["prior_kills"] = int(GameState.faction_kill_counts.get(String(faction_id), 0))
+
+
+## F-DIFF: enemies only, once at deploy, multiplier per difficulty tier (unknown tier = 1.0).
+func _scale_enemies(difficulty: String) -> void:
+	var table: Dictionary = DataRegistry.rule("enemy_stat_multiplier_by_difficulty", {})
+	var multiplier := float(table.get(difficulty, 1.0))
+	if is_equal_approx(multiplier, 1.0):
+		return
+	for u in state.units.values():
+		if u.side == "enemy":
+			u.apply_enemy_scaling(multiplier)
 
 
 ## Applies one player/AI command: the command's check() runs first (no snapshot and no
@@ -36,11 +75,16 @@ func commit(kind: String, payload: Dictionary) -> bool:
 	var err := _check(kind, payload)
 	if err != "":
 		return false
-	push_snapshot(kind)
+	push_snapshot(kind, String(payload.get("unit_id", "")))
+	var actor: UnitState = state.units.get(String(payload.get("unit_id", "")), null)
+	var was_acted: bool = actor != null and actor.acted
 	var ok := _apply(kind, payload)
 	if not ok:
 		rewind.frames.pop_back()
 		return false
+	# F-PAS / F-CC11: debuffs count down on each of the unit's own Ready -> Acted transitions.
+	if actor != null and not was_acted and actor.acted:
+		PassiveSystem.on_unit_acted(actor)
 	_on_state_changed()
 	return true
 
@@ -63,6 +107,12 @@ func _check(kind: String, payload: Dictionary) -> String:
 			return SkillCommand.check(state, unit, String(payload["skill_id"]), state.units[String(payload["target_id"])])
 		"wait":
 			return WaitCommand.check(state, unit)
+		"use_item":
+			return UseItemCommand.check(state, unit, String(payload.get("item_id", "")))
+		"trade":
+			return TradeCommand.check(state, unit, state.units.get(String(payload.get("partner_id", "")), null), String(payload.get("give_item", "")), String(payload.get("take_item", "")))
+		"visit":
+			return VisitCommand.check(state, unit)
 		"end_phase":
 			return ""
 		_:
@@ -88,6 +138,12 @@ func _apply(kind: String, payload: Dictionary) -> bool:
 			var unit5: UnitState = state.units[String(payload["unit_id"])]
 			WaitCommand.apply(state, unit5)
 			return true
+		"use_item":
+			return UseItemCommand.apply(state, state.units[String(payload["unit_id"])], String(payload["item_id"]))
+		"trade":
+			return TradeCommand.apply(state, state.units[String(payload["unit_id"])], state.units[String(payload["partner_id"])], String(payload.get("give_item", "")), String(payload.get("take_item", "")))
+		"visit":
+			return VisitCommand.apply(state, state.units[String(payload["unit_id"])])
 		"end_phase":
 			if state.phase == BattleState.PHASE_PLAYER:
 				dispatch_objective_event("player_phase_ended")
@@ -102,6 +158,10 @@ func commit_ai_plan(plan: Dictionary) -> bool:
 	if plan.is_empty():
 		return false
 	var unit: UnitState = state.units[String(plan["unit_id"])]
+	# F-AI: remember the state this turn's evaluation chose (the Restraint Rule reads it, also
+	# for counters during the next Player Phase).
+	if plan.has("ai_context"):
+		unit.ai_context = String(plan["ai_context"])
 	var move_cell: Variant = plan.get("move_cell", Vector2i(-1, -1))
 	var moved_ok := true
 	if move_cell is Vector2i and move_cell != unit.pos:
@@ -162,7 +222,7 @@ func run_next_npc_plan() -> Dictionary:
 func _npc_goals() -> Dictionary:
 	var out := {}
 	for obj in objectives:
-		if obj.identify() == "escort":
+		if obj.identify() == "escort" and obj.is_destination():
 			var npc_id: String = String(obj._params.get("npc_unit_id", ""))
 			if npc_id != "":
 				out[npc_id] = obj.target_cell()
@@ -178,10 +238,27 @@ func clear_acted_flags() -> void:
 	for u in state.units.values():
 		u.acted = false
 		u.moved = false
+		u.has_traded = false   # F-ITEM: one Trade per phase
 
 
-func push_snapshot(label: String) -> void:
-	rewind.push(state, label)
+func push_snapshot(label: String, unit_id: String = "") -> void:
+	rewind.push(state, label, unit_id)
+
+
+## F-MOVE (designer 09-11-2026): a player's move stays provisional until an action confirms it.
+## Undoes the newest command when it is this unit's move and nothing has followed it: the state
+## goes back to the snapshot taken before the move and that frame is dropped, so no Rewind use is
+## spent and it never shows as a rewind point. false = nothing to cancel (or already locked in).
+func cancel_move(unit_id: String) -> bool:
+	var unit: UnitState = state.units.get(unit_id, null)
+	if unit == null or not unit.moved or unit.acted or not state.battle_over.is_empty() or not rewind.has_frames():
+		return false
+	var last: Dictionary = rewind.frames.back()
+	if String(last.get("label", "")) != "move" or String(last.get("unit_id", "")) != unit_id:
+		return false
+	rewind.restore_to(state, rewind.frames.size() - 1)
+	_on_state_changed()
+	return true
 
 
 ## Rewinds to the frame chosen by the player; consumes one use if the budget is finite.
@@ -210,12 +287,34 @@ func _on_state_changed() -> void:
 		_check_battle_end()
 	if not state.battle_over.is_empty():
 		var result: Dictionary = state.battle_over
-		if result.get("status", "") == "win":
+		var won: bool = result.get("status", "") == "win"
+		if won and not result.has("reconcile"):
 			ReconcileSystem.record_spared_units(state)
 			result["reconcile"] = ReconcileSystem.evaluate(state)
-			# T11/D08: the post-battle screen reads earned exp and level-ups from the result.
+			# F-BAD: a red faction at chapter end turns this victory into the bad ending.
+			result["bad_ending_factions"] = ReconcileSystem.unpersuadable_factions(state)
+			# F-ITEM: the gold this victory pays (merged into the campaign with the rest of it).
+			result["gold"] = GoldRewards.on_victory(state, result["reconcile"])
+		# F-DRS: lock the restraint result once; a victory hands the bonus EXP to the squad
+		# before the EXP lines below are read.
+		if not result.has("restraint"):
+			result["restraint"] = DualRestraint.result(state)
+			if won:
+				DualRestraint.grant_bonus_exp(state, int(result["restraint"]["bonus_exp"]))
+		# F-EXP: the post-battle screen lists earned EXP and level-ups whenever they will be
+		# merged — every victory (and a defeat only if action_exp_commits_on_defeat is turned on).
+		if won or bool(DataRegistry.rule("action_exp_commits_on_defeat", false)):
 			result["exp"] = state.exp_gained.duplicate()
 			result["level_ups"] = state.level_ups.duplicate()
+		# F-UI step 6: the summary's mission and squad cards (turn ended vs par, who deployed).
+		if not result.has("squad"):
+			result["turn"] = state.turn
+			result["turn_par"] = int(state.map.turn_par) if state.map != null and "turn_par" in state.map else 0
+			var squad: Array = []
+			for u in state.units.values():
+				if u.side == "player":
+					squad.append({"unit_id": String(u.id), "alive": bool(u.alive)})
+			result["squad"] = squad
 		ResultStore.last_result = result
 
 
@@ -272,6 +371,7 @@ func active_objectives_progress() -> Array:
 func _advance_phase() -> bool:
 	if state.phase == BattleState.PHASE_PLAYER:
 		state.phase = BattleState.PHASE_ENEMY
+		PassiveSystem.on_phase_started(state, "enemy")
 	EventBus.phase_changed.emit(state.phase, state.turn)
 	return true
 
@@ -287,13 +387,20 @@ func advance_after_enemy_phase() -> void:
 	dispatch_objective_event("enemy_phase_ended")
 	state.phase = BattleState.PHASE_NPC
 	EventBus.phase_changed.emit(state.phase, state.turn)
+	# F-OBJ: enemy-phase counters (protect / timed escort / seize) can finish the battle here,
+	# before the next player phase.
+	if state.battle_over.is_empty():
+		_on_state_changed()
 
 
 ## Called by the scene when the NPC phase finishes: back to player, new turn.
 func advance_to_player_phase() -> void:
+	if not state.battle_over.is_empty():
+		return   # the battle already ended at the close of the enemy phase
 	state.turn += 1
 	state.phase = BattleState.PHASE_PLAYER
 	clear_acted_flags()
+	PassiveSystem.on_phase_started(state, "player")
 	# Turn-start snapshot: rewinding right at the start of a player turn is always valid.
 	push_snapshot("turn_start")
 	EventBus.phase_changed.emit(state.phase, state.turn)

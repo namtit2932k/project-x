@@ -20,13 +20,49 @@ var s_lock_unit: String = ""                      # unit that confirmed the S lo
 ## reconcile_outcomes: chapter_id -> {faction_id: {persuaded: bool, kills: int, events: Array}}
 var reconcile_outcomes: Dictionary = {}
 var completed_chapters: Dictionary = {}           # chapter_id -> true
+## F-PS3 persistent_kill_count: faction_id -> kills committed by earlier victories (never rewound).
+var faction_kill_counts: Dictionary = {}
+## F-FST GDD Faction Engagement State: faction_id -> "engaged" | "persuaded" | "unpersuadable"
+## (missing = Unengaged). Written by victories only; persuaded/unpersuadable are terminal.
+var faction_states: Dictionary = {}
+## F-ITEM: campaign gold (never negative). Roster entries also carry "items" (max_item_slots).
+var gold: int = 0
+## F-AFTER (GDD Narrative Rule 6c): how many "pressure continues" beats each faction has had.
+var pressure_continues_count: Dictionary = {}
+## F-AUTOSAVE (GDD Narrative Rule 1): story checkpoint, +1 after each victory's aftermath.
+var campaign_checkpoint: int = 0
+const TERMINAL_FACTION_STATES: Array[String] = ["persuaded", "unpersuadable"]
 ## Story branch id (work in progress: filled by event/dialogue choices; saved with the game).
 var story_branch: String = ""
 ## Story flags set by DialoguePlayer lines with set_flag (D09); the same dictionary is
 ## saved: reading an old save yields an empty flags table for missing keys.
 var story_flags: Dictionary = {}
-## options: {volume: float, fullscreen: bool}
-var options: Dictionary = {"volume": 0.8, "fullscreen": false}
+## options: {volume: float, fullscreen: bool, language: String}
+var options: Dictionary = {"volume": 0.8, "fullscreen": false, "language": DEFAULT_LANGUAGE}
+
+## I18N: languages the UI ships in, shown by their own name (never translated).
+const LANGUAGES := {"en": "English", "vi": "Tiếng Việt"}
+const DEFAULT_LANGUAGE := "en"
+
+
+func _ready() -> void:
+	# DataRegistry (earlier autoload) has registered the translations by now.
+	apply_language()
+
+
+## Current UI language code.
+func language() -> String:
+	return String(options.get("language", DEFAULT_LANGUAGE))
+
+
+## Switches the UI language and applies it right away (screens built afterwards use it).
+func set_language(code: String) -> void:
+	options["language"] = code if LANGUAGES.has(code) else DEFAULT_LANGUAGE
+	apply_language()
+
+
+func apply_language() -> void:
+	TranslationServer.set_locale(language())
 
 
 func new_game() -> void:
@@ -44,7 +80,12 @@ func new_game() -> void:
 	s_lock_unit = ""
 	reconcile_outcomes.clear()
 	completed_chapters.clear()
-	options = {"volume": 0.8, "fullscreen": false}
+	faction_kill_counts.clear()
+	faction_states.clear()
+	gold = 0
+	pressure_continues_count.clear()
+	campaign_checkpoint = 0
+	# Options (volumes, window mode, language) are player settings: a new campaign keeps them.
 
 
 ## Register the roster of the active campaign (F4.2): only units tagged for it (or
@@ -55,7 +96,44 @@ func build_roster() -> void:
 		var ud := DataRegistry.get_unit(unit_id)
 		if ud == null or not _unit_in_campaign(ud):
 			continue
-		roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0}
+		roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0, "items": starting_items(String(unit_id))}
+	_apply_starting_bonds()
+
+
+## F-DLOCK (GDD Difficulty Rule 2): tiers the camp may switch between - Story / Normal / Hard,
+## none at all once the campaign is on Nightmare (chosen only at New campaign, permanently).
+const DIFFICULTIES_ALL: Array[String] = ["story", "normal", "hard", "nightmare"]
+
+
+func camp_difficulty_choices() -> Array[String]:
+	if difficulty == "nightmare":
+		return []
+	return ["story", "normal", "hard"]
+
+
+## The tier after the current one in the camp cycle (the current one when locked).
+func next_camp_difficulty() -> String:
+	var choices := camp_difficulty_choices()
+	if choices.is_empty():
+		return difficulty
+	return choices[(choices.find(difficulty) + 1) % choices.size()]
+
+
+## F-CAS: a unit that fell on the last map (Hard / Nightmare) cannot be picked for this one.
+func is_resting(unit_id: String) -> bool:
+	return int((roster.get(unit_id, {}) as Dictionary).get("rest", 0)) > 0
+
+
+## F-ITEM: a unit's data-authored items, trimmed to the slot limit.
+func starting_items(unit_id: String) -> Array:
+	var ud := DataRegistry.get_unit(unit_id)
+	var out: Array = []
+	if ud == null:
+		return out
+	for item_id in ud.carried_items:
+		if out.size() < int(DataRegistry.rule("max_item_slots", 2)):
+			out.append(String(item_id))
+	return out
 
 
 func _unit_in_campaign(ud: Resource) -> bool:
@@ -88,9 +166,20 @@ func is_true_ending_eligible() -> bool:
 		var outcomes: Dictionary = reconcile_outcomes.get(chapter_id, {})
 		for faction_id in remnant_factions_of(chapter):
 			var entry: Dictionary = outcomes.get(String(faction_id), {})
-			if not bool(entry.get("persuaded", false)):
+			# F-FST: a faction persuaded in a later chapter counts as persuaded too.
+			if not bool(entry.get("persuaded", false)) and faction_state(String(faction_id)) != "persuaded":
 				return false
 	return true
+
+
+## F-FST: "unengaged" | "engaged" | "persuaded" | "unpersuadable".
+func faction_state(faction_id: String) -> String:
+	return String(faction_states.get(faction_id, "unengaged"))
+
+
+## F-FST: persuaded / unpersuadable never change again and are ignored by later battles.
+func is_faction_terminal(faction_id: String) -> bool:
+	return faction_state(faction_id) in TERMINAL_FACTION_STATES
 
 
 ## Derives the chapter's remnant factions from its map placements (unit defs), so no
@@ -144,7 +233,26 @@ func merge_roster_with_data() -> void:
 	for unit_id in DataRegistry.all_ids("units"):
 		var ud := DataRegistry.get_unit(unit_id)
 		if ud != null and bool(ud.in_roster) and _unit_in_campaign(ud) and not roster.has(unit_id):
-			roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0}
+			roster[unit_id] = {"level": int(ud.level), "exp": 0, "alive": true, "defeats": 0, "items": starting_items(String(unit_id))}
+
+
+## P-11: pairs that start a campaign already bonded (BondData.start_rank / start_points),
+## only when both members are in this campaign's roster.
+func _apply_starting_bonds() -> void:
+	for pair_id in DataRegistry.all_ids("bonds"):
+		var pair := DataRegistry.get_data("bonds", pair_id)
+		if pair == null or String(pair.start_rank) == "" or String(pair.start_rank) == "S":
+			continue
+		if not roster.has(String(pair.unit_a)) or not roster.has(String(pair.unit_b)):
+			continue
+		bond_ranks[pair_id] = String(pair.start_rank)
+		bond_points[pair_id] = maxi(int(bond_points.get(pair_id, 0)), int(pair.start_points))
+		var seen: Array = []
+		for rank in BOND_RANKS:
+			seen.append(rank)
+			if rank == String(pair.start_rank):
+				break
+		bond_scenes_viewed[pair_id] = seen
 
 
 func bond_rank_for(pair_id: String) -> String:
@@ -164,6 +272,11 @@ func to_dict() -> Dictionary:
 		"s_lock_unit": s_lock_unit,
 		"reconcile_outcomes": reconcile_outcomes,
 		"completed_chapters": completed_chapters,
+		"faction_kill_counts": faction_kill_counts,
+		"faction_states": faction_states,
+		"gold": gold,
+		"pressure_continues_count": pressure_continues_count,
+		"campaign_checkpoint": campaign_checkpoint,
 		"story_branch": story_branch,
 		"story_flags": story_flags,
 		"options": options,
@@ -185,6 +298,20 @@ func from_dict(d: Dictionary) -> void:
 	s_lock_unit = String(d.get("s_lock_unit", ""))
 	reconcile_outcomes = d.get("reconcile_outcomes", {})
 	completed_chapters = d.get("completed_chapters", {})
+	# Saves written before F-PSI have no cumulative kills: they start from 0.
+	faction_kill_counts = d.get("faction_kill_counts", {})
+	# Saves written before F-FST: every faction reads as Unengaged.
+	faction_states = d.get("faction_states", {})
+	gold = maxi(int(d.get("gold", 0)), 0)
+	pressure_continues_count = d.get("pressure_continues_count", {})
+	campaign_checkpoint = int(d.get("campaign_checkpoint", 0))
+	# Saves written before F-ITEM: roster units start with their data-authored items.
+	for unit_id in roster:
+		if not (roster[unit_id] as Dictionary).has("items"):
+			roster[unit_id]["items"] = starting_items(String(unit_id))
 	story_branch = String(d.get("story_branch", ""))
 	story_flags = d.get("story_flags", {})
 	options = d.get("options", {"volume": 0.8, "fullscreen": false})
+	if not options.has("language"):
+		options["language"] = DEFAULT_LANGUAGE
+	apply_language()

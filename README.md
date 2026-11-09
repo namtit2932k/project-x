@@ -15,11 +15,13 @@ story scene → squad preparation → tactical battle → post-battle results �
 - Turn phases (player → enemy → NPC), Dijkstra movement over terrain costs
 - Move range / attack range overlays (attack range drawn from the edge of the move range)
 - Forecast → confirm → placeholder combat screen (skippable; state ends identical)
-- 5 objective plugins fully data-driven: `eliminate`, `escort`, `defend`, `retrieve`, `capture` + `evacuate`
+- The 5 GDD objective types, fully data-driven: `elimination`, `protect` (unit or zone), `escort` (destination or timed), `retrieve`, `seize`
 - Bond system (designer pair list, C/B/A scenes, adjacency bonus capped +16, exclusive S lock)
 - Reconciliation system (hidden kill threshold + required in-battle events, per-faction outcome stored)
 - Rewind snapshots per confirmed action; budget by difficulty (Story ∞ / Normal 5 / Hard 3 / Nightmare 0)
 - Manual saves between battles; roster, casualties, bond ranks, chapter progress, reconcile outcomes persist
+
+UI languages: **English and Vietnamese** (Options → Language). Strings live in `data/i18n/strings.csv`.
 
 ## Requirements
 
@@ -38,15 +40,16 @@ godot --path .
 | Action | Input |
 | --- | --- |
 | Select unit (any faction shows its ranges) | Left click |
-| Move | Left click a highlighted move tile |
-| Attack / Wait / skill | Action menu after moving |
-| Forecast & confirm | Click an enemy on a red tile → ForecastPanel → Confirm |
-| Cancel (also decline Confirm) | Right click |
-| End phase | "End phase" button (bottom right) |
-| Pause menu | Esc |
+| Move | Left click a highlighted move tile — the action menu opens |
+| Stay in place | Left click the selected unit again — the action menu opens |
+| Attack / Heal / Item / Visit / Trade / Wait | Action menu after moving (or staying) |
+| Forecast & confirm | Attack → click an enemy on a red tile → ForecastPanel → Confirm |
+| Cancel / take an unconfirmed move back | Right click |
+| End phase | "End phase" button (top right); automatic once every unit has acted |
+| Pause menu | Esc or the "Pause" button (top right) |
 | Rewind (costs one use) | "Rewind" button |
 
-A unit moves **once per phase**; after moving it may attack, wait or use a skill — changing position again requires Rewind.
+A unit moves **once per phase**. Until its action is confirmed the move is provisional (right click puts it back for free); after that, changing position requires Rewind.
 
 ## Verification (headless)
 
@@ -55,16 +58,17 @@ godot --headless --path . --quit-after 5        # boot check, no script errors
 godot --headless --path . res://tools/validate_data.tscn     # data validation (0 errors expected)
 godot --headless --path . res://tests/run_tests.tscn         # rule tests (movement/combat/objectives/rewind/bond/exp/save)
 godot --headless --path . res://tests/smoke_full_battle.tscn # full battle driven by AI end-to-end
+godot --headless --path . res://tools/playtest_demo_maps.tscn # bot playtest of the 6 demo maps (report in docs/playtest/)
 godot --headless --path . res://tests/smoke_test_maps.tscn   # all five test maps, win + lose each
 godot --headless --path . res://tests/smoke_demo_maps.tscn   # six demo example maps: units, stats, objectives (F6)
 ```
 
-Current: rule tests **184/184**, full-battle smoke **21/21**, test-map smoke **10/10**, validation **0 errors**.
+Current: rule tests **656/656**, full-battle smoke **21/21**, test-map smoke **10/10**, negative validation **25/25**, validation **0 errors**. (`smoke_demo_maps` needs the gitignored `docs/reference/demo/data/battle_demo.json`.)
 
 Debug builds also get a **Test maps** entry on the main menu: every `data/maps/test_*` map
 starts a battle straight away with the default roster (no chapter loop; results never merge
-into the campaign), covering escort / defend / retrieve / capture / evacuate beside ch01's
-eliminate.
+into the campaign), covering escort / protect / retrieve / seize (and a timed escort) beside ch01's
+elimination.
 
 ## Architecture
 
@@ -89,7 +93,7 @@ tests/       headless rule tests + full-battle smoke
 docs/        how to run, technical decisions
 ```
 
-Round-2 design decisions (forecast restored, must-survive heroes, rewind `per_use` + RNG not restored, win-only merge, EXP/level-ups, story flags, Esc pause, test maps) are logged in [AGENTS.md](AGENTS.md) §7b. Still open (placeholders in data): final damage/hit/crit numbers, the final terrain table, story content, the final bond pair list & S routes, and wounded-casualty effects for non-permadeath difficulties.
+Round-2 design decisions (forecast restored, must-survive heroes, rewind `per_use` + RNG not restored, win-only merge, EXP/level-ups, story flags, pause menu, test maps) are logged in [AGENTS.md](AGENTS.md) §7b. Still open (placeholders in data): final damage/hit/crit numbers, the final terrain table, story content, the final bond pair list & S routes, and wounded-casualty effects for non-permadeath difficulties.
 
 ## Roadmap
 
